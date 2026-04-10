@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+venv_triagem/
+venv/
+.env
+
+# Firebase
+.firebase/
+*-debug.log
+
+# OS & IDE
+.DS_Store
+.vscode/
+
+# Pastas de Auditoria/Temporários
+auditoria_visual/
+scratch/
+.agents/
+.antigravity/
+scripts/playwright_profile/
+scripts/playwright_profile/
