@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+venv_triagem/
+
+# Firebase
+.firebase/
+*-debug.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.runtimeconfig.json
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Playwright & Scrapers
+auditoria_visual/
+scripts/playwright_profile/
+.auth/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# System / Agents / Temp
+.agents/
+.antigravity/
+scratch/
+npx
+test_video.py
