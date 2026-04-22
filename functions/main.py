@@ -284,3 +284,232 @@ def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
 
     except Exception as e:
         return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+
+
+@https_fn.on_request()
+def buscar_encarte_atacadao(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 2: Extração Direta (Atacadão Icoaraci).
+    Consome o catálogo via GraphQL com regionalização.
+    """
+    import base64
+    
+    url_api = "https://www.atacadao.com.br/api/graphql"
+    seller_id = "atacadaobr153" # ID da loja Belém (Icoaraci/Augusto Montenegro)
+    region_id = base64.b64encode(f"SW#{seller_id}".encode()).decode()
+    
+    channel = {
+        "salesChannel": "1",
+        "seller": seller_id,
+        "regionId": region_id
+    }
+    
+    variables = {
+        "first": 40,
+        "after": "0",
+        "sort": "score_desc",
+        "term": "", # Busca vazia traz o catálogo geral
+        "selectedFacets": [
+            {"key": "region-id", "value": region_id},
+            {"key": "channel", "value": json.dumps(channel)},
+            {"key": "locale", "value": "pt-BR"},
+            {"key": "productClusterIds", "value": "312"} # Cluster de Ofertas
+        ]
+    }
+    
+    params = {
+        "operationName": "ProductsQuery",
+        "variables": json.dumps(variables)
+    }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+    }
+
+    try:
+        response = requests.get(url_api, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        dados_puros = response.json()
+        
+        products = dados_puros.get("data", {}).get("search", {}).get("products", {}).get("edges", [])
+        itens_extraidos = []
+        
+        for p_edge in products:
+            try:
+                node = p_edge.get("node", {})
+                nome = node.get("name")
+                marca = node.get("brand", {}).get("brandName", "")
+                
+                # No GraphQL GET, o formato da imagem pode variar
+                img_data = node.get("image", [])
+                if isinstance(img_data, list) and len(img_data) > 0:
+                    imagem = img_data[0].get("url", "")
+                else:
+                    imagem = node.get("image", {}).get("url", "")
+                
+                # Pegando o preço da primeira oferta disponível
+                offers = node.get("offers", {}).get("offers", [])
+                if offers:
+                    preco = float(offers[0].get("price", 0))
+                else:
+                    preco = float(node.get("offers", {}).get("lowPrice", 0))
+                
+                if preco > 0:
+                    itens_extraidos.append({
+                        "produto": f"{nome} {marca}".strip(),
+                        "preco": preco,
+                        "unidade": "un",
+                        "categoria": "Geral",
+                        "imagem": imagem,
+                        "validade": None
+                    })
+            except:
+                continue
+
+        # --- SALVAR NO FIRESTORE ---
+        for item in itens_extraidos:
+            try:
+                salvar_produto_e_oferta(
+                    nome=item["produto"],
+                    preco=item["preco"],
+                    unidade=item["unidade"],
+                    categoria=item["categoria"],
+                    supermercado_id="atacadao-icoaraci",
+                    loja="Atacadão (Belém)",
+                    metodo="api_graphql",
+                    imagem_api=item.get("imagem", ""),
+                    validade=item.get("validade")
+                )
+            except Exception as e_save:
+                print(f"AVISO FIRESTORE - Erro ao salvar '{item['produto']}': {e_save}")
+
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": True,
+                "loja": "Atacadão (Belém)",
+                "metodo": "API GraphQL Direta",
+                "quantidade": len(itens_extraidos),
+                "itens": itens_extraidos
+            }, ensure_ascii=False),
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({"sucesso": False, "erro": str(e)}),
+            mimetype="application/json", status=500
+        )
+
+@https_fn.on_request(secrets=["GEMINI_API_KEY"])
+def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
+    """
+    NOVO: Extração automatizada via Site Oficial do Assaí.
+    Captura os IDs de campanha/cluster e processa o encarte digital.
+    """
+    client = get_gemini_client()
+    url_json = "https://www.assai.com.br/sites/default/files/static/ofertas_assai.json"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    }
+
+    try:
+        # 1. Buscar metadados da oferta (JSON)
+        id_oferta = None
+        try:
+            resp = requests.get(url_json, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                dados = resp.json()
+                for o in dados.get("ofertas", []):
+                    if "AUGUSTO MONTENEGRO" in o.get("loja", "").upper():
+                        id_oferta = o.get("id_oferta")
+                        break
+        except Exception as e_json:
+            print(f"AVISO: Falha ao ler JSON do Assaí: {e_json}")
+
+        # Fallback 1: Tentar extrair do HTML da página da loja
+        if not id_oferta:
+            try:
+                url_loja = "https://www.assai.com.br/ofertas/para/assai-augusto-montenegro"
+                resp_loja = requests.get(url_loja, headers=headers, timeout=15)
+                if resp_loja.status_code == 200:
+                    import re
+                    # Procura por campaignId e clusterId no HTML (drupalSettings)
+                    camp_match = re.search(r'"campaignId":\s*(\d+)', resp_loja.text)
+                    clust_match = re.search(r'"clusterId":\s*(\d+)', resp_loja.text)
+                    if camp_match and clust_match:
+                        campanha = camp_match.group(1)
+                        cluster = clust_match.group(1)
+                        id_oferta = f"{campanha}-{cluster}"
+            except Exception as e_html:
+                print(f"AVISO: Falha ao fazer scrape do HTML do Assaí: {e_html}")
+
+        # Fallback 2: IDs Estáticos (Última tentativa)
+        if not id_oferta:
+            campanha, cluster = "46503", "63"
+        else:
+            campanha, cluster = id_oferta.split("-")
+        
+        # 2. Montar URLs das páginas do encarte (geralmente de 1 a 6 páginas)
+        imagens_encarte = []
+        for i in range(1, 11): # Tenta até 10 páginas
+            url_img = f"https://d2q57q7k4hzryv.cloudfront.net/RPA/v3/{campanha}/campanha-{campanha}-cluster-{cluster}-pagina-{i}.jpeg"
+            
+            # Usar GET com timeout curto para verificar existência (CloudFront às vezes barra HEAD)
+            try:
+                check = requests.get(url_img, headers=headers, timeout=5, stream=True)
+                if check.status_code == 200:
+                    imagens_encarte.append(url_img)
+                else:
+                    break
+            except:
+                break
+
+        if not imagens_encarte:
+            return https_fn.Response("Nenhuma imagem de encarte encontrada para o Assaí.", status=404)
+
+        # 3. Processar via Gemini Vision
+        gemini_parts = []
+        for url in imagens_encarte:
+            img_data = requests.get(url).content
+            gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type="image/jpeg"))
+
+        prompt = """
+        Analise o encarte do Assaí Atacadista e extraia os produtos de ALIMENTOS.
+        Retorne APENAS o JSON puro no formato:
+        {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "Geral"}]}
+        """
+        gemini_parts.append(prompt)
+
+        response_gemini = client.models.generate_content(
+            model="gemini-1.5-flash", # Usando 1.5 flash para estabilidade e custo
+            contents=gemini_parts
+        )
+
+        # 4. Parse e Salvar no Firestore
+        try:
+            texto_limpo = response_gemini.text.replace("```json", "").replace("```", "").strip()
+            resultado = json.loads(texto_limpo)
+            itens = resultado.get("itens", [])
+
+            for item in itens:
+                salvar_produto_e_oferta(
+                    nome=item["produto"],
+                    preco=item["preco"],
+                    unidade=item["unidade"],
+                    categoria=item["categoria"],
+                    supermercado_id="assai",
+                    loja="Assaí Atacadista",
+                    metodo="site_tabloide",
+                    imagem_api=""
+                )
+
+            return https_fn.Response(
+                json.dumps({"sucesso": True, "loja": "Assaí", "quantidade": len(itens), "itens": itens}, ensure_ascii=False),
+                mimetype="application/json"
+            )
+        except Exception as e_parse:
+            return https_fn.Response(f"Erro no parse do Gemini: {str(e_parse)}", status=500)
+
+    except Exception as e:
+        return https_fn.Response(f"Erro no scraper do Assaí: {str(e)}", status=500)
