@@ -957,3 +957,331 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             json.dumps({"sucesso": False, "erro": str(e)}),
             mimetype="application/json", status=500
         )
+@https_fn.on_request(timeout_sec=300, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
+def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase Especial: Visão Computacional (Gemini 3.1 Flash Lite).
+    Recebe um link de imagem (Instagram/WhatsApp), processa via IA e retorna JSON.
+    """
+    client = get_gemini_client()
+    
+    try:
+        # 1. Pegar a URL da imagem da requisição
+        link_img = ""
+        frames_b64 = []
+        supermercado_id = ""
+        post_id = ""
+        loja_nome = ""
+
+        if req.method == 'POST':
+            data = req.get_json(silent=True) or {}
+            link_img = data.get("url")
+            frames_b64 = data.get("frames_b64", [])
+            supermercado_id = data.get("supermercado_id", "")
+            post_id = data.get("post_id", "")
+            loja_nome = data.get("loja", "Extração via Visão (IA)")
+        else:
+            link_img = req.args.get("url")
+            supermercado_id = req.args.get("supermercado_id", "")
+            post_id = req.args.get("post_id", "")
+            loja_nome = req.args.get("loja", "Extração via Visão (IA)")
+
+        # --- TRAVA DE ECONOMIA (Check de Post ID antes da IA) ---
+        if post_id and supermercado_id:
+            hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Buscamos todas do dia e filtramos o post_id em memória para EVITAR ERRO DE ÍNDICE
+            docs_hoje = db.collection("ofertas")\
+                .where("criado_em", ">=", hoje_inicio)\
+                .stream()
+            
+            post_ja_existe = any(d.to_dict().get("post_id") == post_id for d in docs_hoje)
+            
+            if post_ja_existe:
+                print(f"💰 ECONOMIA: Post {post_id} já foi processado hoje. Pulando IA.")
+                return https_fn.Response(
+                    json.dumps({
+                        "sucesso": True, 
+                        "msg": "Post já processado hoje. (Economia de IA)",
+                        "status": "ignorado_duplicado",
+                        "resumo": {"extraidos": 0, "novos_salvos": 0, "duplicados": 0}
+                    }, ensure_ascii=False),
+                    mimetype="application/json"
+                )
+
+        if not link_img and not frames_b64:
+            return https_fn.Response(
+                json.dumps({"sucesso": False, "erro": "URL da imagem ou frames não fornecidos."}),
+                mimetype="application/json", status=400
+            )
+
+        gemini_parts = []
+        tmp_path = ""
+        is_video = False
+        
+        if frames_b64:
+            is_video = True
+            import base64
+            print(f"DEBUG VISION - Processando {len(frames_b64)} quadros de vídeo recebidos em base64.")
+            for b64 in frames_b64:
+                raw_bytes = base64.b64decode(b64)
+                gemini_parts.append(types.Part.from_bytes(data=raw_bytes, mime_type="image/jpeg"))
+        else:
+            # 2. Download temporário da mídia (imagem estática original)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "image/*,video/*,*/*;q=0.8",
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8",
+                "Referer": "https://www.instagram.com/"
+            }
+            print(f"DEBUG VISION - Tentando baixar mídia (video/img)...")
+            response = requests.get(link_img, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            content_type = response.headers.get("Content-Type", "")
+            is_video = "video" in content_type or ".mp4" in link_img
+            ext = ".mp4" if is_video else ".jpg"
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                tmp_file.write(response.content)
+                tmp_path = tmp_file.name
+
+            # 3. Upload do arquivo para a API do Google (Visão)
+            tipo_nome = "vídeo" if is_video else "imagem"
+            print(f"DEBUG VISION - Fazendo upload do {tipo_nome}: {tmp_path}")
+            uploaded_file = client.files.upload(file=tmp_path)
+            
+            # Se for vídeo, precisamos esperar o Gemini processar o arquivo antes de inferir
+            if is_video:
+                import time
+                print("DEBUG VISION - Vídeo detectado. Aguardando processamento da IA...")
+                while uploaded_file.state.name == "PROCESSING":
+                    print(".", end="", flush=True)
+                    time.sleep(2)
+                    # Atualiza o status do arquivo
+                    uploaded_file = client.files.get(name=uploaded_file.name)
+                print()
+                
+                if uploaded_file.state.name == "FAILED":
+                    raise Exception("A IA falhou ao tentar processar o arquivo de vídeo.")
+                print("DEBUG VISION - Vídeo processado com sucesso pela IA. Iniciando inferência.")
+            
+            gemini_parts.append(uploaded_file)
+
+        try:
+            # 4. Prompt de Visão estruturado com Filtro de Categorias (Líder Standard)
+            prompt_vision = """
+            Você é um assistente de visão computacional especializado em varejo alimentar.
+            Analise a imagem(ns) ou os quadros de vídeo do encarte de supermercado em anexo.
+            
+            REGRAS OBRIGATÓRIAS:
+            1. Extraia APENAS itens que pertençam à categoria de ALIMENTOS (Mercearia, Hortifruti, Carnes, Laticínios, etc.).
+            2. Se a imagem contiver Bebidas alcoólicas (cervejas, vinhos), eletrônicos ou itens de higiene, simplesmente NÃO inclua esses itens na lista final, mas CONTINUE extraindo normalmente os alimentos válidos da mesma imagem.
+            3. Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL. Se a imagem mostrar um produto (como frutas, carnes, etc) mas não exibir o preço exato, IGNORE esse produto completamente. Não tente adivinhar.
+            4. Se não houver nenhum alimento com preço visível em nenhuma imagem, retorne: {"itens": []}
+            5. Siga rigorosamente o padrão JSON abaixo:
+            
+            {
+                "itens": [
+                    {"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA", "imagem": "", "validade": "DATA SE HOUVER"}
+                ]
+            }
+            IMPORTANTE: O campo "imagem" deve ser SEMPRE uma string vazia "".
+            Retorne APENAS o JSON puro.
+            """
+            gemini_parts.append(prompt_vision)
+
+            # 5. Roteamento (Utilizando 3.1-flash-image para máximo Q.I. Visual em fotos e vídeos)
+            modelo_escolhido = "gemini-3.1-flash-image-preview"
+            
+            print(f"DEBUG VISION - Invocando modelo {modelo_escolhido} (Modo Vídeo: {is_video})...")
+            response_gemini = client.models.generate_content(
+                model=modelo_escolhido,
+                contents=gemini_parts,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+
+            # 6. Limpeza e Retorno
+            dados_extraidos = json.loads(response_gemini.text)
+            usage = response_gemini.usage_metadata
+
+            itens = dados_extraidos.get("itens", [])
+
+            # --- SALVAR NO FIRESTORE (somente se supermercado_id for informado) ---
+            salvos = 0
+            duplicados = 0
+            count_extraidos = 0
+            erros_processamento = []
+
+            if supermercado_id:
+                print(f"DEBUG FIRESTORE - Iniciando salvamento de {len(itens)} itens para {supermercado_id}...")
+                for item in itens:
+                    try:
+                        preco_raw = item.get("preco", 0)
+                        if isinstance(preco_raw, str):
+                            preco_raw = preco_raw.replace(",", ".")
+                        preco = float(preco_raw) if preco_raw else 0
+                        if preco <= 0:
+                            continue
+                        
+                        count_extraidos += 1
+                        res = salvar_produto_e_oferta(
+                            nome=item.get("produto", ""),
+                            preco=preco,
+                            unidade=item.get("unidade", "un"),
+                            categoria=item.get("categoria", "Geral"),
+                            supermercado_id=supermercado_id,
+                            loja=loja_nome,
+                            metodo="gemini_vision",
+                            imagem_api=item.get("imagem", ""),
+                            validade=item.get("validade"),
+                            post_id=post_id
+                        )
+                        
+                        # Log detalhado para depuração no console do Firebase
+                        print(f"  -> Processado: {item.get('produto')} | Res: {res}")
+
+                        if res and res.get("duplicado"):
+                            duplicados += 1
+                        elif res and res.get("salvo"):
+                            salvos += 1
+                    except Exception as e_save:
+                        err_msg = f"Erro em '{item.get('produto', '?')}': {str(e_save)}"
+                        print(f"AVISO FIRESTORE - {err_msg}")
+                        erros_processamento.append(err_msg)
+            else:
+                print("DEBUG FIRESTORE - supermercado_id não informado, pulando persistência.")
+
+            resultado_final = {
+                "sucesso": True,
+                "loja": loja_nome,
+                "status_final": "processado",
+                "resumo": {
+                    "extraidos": count_extraidos,
+                    "novos_salvos": salvos,
+                    "duplicados": duplicados,
+                    "erros": erros_processamento[:5] # Mostra os primeiros 5 erros se houver
+                },
+                "uso_tokens": {
+                    "total": usage.total_token_count
+                }
+            }
+
+            return https_fn.Response(
+                json.dumps(resultado_final, ensure_ascii=False),
+                mimetype="application/json"
+            )
+
+        finally:
+            # Limpar o arquivo da API do Gemini para não gastar a cota gratuita
+            if 'uploaded_file' in locals() and uploaded_file:
+                try:
+                    client.files.delete(name=uploaded_file.name)
+                except Exception:
+                    pass
+
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    except Exception as e:
+        print(f"💥 ERRO CRÍTICO VISION: {str(e)}")
+        return https_fn.Response(
+            json.dumps({"sucesso": False, "erro": str(e)}, ensure_ascii=False),
+            mimetype="application/json", status=500
+        )
+
+# ==============================================================================
+# AUTOMAÇÃO (CRON JOBS) — Atualização e Limpeza
+# ==============================================================================
+from firebase_functions import scheduler_fn
+
+@scheduler_fn.on_schedule(schedule="0 10,14 * * *", timezone="America/Belem")
+def atualizar_ofertas(event: scheduler_fn.ScheduledEvent) -> None:
+    """
+    CRON DIÁRIO: Roda às 10:00 e às 14:00.
+    Chama as lógicas internas dos scrapers diretos e do Mateus para popular o Firestore
+    após as lojas terem postado as ofertas do dia.
+    """
+    print("CRON: Iniciando atualização diária das ofertas...")
+    
+    # 1. Atacadão
+    try:
+        buscar_encarte_atacadao(None)
+        print("CRON: Atacadão processado.")
+    except Exception as e:
+        print(f"CRON ERRO Atacadão: {e}")
+
+    # 2. Econômico
+    try:
+        buscar_encarte_economico(None)
+        print("CRON: Econômico processado.")
+    except Exception as e:
+        print(f"CRON ERRO Econômico: {e}")
+
+    # 3. Guerreirão AM
+    try:
+        buscar_encarte_guerreirao(None)
+        print("CRON: Guerreirão processado.")
+    except Exception as e:
+        print(f"CRON ERRO Guerreirão: {e}")
+
+    # 4. Mateus (PDF via IA)
+    try:
+        # Usamos uma classe falsa para simular a requisição HTTP interna
+        class DummyRequest:
+            method = 'GET'
+            args = {}
+            def get_json(self, silent=True): return {}
+            
+        resp_mateus = buscar_encarte_mateus(DummyRequest())
+        # Extrai o texto da resposta Flask/Functions
+        dados_mateus = json.loads(resp_mateus.data.decode('utf-8'))
+        
+        if dados_mateus.get("sucesso") and dados_mateus.get("catalogo"):
+            # Pegar o PDF mais recente
+            link_pdf = dados_mateus["catalogo"][0]["download_link"]
+            req_ext = DummyRequest()
+            req_ext.args = {
+                "url": link_pdf, 
+                "supermercado_id": "mateus-jaderlandia", 
+                "loja": "Mix Mateus (Jaderlândia)"
+            }
+            # Envia pro Gemini
+            extrair_dados_encarte(req_ext)
+            print("CRON: Mateus processado com sucesso.")
+    except Exception as e:
+        print(f"CRON ERRO Mateus: {e}")
+        
+    print("CRON: Atualização diária concluída.")
+
+
+@scheduler_fn.on_schedule(schedule="every day 23:00", timezone="America/Belem")
+def limpar_ofertas_expiradas(event: scheduler_fn.ScheduledEvent) -> None:
+    """
+    CRON NOTURNO: Roda às 23:00 PM.
+    Vassoura: Apaga do Firestore todas as ofertas cujo 'expira_em' já passou,
+    garantindo que o App nunca mostre oferta velha e poupando armazenamento gratuito.
+    """
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    
+    print("CRON: Iniciando limpeza de ofertas expiradas...")
+    db_cliente = firestore.client()
+    
+    # Busca ofertas que expiraram ANTES de agora
+    query = db_cliente.collection("ofertas").where(
+        filter=FieldFilter("expira_em", "<", datetime.now())
+    )
+    
+    docs = query.stream()
+    apagados = 0
+    
+    for doc in docs:
+        try:
+            doc.reference.delete()
+            apagados += 1
+        except Exception as e:
+            print(f"CRON ERRO ao apagar documento {doc.id}: {e}")
+            
+    print(f"CRON: Limpeza concluída. {apagados} ofertas velhas foram apagadas.")
