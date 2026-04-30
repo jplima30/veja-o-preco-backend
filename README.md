@@ -2,33 +2,55 @@
 
 Backend robusto desenvolvido em **Firebase Cloud Functions (Python)** para centralizar ofertas de supermercados de Belém e Ananindeua. 
 
-Este projeto utiliza uma arquitetura híbrida de extração de dados, combinando rastreamento de APIs tradicionais com **Inteligência Artificial Generativa (Vision & PDF)**.
+O projeto utiliza uma arquitetura híbrida de extração de dados, combinando rastreamento de APIs tradicionais com **Inteligência Artificial Generativa (Vision & PDF)** e automação via **Playwright**.
+
+---
 
 ## 🚀 Tecnologias e Inovações
 - **Core**: Python 3.12 + Firebase Functions.
-- **I.A. Engine**: **Gemini 3.1 Flash Lite** (Google Generative AI).
-- **Vision AI**: Extração inteligente de dados a partir de fotos de redes sociais (Instagram/Facebook).
-- **PDF Extraction**: Processamento de tabloides digitais e encartes semanais.
-- **API Tracking**: Consumo direto de APIs GraphQL e REST para máxima performance.
+- **I.A. Engine**: **Gemini 3.1 Flash** (Google Generative AI).
+- **Automation**: **Playwright Stealth** para captura de redes sociais.
+- **Computer Vision**: **EasyOCR** local para triagem inteligente de imagens.
+- **Database**: **Cloud Firestore** com arquitetura de deduplicação e histórico.
 
-## 📂 Estrutura do Projeto
-- `/functions`: Código principal das Cloud Functions e lógica dos scrapers.
-- `/docs`: Documentação técnica detalhada de cada supermercado.
-- `/docs/scrapers`: Guia de implementação e manutenção de cada robô.
-- `/scripts`: Utilitários de validação automática para teste dos robôs.
+> [!TIP]
+> Confira os detalhes técnicos completos na nossa **[página de Arquitetura](https://github.com/jplima30/veja-o-preco-backend/wiki/Arquitetura)**.
+
+---
+
+## 🏗️ Fluxo de Funcionamento
+1. **Captura**: Robôs locais monitoram redes sociais e APIs.
+2. **Triagem**: O sistema filtra apenas imagens que contêm ofertas reais, economizando custos de API.
+3. **Extração**: O Gemini processa as evidências e extrai dados estruturados (JSON).
+4. **Persistência**: Dados são normalizados e salvos no Firestore seguindo um **[Contrato de Dados](https://github.com/jplima30/veja-o-preco-backend/wiki/Contrato-de-Dados)** rígido.
+
+---
 
 ## ✅ Supermercados Integrados
-- [x] **Seja Econômico**: API Direta.
+- [x] **Mix Mateus**: API + Gemini (PDF).
 - [x] **Atacadão**: API GraphQL (Regionalizado).
-- [x] **Guerreirão (AM)**: HTML Scraping (SEO).
-- [x] **Mix Mateus**: Híbrido (API + Gemini 3.1 PDF).
-- [x] **Guerreirão (BR)**: Visão Computacional (Gemini 3.1 Vision).
+- [x] **Seja Econômico**: API Direta.
+- [x] **Guerreirão (AM/BR)**: Scraping + Vision AI.
+- [x] **Assaí Atacadista**: Playwright + Vision AI.
+- [x] **Líder & Formosa**: Extração via I.A. Multimodal.
 
-## 🛠️ Como Testar
-Para validar qualquer scraper sem precisar do App, use os scripts na pasta `/scripts`:
+---
+
+## 🛠️ Operação e Testes
+Para rodar os robôs ou validar os scrapers manualmente, consulte o nosso **[Guia de Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local)**.
+
+Exemplo de validação rápida:
 ```bash
-functions/venv/bin/python3 scripts/validador_mateus.py
+python3 scripts/ver_ofertas_banco.py
 ```
+
+---
+
+## 📚 Documentação Completa (Wiki)
+Para uma visão detalhada de cada fase do projeto, acesse a nossa **Wiki oficial**:
+- **[🏠 Home](https://github.com/jplima30/veja-o-preco-backend/wiki)**
+- **[✅ Checklist de Fases](https://github.com/jplima30/veja-o-preco-backend/wiki/Checklist-de-Implementacao)**
+- **[🛒 Supermercados](https://github.com/jplima30/veja-o-preco-backend/wiki/Supermercados)**
 
 ---
 **Desenvolvido com Antigravity (Google DeepMind)** 🦾🤖
