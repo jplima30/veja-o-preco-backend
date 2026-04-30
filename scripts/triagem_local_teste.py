@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "auditoria_visual")
-PASTA_FILTRADA = os.path.join(BASE_DIR, "TRIAGEM_DE_OFERTAS")
+PASTA_FILTRADA = os.path.join(BASE_DIR, "TRIAGEM_LOCAL_TESTE")
 ARQUIVO_LIMPEZA = os.path.join(BASE_DIR, ".last_cleanup")
 
 def realizar_faxina_semanal():
@@ -328,18 +328,7 @@ def iniciar_triagem(janela=None, data_teste=None):
     print(f"📂 Resultados em: {pasta_saida_hoje}")
     print("="*60)
 
-    # 4. Envio automático para a nuvem
-    if total_aprovado > 0:
-        print("\n🚀 [AUTO-ENVIO] Iniciando upload das ofertas filtradas...")
-        try:
-            import enviar_triagem
-            enviar_triagem.enviar_para_nuvem()
-        except ImportError:
-            print("⚠️ Erro: Script 'enviar_triagem.py' não encontrado na mesma pasta.")
-        except Exception as e:
-            print(f"⚠️ Erro no envio automático: {e}")
-    else:
-        print("\n❌ Nenhuma oferta válida encontrada para enviar hoje.")
+    print(f"\n💡 [TESTE LOCAL] Processo finalizado. Nenhuma imagem foi enviada para a nuvem.")
 
 if __name__ == "__main__":
     # Permite passar a janela como argumento: python3 triagem_ofertas.py 10
