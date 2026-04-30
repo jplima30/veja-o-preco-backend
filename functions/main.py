@@ -8,7 +8,7 @@ import json
 import requests
 import tempfile
 from datetime import datetime, timedelta
-from firebase_functions import https_fn, options
+from firebase_functions import https_fn, options, scheduler_fn
 from firebase_admin import initialize_app, firestore
 from bs4 import BeautifulSoup
 from google import genai
@@ -176,6 +176,8 @@ def salvar_produto_e_oferta(
         "criado_em": datetime.now()
     })
 
+ feature/setup-inicial-functions
+
 @https_fn.on_request()
 def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
     """
@@ -281,3 +283,803 @@ def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
     
     except Exception as e:
         return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+ feature/setup-inicial-functions
+
+
+@https_fn.on_request()
+def buscar_encarte_atacadao(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 2: Extração Direta (Atacadão Icoaraci).
+    Consome o catálogo via GraphQL com regionalização.
+    """
+    import base64
+    
+    url_api = "https://www.atacadao.com.br/api/graphql"
+    seller_id = "atacadaobr153" # ID da loja Belém (Icoaraci/Augusto Montenegro)
+    region_id = base64.b64encode(f"SW#{seller_id}".encode()).decode()
+    
+    channel = {
+        "salesChannel": "1",
+        "seller": seller_id,
+        "regionId": region_id
+    }
+    
+    variables = {
+        "first": 40,
+        "after": "0",
+        "sort": "score_desc",
+        "term": "", # Busca vazia traz o catálogo geral
+        "selectedFacets": [
+            {"key": "region-id", "value": region_id},
+            {"key": "channel", "value": json.dumps(channel)},
+            {"key": "locale", "value": "pt-BR"},
+            {"key": "productClusterIds", "value": "312"} # Cluster de Ofertas
+        ]
+    }
+    
+    params = {
+        "operationName": "ProductsQuery",
+        "variables": json.dumps(variables)
+    }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+    }
+
+    try:
+        response = requests.get(url_api, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        dados_puros = response.json()
+        
+        products = dados_puros.get("data", {}).get("search", {}).get("products", {}).get("edges", [])
+        itens_extraidos = []
+        
+        for p_edge in products:
+            try:
+                node = p_edge.get("node", {})
+                nome = node.get("name")
+                marca = node.get("brand", {}).get("brandName", "")
+                
+                # No GraphQL GET, o formato da imagem pode variar
+                img_data = node.get("image", [])
+                if isinstance(img_data, list) and len(img_data) > 0:
+                    imagem = img_data[0].get("url", "")
+                else:
+                    imagem = node.get("image", {}).get("url", "")
+                
+                # Pegando o preço da primeira oferta disponível
+                offers = node.get("offers", {}).get("offers", [])
+                if offers:
+                    preco = float(offers[0].get("price", 0))
+                else:
+                    preco = float(node.get("offers", {}).get("lowPrice", 0))
+                
+                if preco > 0:
+                    itens_extraidos.append({
+                        "produto": f"{nome} {marca}".strip(),
+                        "preco": preco,
+                        "unidade": "un",
+                        "categoria": "Geral",
+                        "imagem": imagem,
+                        "validade": None
+                    })
+            except:
+                continue
+
+        # --- SALVAR NO FIRESTORE ---
+        for item in itens_extraidos:
+            try:
+                salvar_produto_e_oferta(
+                    nome=item["produto"],
+                    preco=item["preco"],
+                    unidade=item["unidade"],
+                    categoria=item["categoria"],
+                    supermercado_id="atacadao-icoaraci",
+                    loja="Atacadão (Belém)",
+                    metodo="api_graphql",
+                    imagem_api=item.get("imagem", ""),
+                    validade=item.get("validade")
+                )
+            except Exception as e_save:
+                print(f"AVISO FIRESTORE - Erro ao salvar '{item['produto']}': {e_save}")
+
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": True,
+                "loja": "Atacadão (Belém)",
+                "metodo": "API GraphQL Direta",
+                "quantidade": len(itens_extraidos),
+                "itens": itens_extraidos
+            }, ensure_ascii=False),
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({"sucesso": False, "erro": str(e)}),
+            mimetype="application/json", status=500
+        )
+
+@https_fn.on_request()
+def buscar_encarte_economico(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 3: Extração via API VipCommerce (Seja Econômico).
+    Consome o endpoint oficial de OFERTAS da plataforma.
+    """
+    org_id = "315"
+    filial_id = "1"
+    cd_id = "1"
+    
+    # URL da vitrine de ofertas oficial
+    url_api = f"https://services.vipcommerce.com.br/api-admin/v1/org/{org_id}/filial/{filial_id}/centro_distribuicao/{cd_id}/loja/produtos/em-oferta"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.grupoeconomico.com.br/ofertas",
+        "Origin": "https://www.grupoeconomico.com.br",
+        "DomainKey": "grupoeconomico.com.br",
+        "OrganizationId": org_id,
+        "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJ2aXBjb21tZXJjZSIsImF1ZCI6ImFwaS1hZG1pbiIsInN1YiI6IjZiYzQ4NjdlLWRjYTktMTFlOS04NzQyLTAyMGQ3OTM1OWNhMCIsInZpcGNvbW1lcmNlQ2xpZW50ZUlkIjpudWxsLCJpYXQiOjE3NzY3MTc0ODMsInZlciI6MSwiY2xpZW50IjpudWxsLCJvcGVyYXRvciI6bnVsbCwib3JnIjoiMzE1In0.VsuwHCwfq-CF9yUzkGv6ekV--zAMmtWtPm-H6dbazQvC6GYp5spDx32GlWJEogReqDKU_TWscSNRW070elQDPA"
+    }
+
+    try:
+        # Pegando a primeira página de ofertas (geralmente tem cerca de 40-50 itens por página)
+        params = {"page": "1"}
+        
+        response = requests.get(url_api, headers=headers, params=params, timeout=15)
+        response.raise_for_status()
+        dados_puros = response.json()
+        
+        # LOG DE DEPURAÇÃO: Isso vai aparecer no seu terminal
+        print(f"DEBUG ECONÔMICO - Chaves encontradas: {list(dados_puros.keys())}")
+        
+        # A VipCommerce varia: pode estar em 'data', 'produtos', ou ser uma lista direta
+        produtos = []
+        if isinstance(dados_puros, list):
+            produtos = dados_puros
+        elif "data" in dados_puros:
+            produtos = dados_puros["data"]
+            # Se for um dicionário com 'produtos' dentro
+            if isinstance(produtos, dict):
+                produtos = produtos.get("produtos", produtos.get("itens", []))
+        elif "produtos" in dados_puros:
+            produtos = dados_puros["produtos"]
+        
+        itens_extraidos = []
+        
+        # Se produtos for um dicionário (paginação), pegamos a lista real
+        if isinstance(produtos, dict) and "items" in produtos:
+            produtos = produtos["items"]
+        elif isinstance(produtos, dict) and "produtos" in produtos:
+            produtos = produtos["produtos"]
+
+        if not isinstance(produtos, list):
+            print(f"DEBUG ECONÔMICO - Estrutura inesperada: {type(produtos)}")
+            produtos = []
+
+        for p in produtos:
+            try:
+                # Na VipCommerce o nome costuma ser 'descricao'
+                nome = p.get("descricao") or p.get("nome") or p.get("produto") or ""
+                preco = float(p.get("preco_venda") or p.get("preco") or 0)
+                
+                if p.get("preco_promocional") and float(p.get("preco_promocional")) > 0:
+                    preco = float(p.get("preco_promocional"))
+                
+                # Reconstruindo a URL da imagem (VipCommerce CDN)
+                img_file = p.get("imagem_principal") or p.get("imagem") or ""
+                imagem = f"https://static.vipcommerce.com.br/img/produtos/{org_id}/v/{img_file}" if img_file else ""
+                
+                unidade = p.get("unidade", "un")
+                
+                if preco > 0 and nome:
+                    itens_extraidos.append({
+                        "produto": nome.strip(),
+                        "preco": preco,
+                        "unidade": unidade.lower(),
+                        "categoria": "Geral",
+                        "imagem": imagem,
+                        "validade": None
+                    })
+            except:
+                continue
+
+        # --- SALVAR NO FIRESTORE ---
+        for item in itens_extraidos:
+            try:
+                salvar_produto_e_oferta(
+                    nome=item["produto"],
+                    preco=item["preco"],
+                    unidade=item["unidade"],
+                    categoria=item["categoria"],
+                    supermercado_id="seja-economico-am",
+                    loja="Seja Econômico",
+                    metodo="api_vipcommerce",
+                    imagem_api=item.get("imagem", ""),
+                    validade=item.get("validade")
+                )
+            except Exception as e_save:
+                print(f"AVISO FIRESTORE - Erro ao salvar '{item['produto']}': {e_save}")
+
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": True,
+                "loja": "Seja Econômico",
+                "metodo": "API VipCommerce",
+                "quantidade": len(itens_extraidos),
+                "itens": itens_extraidos
+            }, ensure_ascii=False),
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({"sucesso": False, "erro": str(e)}),
+            mimetype="application/json", status=500
+        )
+
+@https_fn.on_request()
+def buscar_encarte_mateus(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 1 Definitiva (O Garimpo Perfeito):
+    Extração da lista de encartes atacando diretamente a API nativa invisível do site.
+    """
+    
+    # O Santo Graal interceptado
+    url_mestra_api = "https://ofertasmateus.com/api-proxy.php?endpoint=%2Fencartes%2Fpa%2Fananindeua%2Fmateus-jaderlandia%3Fmarca%3DSM"
+    
+    try:
+        # Puxando o tesouro da API
+        response = requests.get(url_mestra_api)
+        response.raise_for_status()
+        
+        dados_puros = response.json()
+        
+        # Fase 1.1: Organizando a Escalabilidade (O Catálogo Completo)
+        catalogo_de_pdfs = []
+        
+        # Laço de repetição que varre a lista suja e monta os metadados valiosos com os links
+        for item in dados_puros.get("data", []):
+            url_absoluta = "https://ofertasmateus.com/api-proxy.php?file=" + item["arquivo"]
+            
+            catalogo_de_pdfs.append({
+                "id_rastreio": item.get("id_encarte"),
+                "marca": item.get("marca"),
+                "titulo": item.get("descricao"),
+                "download_link": url_absoluta,
+                "data_inicio_banco": item.get("inicio"),
+                "data_inicio_tela": item.get("inicial"),
+                "data_vencimento_banco": item.get("validade"),
+                "data_vencimento_tela": item.get("valido")
+            })
+        
+        # Devolvemos ao navegador a lista polida e finalizada, pronta para a Inteligência Artificial
+        dados_retorno = {
+            "sucesso": True,
+            "mensagem": "Fase 1 estruturada pro aplicativo. Array escalável pronto!",
+            "quantidade_atual": len(catalogo_de_pdfs),
+            "catalogo": catalogo_de_pdfs
+        }
+        
+        return https_fn.Response(
+            json.dumps(dados_retorno),
+            mimetype="application/json",
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
+
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": False,
+                "erro": "Tentativa Frustrada. Detalhe: " + str(e)
+            }),
+            mimetype="application/json",
+            status=500
+        )
+
+@https_fn.on_request()
+def get_status_extracao(req: https_fn.Request) -> https_fn.Response:
+    """
+    Dashboard de Auditoria: Retorna a lista de post_ids processados hoje.
+    Usado pelo script local para comparar o que já subiu para a nuvem.
+    """
+    try:
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Busca todas as ofertas criadas hoje (simplificado para evitar erro de índice composto)
+        query = db.collection("ofertas").where(
+            filter=FieldFilter("criado_em", ">=", hoje_inicio)
+        )
+        
+        docs = query.stream()
+        processados = {} # loja -> [post_ids]
+        
+        for doc in docs:
+            dados = doc.to_dict()
+            loja = dados.get("supermercado_id")
+            pid = dados.get("post_id")
+            
+            # Filtra apenas quem tem post_id em memória
+            if not pid:
+                continue
+            
+            if loja not in processados:
+                processados[loja] = set()
+            processados[loja].add(pid)
+            
+        # Converte sets para listas para o JSON
+        for loja in processados:
+            processados[loja] = list(processados[loja])
+            
+        return https_fn.Response(
+            json.dumps({"sucesso": True, "processados": processados}, ensure_ascii=False),
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), status=500)
+
+
+@https_fn.on_request()
+def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
+    """
+    Endpoint principal para o App iOS.
+    Lê ofertas válidas (não expiradas) diretamente do Firestore.
+
+    Parâmetros de query (todos opcionais):
+        - categoria:      Filtra por categoria (Ex: Mercearia, Hortifruti)
+        - supermercado_id: Filtra por loja (Ex: seja-economico-am, atacadao-icoaraci)
+        - limite:          Máximo de resultados (padrão: 100)
+    """
+    try:
+        # Parâmetros opcionais
+        categoria = req.args.get("categoria")
+        supermercado_id = req.args.get("supermercado_id")
+        limite = int(req.args.get("limite", 100))
+
+        # Query base: apenas ofertas que ainda não expiraram
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        query = db.collection("ofertas").where(
+            filter=FieldFilter("expira_em", ">=", datetime.now())
+        )
+
+        # Filtros opcionais
+        if supermercado_id:
+            query = query.where(
+                filter=FieldFilter("supermercado_id", "==", supermercado_id)
+            )
+
+        # Executar query com limite
+        docs = query.limit(limite).stream()
+
+        # Montar a lista de ofertas
+        ofertas = []
+        for doc in docs:
+            oferta = doc.to_dict()
+
+            # Filtro de categoria em memória (Firestore limita queries compostas)
+            if categoria and oferta.get("categoria", "").lower() != categoria.lower():
+                continue
+
+            ofertas.append({
+                "produto": oferta.get("produto_nome", ""),
+                "preco": oferta.get("preco", 0),
+                "preco_antigo": oferta.get("preco_antigo"),
+                "unidade": oferta.get("unidade", "un"),
+                "categoria": oferta.get("categoria", "Geral"),
+                "loja": oferta.get("loja", ""),
+                "supermercado_id": oferta.get("supermercado_id", ""),
+                "validade": oferta.get("validade"),
+                "imagem": oferta.get("imagem", ""),
+            })
+
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": True,
+                "quantidade": len(ofertas),
+                "filtros": {
+                    "categoria": categoria,
+                    "supermercado_id": supermercado_id,
+                    "limite": limite
+                },
+                "ofertas": ofertas
+            }, ensure_ascii=False, default=str),
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+
+
+@https_fn.on_request(secrets=["GEMINI_API_KEY"])
+def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
+    """
+    Extração automatizada via Site Oficial do Assaí.
+    Captura os IDs de campanha/cluster e processa o encarte digital.
+    """
+    client = get_gemini_client()
+    url_json = "https://www.assai.com.br/sites/default/files/static/ofertas_assai.json"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        # 1. Buscar metadados da oferta (JSON)
+        id_oferta = None
+        try:
+            resp = requests.get(url_json, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                dados = resp.json()
+                for o in dados.get("ofertas", []):
+                    if "AUGUSTO MONTENEGRO" in o.get("loja", "").upper():
+                        id_oferta = o.get("id_oferta")
+                        break
+        except Exception as e_json:
+            print(f"AVISO: Falha ao ler JSON do Assaí: {e_json}")
+
+        # Se não achou ID, tenta fallback ou erro
+        if not id_oferta:
+            return https_fn.Response("Não foi possível localizar o ID da oferta do Assaí Augusto Montenegro.", status=404)
+
+        # 2. Buscar as páginas do encarte (Images)
+        url_detalhe = f"https://www.assai.com.br/sites/default/files/static/oferta_{id_oferta}.json"
+        resp_detalhe = requests.get(url_detalhe, headers=headers)
+        detalhes = resp_detalhe.json()
+        
+        paginas = detalhes.get("paginas", [])
+        if not paginas:
+             return https_fn.Response("Encarte do Assaí encontrado, mas sem páginas disponíveis.", status=404)
+
+        # 3. Processar cada página com o Gemini Vision
+        print(f"DEBUG ASSAÍ - Processando {len(paginas)} páginas via IA...")
+        total_salvos = 0
+        
+        for pag in paginas:
+            img_url = pag.get("imagem")
+            if not img_url: continue
+            
+            # Chama a lógica de visão interna (reutilizando a lógica do Gemini)
+            # Para simplificar, vamos enviar a URL para extrair_dados_imagem internamente
+            class DummyRequest:
+                method = 'GET'
+                args = {"url": img_url, "supermercado_id": "assai-belem", "loja": "Assaí Atacadista (Belém)"}
+                def get_json(self, silent=True): return {}
+            
+            try:
+                res_ia = extrair_dados_imagem(DummyRequest())
+                dados_ia = json.loads(res_ia.data.decode('utf-8'))
+                total_salvos += dados_ia.get("resumo", {}).get("novos_salvos", 0)
+            except Exception as e_ia:
+                print(f"Erro ao processar página do Assaí: {e_ia}")
+
+        return https_fn.Response(json.dumps({"sucesso": True, "loja": "Assaí Atacadista", "total_novos": total_salvos}), mimetype="application/json")
+
+    except Exception as e:
+        return https_fn.Response(f"Erro no scraper do Assaí: {str(e)}", status=500)
+
+
+@https_fn.on_request(secrets=["GEMINI_API_KEY"])
+def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 2: O Cérebro (Gemini 3.1 Flash Lite).
+    Recebe um link de PDF, processa via IA e retorna JSON estruturado.
+    """
+    client = get_gemini_client()
+    
+    # 1. Pegar a URL do PDF da requisição
+    link_pdf = ""
+    if req.method == 'POST':
+        data = req.get_json(silent=True)
+        if data:
+            link_pdf = data.get("url")
+    else:
+        link_pdf = req.args.get("url")
+
+    if not link_pdf:
+        return https_fn.Response(
+            json.dumps({"sucesso": False, "erro": "URL do PDF não fornecida."}),
+            mimetype="application/json", status=400
+        )
+
+    try:
+        # 2. Download temporário do arquivo
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            response = requests.get(link_pdf, timeout=30)
+            response.raise_for_status()
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+
+        try:
+            # 3. Upload do arquivo para a API do Google
+            print(f"DEBUG GEMINI - Fazendo upload do arquivo: {tmp_path}")
+            uploaded_file = client.files.upload(file=tmp_path)
+
+            # 4. Criar o Prompt Baseado no Contrato de Dados
+            prompt_instrucao = """
+            Você é um assistente especializado em extração de dados de encartes de supermercado.
+            Sua tarefa é ler o PDF anexado e extrair TODOS os produtos e preços visíveis.
+            
+            REGRAS OBRIGATÓRIAS:
+            1. Retorne APENAS um objeto JSON válido.
+            2. Use exatamente os campos: produto, preco, unidade, categoria, imagem, validade.
+            3. O campo 'preco' deve ser um NÚMERO (Ex: 10.99).
+            4. Se não encontrar imagem ou validade, use null ou string vazia conforme o contrato.
+            5. Tente identificar a categoria (Ex: Mercearia, Hortifruti, Carnes, Bebidas).
+            
+            ESTRUTURA ESPERADA:
+            {
+                "itens": [
+                    {"produto": "NOME", "preco": 0.0, "unidade": "UN", "categoria": "GERAL", "imagem": "", "validade": null}
+                ]
+            }
+            """
+
+            # 5. Gerar o Conteúdo
+            print("DEBUG GEMINI - Iniciando processamento de I.A...")
+            response_gemini = client.models.generate_content(
+                model="gemini-3.1-flash-lite-preview",
+                contents=[uploaded_file, prompt_instrucao],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+
+            # 6. Limpeza e Retorno
+            dados_extraidos = json.loads(response_gemini.text)
+            usage = response_gemini.usage_metadata
+            print(f"METRICAS GEMINI - Tokens: {usage.total_token_count}")
+
+            itens = dados_extraidos.get("itens", [])
+
+            # --- Parâmetros de contexto ---
+            supermercado_id = ""
+            loja_nome = ""
+            if req.method == 'POST':
+                body = req.get_json(silent=True) or {}
+                supermercado_id = body.get("supermercado_id", "mateus-jaderlandia")
+                loja_nome = body.get("loja", "Mix Mateus (Jaderlândia)")
+            else:
+                supermercado_id = req.args.get("supermercado_id", "mateus-jaderlandia")
+                loja_nome = req.args.get("loja", "Mix Mateus (Jaderlândia)")
+
+            # --- SALVAR NO FIRESTORE ---
+            salvos = 0
+            for item in itens:
+                try:
+                    preco_raw = item.get("preco", 0)
+                    preco = float(preco_raw) if preco_raw else 0
+                    if preco <= 0:
+                        continue
+
+                    salvar_produto_e_oferta(
+                        nome=item.get("produto", ""),
+                        preco=preco,
+                        unidade=item.get("unidade", "un"),
+                        categoria=item.get("categoria", "Geral"),
+                        supermercado_id=supermercado_id,
+                        loja=loja_nome,
+                        metodo="gemini_pdf",
+                        imagem_api=item.get("imagem", ""),
+                        validade=item.get("validade")
+                    )
+                    salvos += 1
+                except Exception as e_save:
+                    print(f"AVISO FIRESTORE - Erro ao salvar '{item.get('produto', '?')}': {e_save}")
+
+            resultado_final = {
+                "sucesso": True,
+                "loja": loja_nome,
+                "metodo": "Gemini 3.1 Flash Lite",
+                "quantidade": len(itens),
+                "salvos_firestore": salvos,
+                "itens": itens
+            }
+
+            return https_fn.Response(json.dumps(resultado_final, ensure_ascii=False), mimetype="application/json")
+
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    except Exception as e:
+        print(f"ERRO CRÍTICO GEMINI: {str(e)}")
+        return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+
+
+@https_fn.on_request(timeout_sec=300, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
+def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase Especial: Visão Computacional (Gemini 3.1 Flash Image).
+    Recebe um link de imagem (Instagram/WhatsApp) ou frames em base64.
+    """
+    client = get_gemini_client()
+    
+    try:
+        # 1. Pegar os dados da requisição
+        link_img = ""
+        frames_b64 = []
+        supermercado_id = ""
+        post_id = ""
+        loja_nome = ""
+
+        if req.method == 'POST':
+            data = req.get_json(silent=True) or {}
+            link_img = data.get("url")
+            frames_b64 = data.get("frames_b64", [])
+            supermercado_id = data.get("supermercado_id", "")
+            post_id = data.get("post_id", "")
+            loja_nome = data.get("loja", "Extração via Visão (IA)")
+        else:
+            link_img = req.args.get("url")
+            supermercado_id = req.args.get("supermercado_id", "")
+            post_id = req.args.get("post_id", "")
+            loja_nome = req.args.get("loja", "Extração via Visão (IA)")
+
+        # --- TRAVA DE ECONOMIA (Check de Post ID antes da IA) ---
+        if post_id and supermercado_id:
+            hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            docs_hoje = db.collection("ofertas").where("criado_em", ">=", hoje_inicio).stream()
+            post_ja_existe = any(d.to_dict().get("post_id") == post_id for d in docs_hoje)
+            
+            if post_ja_existe:
+                print(f"💰 ECONOMIA: Post {post_id} já foi processado hoje. Pulando IA.")
+                return https_fn.Response(json.dumps({"sucesso": True, "msg": "Post já processado hoje.", "status": "ignorado_duplicado"}), mimetype="application/json")
+
+        if not link_img and not frames_b64:
+            return https_fn.Response(json.dumps({"sucesso": False, "erro": "URL da imagem ou frames não fornecidos."}), mimetype="application/json", status=400)
+
+        gemini_parts = []
+        tmp_path = ""
+        
+        if frames_b64:
+            import base64
+            for b64 in frames_b64:
+                raw_bytes = base64.b64decode(b64)
+                gemini_parts.append(types.Part.from_bytes(data=raw_bytes, mime_type="image/jpeg"))
+        else:
+            # Download temporário
+            headers = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.instagram.com/"}
+            response = requests.get(link_img, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            content_type = response.headers.get("Content-Type", "")
+            is_video = "video" in content_type or ".mp4" in link_img
+            ext = ".mp4" if is_video else ".jpg"
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                tmp_file.write(response.content)
+                tmp_path = tmp_file.name
+
+            uploaded_file = client.files.upload(file=tmp_path)
+            
+            if is_video:
+                import time
+                while uploaded_file.state.name == "PROCESSING":
+                    time.sleep(2)
+                    uploaded_file = client.files.get(name=uploaded_file.name)
+            
+            gemini_parts.append(uploaded_file)
+
+        try:
+            prompt_vision = """
+            Você é um assistente de visão computacional especializado em varejo alimentar.
+            Analise a imagem(ns) ou os quadros de vídeo e extraia produtos com PREÇO VISÍVEL.
+            IGNORE bebidas alcoólicas, eletrônicos ou itens de higiene.
+            
+            Estrutura JSON:
+            {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA", "imagem": "", "validade": null}]}
+            """
+            gemini_parts.append(prompt_vision)
+
+            response_gemini = client.models.generate_content(
+                model="gemini-3.1-flash-image-preview",
+                contents=gemini_parts,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+
+            dados_extraidos = json.loads(response_gemini.text)
+            itens = dados_extraidos.get("itens", [])
+
+            # --- SALVAR NO FIRESTORE ---
+            salvos = 0
+            duplicados = 0
+            for item in itens:
+                try:
+                    preco = float(str(item.get("preco", 0)).replace(",", "."))
+                    if preco <= 0: continue
+                    
+                    res = salvar_produto_e_oferta(
+                        nome=item.get("produto", ""),
+                        preco=preco,
+                        unidade=item.get("unidade", "un"),
+                        categoria=item.get("categoria", "Geral"),
+                        supermercado_id=supermercado_id,
+                        loja=loja_nome,
+                        metodo="gemini_vision",
+                        imagem_api="",
+                        validade=item.get("validade"),
+                        post_id=post_id
+                    )
+                    if res and res.get("duplicado"): duplicados += 1
+                    elif res and res.get("salvo"): salvos += 1
+                except Exception as e_save:
+                    print(f"AVISO FIRESTORE - Erro: {e_save}")
+
+            return https_fn.Response(json.dumps({"sucesso": True, "resumo": {"novos_salvos": salvos, "duplicados": duplicados}}), mimetype="application/json")
+
+        finally:
+            if 'uploaded_file' in locals() and uploaded_file:
+                try: client.files.delete(name=uploaded_file.name)
+                except: pass
+            if tmp_path and os.path.exists(tmp_path): os.remove(tmp_path)
+
+    except Exception as e:
+        print(f"💥 ERRO CRÍTICO VISION: {str(e)}")
+        return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+
+
+# ==============================================================================
+# AUTOMAÇÃO (CRON JOBS) — Atualização e Limpeza
+# ==============================================================================
+
+@scheduler_fn.on_schedule(schedule="0 10,14 * * *", timezone="America/Belem")
+def atualizar_ofertas(event: scheduler_fn.ScheduledEvent) -> None:
+    """
+    CRON DIÁRIO: Roda às 10:00 e às 14:00.
+    """
+    print("CRON: Iniciando atualização diária das ofertas...")
+    
+    # 1. Atacadão
+    try: buscar_encarte_atacadao(None)
+    except Exception as e: print(f"CRON ERRO Atacadão: {e}")
+
+    # 2. Econômico
+    try: buscar_encarte_economico(None)
+    except Exception as e: print(f"CRON ERRO Econômico: {e}")
+
+    # 3. Guerreirão AM
+    try: buscar_encarte_guerreirao(None)
+    except Exception as e: print(f"CRON ERRO Guerreirão: {e}")
+
+    # 4. Mateus (PDF via IA)
+    try:
+        class DummyRequest:
+            method = 'GET'; args = {}; def get_json(self, silent=True): return {}
+            
+        resp_mateus = buscar_encarte_mateus(DummyRequest())
+        dados_mateus = json.loads(resp_mateus.data.decode('utf-8'))
+        
+        if dados_mateus.get("sucesso") and dados_mateus.get("catalogo"):
+            link_pdf = dados_mateus["catalogo"][0]["download_link"]
+            req_ext = DummyRequest()
+            req_ext.args = {"url": link_pdf, "supermercado_id": "mateus-jaderlandia", "loja": "Mix Mateus (Jaderlândia)"}
+            extrair_dados_encarte(req_ext)
+    except Exception as e: print(f"CRON ERRO Mateus: {e}")
+        
+    print("CRON: Atualização diária concluída.")
+
+
+@scheduler_fn.on_schedule(schedule="every day 23:00", timezone="America/Belem")
+def limpar_ofertas_expiradas(event: scheduler_fn.ScheduledEvent) -> None:
+    """
+    CRON NOTURNO: Roda às 23:00 PM. Vassoura automática.
+    """
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    print("CRON: Iniciando limpeza de ofertas expiradas...")
+    db_cliente = firestore.client()
+    
+    query = db_cliente.collection("ofertas").where(
+        filter=FieldFilter("expira_em", "<", datetime.now())
+    )
+    
+    docs = query.stream()
+    apagados = 0
+    for doc in docs:
+        try:
+            doc.reference.delete()
+            apagados += 1
+        except Exception as e: print(f"CRON ERRO ao apagar doc {doc.id}: {e}")
+            
+    print(f"CRON: Limpeza concluída. {apagados} ofertas apagadas.")
