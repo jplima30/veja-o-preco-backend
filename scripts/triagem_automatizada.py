@@ -85,6 +85,30 @@ PALAVRAS_CHAVE_URGENCIA = [
     "OFF", "LITRO", "GRAMAS", "ML", "KG"
 ]
 
+PALAVRAS_CHAVE_BLOQUEIO = [
+    # Bebidas Alcoólicas
+    "CERVEJA", "WHISKY", "WHISKEY", "VODKA", "VODCA", "GIN", "VINHO", 
+    "CHOPP", "CACHAÇA", "LICOR", "TEQUILA", "RUM", "ICE", "SKOL", 
+    "BRAHMA", "HEINEKEN", "BUDWEISER", "SPATEN", "AMSTEL", "CORONA",
+    "STELLA", "ANTARCTICA", "ITAIPAVA", "SCHIN", "KAISER", "BAVARIA",
+    "CAMPARI", "ABSOLUT", "SMIRNOFF", "CHANDON", "ESPUMANTE", "CHAMPAGNE",
+    
+    # Eletrônicos e Eletrodomésticos
+    "ASPIRADOR", "LIQUIDIFICADOR", "CELULAR", "SMARTPHONE", "TELEVISOR", "SMART TV", 
+    "BATEDEIRA", "AIR FRYER", "MICROONDAS", "LAVADORA", "GELADEIRA", "FOGAO", "FOGÃO", 
+    "VENTILADOR", "NOTEBOOK", "TABLET", "FERRO DE PASSAR", "SANDUICHEIRA", "GRILL", 
+    "SMARTWATCH", "ELETRO", "FONE", "CARREGADOR", "CAIXA DE SOM", "FURADEIRA", 
+    "PARAFUSADEIRA", "MICRO-ONDAS", "SECADOR", "PRANCHA",
+    
+    # Bazar, Moda e Diversos (Não-Alimentares)
+    "PNEU", "BICICLETA", "MOTO", "CARRO", "BAZAR", "SANDALIA", "CHINELO", "TENIS", 
+    "SAPATO", "MOCHILA", "BOLSA", "VARAL", "MOP", "VASSOURA", "BALDE", "ESCADA",
+    "BRINQUEDO", "BONECA", "CARRINHO", "JOGO", "BINGO", "VESTUARIO", "ROUPA", 
+    "CAMISETA", "BERMUDA", "CALCA", "MEIA", "MESA", "CADEIRA", "ARMARIO", 
+    "GUARDA-ROUPA", "COLCHAO", "PANELA", "FRIGIDEIRA", "LAMPADA", "LÂMPADA", 
+    "PILHA", "BATERIA", "CHURRASQUEIRA"
+]
+
 def extrair_data_hoje(janela=None):
     hoje = datetime.now()
     dias_semana = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo"]
@@ -145,6 +169,7 @@ def analisar_imagem(reader, caminho_imagem):
         achou_preco = False
         achou_urgencia_ou_data = False
         preco_e_grande = False
+        item_bloqueado = False
         texto_extraido = []
 
         for (bbox, text, conf) in resultados:
@@ -194,15 +219,21 @@ def analisar_imagem(reader, caminho_imagem):
                     texto_extraido.append(text)
                     break
             
+            # 3. Busca por categorias bloqueadas (Bazar/Eletrônicos)
+            for b in PALAVRAS_CHAVE_BLOQUEIO:
+                if b in text_upper:
+                    item_bloqueado = True
+                    break
+            
             if re.search(PADRAO_VALIDADE, text_upper):
                 achou_urgencia_ou_data = True
                 texto_extraido.append(text)
 
-        # DECISÃO FINAL: Se achou algo que parece um preço, já aprovamos.
-        if achou_preco:
+        # DECISÃO FINAL: Aprovado se achou preço e NÃO é categoria bloqueada
+        if achou_preco and not item_bloqueado:
             return True, " | ".join(texto_extraido)
         
-        return False, ""
+        return False, "Bloqueado (Categoria)" if item_bloqueado else ""
     except Exception as e:
         print(f"      ⚠️ Erro ao analisar {os.path.basename(caminho_imagem)}: {e}")
         return False, ""
@@ -319,7 +350,8 @@ def iniciar_triagem(janela=None, data_teste=None):
                     shutil.copy2(caminho_completo, os.path.join(destino_dir, img))
                     print(f"  ✅ [APROVADO] {img} -> (Texto: {texto[:60]}...)")
                 else:
-                    print(f"  ⏭️ [IGNORADO] {img} (Sem indício de preço)")
+                    motivo = f" ({texto})" if texto else " (Sem indício de preço)"
+                    print(f"  ⏭️ [IGNORADO] {img}{motivo}")
 
     print("\n" + "="*60)
     print("🏁 TRIAGEM AUTOMATIZADA FINALIZADA!")

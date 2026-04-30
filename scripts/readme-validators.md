@@ -6,84 +6,86 @@ Este guia detalha como operar o ecossistema de coleta, triagem e validação do 
 
 ## 🏗️ 1. Ambientes Virtuais (Venvs)
 
-O projeto utiliza dois ambientes distintos para otimizar o uso de recursos:
+O projeto utiliza dois ambientes distintos. Ative-os quando quiser rodar comandos simples (ex: `python3 script.py`):
 
-### A. `venv_triagem` (Processamento Local)
-*   **O que contém**: Playwright (Scraper), EasyOCR (Triagem local), Bibliotecas pesadas.
-*   **Quando usar**: Para rodar o robô de redes sociais (`cron_playwright.py`) e a triagem automatizada (`triagem_automatizada.py`).
-*   **Caminho**: `/Users/jplima/Documents/veja-o-preco-backend/venv_triagem`
-
-### B. `functions/venv` (Integração Cloud)
-*   **O que contém**: Firebase Admin, Gemini SDK, Cloud Functions.
-*   **Quando usar**: Para testar a visão da IA, validadores de PDF e integração com o banco de dados real.
-*   **Caminho**: `/Users/jplima/Documents/veja-o-preco-backend/functions/venv`
+*   **Ambiente Triagem (Playwright/OCR)**:
+    ```bash
+    source /Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/activate
+    ```
+*   **Ambiente Functions (Firebase/IA)**:
+    ```bash
+    source /Users/jplima/Documents/veja-o-preco-backend/functions/venv/bin/activate
+    ```
 
 ---
 
-## ⚡ 2. Comandos de Execução Rápida (Atalhos)
+## ⚡ 2. Comandos para COPIAR E COLAR (Fora do Venv)
 
-Use estes comandos para rodar os scripts de **qualquer lugar** do terminal, sem precisar ativar o venv manualmente.
+Use estes comandos de **qualquer lugar**, sem precisar ativar nada. Eles já chamam o Python correto:
 
-### Rodar Robô de Captura (Instagram/Facebook)
+### 📸 Captura e Robô
 ```bash
 /Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py
 ```
 
-### Rodar Apenas Triagem Automatizada (OCR Local nas imagens baixadas)
+### 🔍 Triagem Automatizada (OCR Local + Envio Cloud)
 ```bash
 /Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/triagem_automatizada.py
 ```
 
-### Rodar Triagem Local (Sem enviar para a nuvem)
+### 🧪 Testar Visão (IA Gemini)
 ```bash
-/Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/triagem_local.py
+/Users/jplima/Documents/veja-o-preco-backend/functions/venv/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/testar_visao.py
+```
+
+### 📊 Ver Ofertas no Banco (Firestore)
+```bash
+/Users/jplima/Documents/veja-o-preco-backend/functions/venv/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/ver_ofertas_banco.py
 ```
 
 ---
 
-## 🛠️ 3. Detalhamento dos Scripts por Categoria
+## 🛠️ 3. Comandos para uso DENTRO do Venv
 
-### 📸 Coleta e Captura
-*   `cron_playwright.py`: O "Cérebro". Entra nas redes sociais, tira prints e salva imagens.
-*   `captura_visivel.command`: Script utilitário para abrir um terminal macOS e rodar o robô visivelmente.
+Se você já deu `source venv_triagem/bin/activate`, use estes comandos curtos:
 
-### 🔍 Triagem e Filtragem (OCR)
-*   `triagem_automatizada.py`: O "Filtro". Analisa as imagens baixadas via EasyOCR. Aplica regras rigorosas:
-    - **Anti-Data**: Ignora blocos com `/`.
-    - **Anti-Ruído**: Descarta blocos com mais letras que números sem `R$`.
-    - **Mínimo 2 Dígitos**: Exige `10` ou `R$ 9`.
-*   `enviar_triagem.py`: O "Despachante". Acionado automaticamente pela triagem para enviar apenas os frames aprovados para a API do Gemini na nuvem.
-*   `triagem_local.py`: Versão de segurança para validar novas regras de OCR sem gastar API ou subir dados.
-*   `limpar_bebidas.py`: Script de limpeza pós-extração para remover álcool.
+### No Ambiente `venv_triagem`:
+*   **Rodar Robô**: `python3 scripts/cron_playwright.py`
+*   **Rodar Triagem**: `python3 scripts/triagem_automatizada.py`
+*   **Testar OCR Local**: `python3 scripts/triagem_local.py`
+*   **Dashboard de Saúde**: `python3 scripts/auditoria_dashboard.py`
 
-### 📑 Validadores de Encarte (PDF)
-*Esses scripts simulam o comportamento do backend para ler PDFs de supermercados.*
-*   `validador_mateus.py`: Testa o Mix Mateus.
-*   `validador_atacadao.py`: Testa o Atacadão.
-*   `validador_economico.py`: Testa o Econômico.
-
-### 🤖 Inteligência Artificial e Nuvem
-*   `testar_visao.py`: Envia uma imagem para a API de Visão do Gemini (Multimodal) para extrair JSON de ofertas.
-*   `testar_integracao.py`: Valida se o fluxo do robô -> nuvem -> firestore está funcionando.
-
-### 📊 Auditoria e Banco
-*   `ver_ofertas_banco.py`: Mostra as últimas ofertas salvas no Firestore.
-*   `auditoria_dashboard.py`: Gera um resumo local de como está a saúde dos dados.
+### No Ambiente `functions/venv`:
+*   **Testar IA**: `python3 scripts/testar_visao.py`
+*   **Validar PDF Atacadão**: `python3 scripts/validador_atacadao.py`
+*   **Validar PDF Mateus**: `python3 scripts/validador_mateus.py`
+*   **Validar PDF Econômico**: `python3 scripts/validador_economico.py`
 
 ---
 
-## ⏰ 4. Automação Agendada (LaunchAgents)
+## 🧹 4. Faxina Semanal (Limpeza Automática)
 
-O robô está programado para rodar automaticamente via macOS LaunchAgent:
-- **Horários**: 10:00 e 14:00 (Seg-Sáb).
-- **Arquivo de Configuração**: `com.vejaopreco.captura.visivel.plist` em `~/Library/LaunchAgents`.
+O script `triagem_automatizada.py` realiza uma limpeza automática para economizar espaço em disco.
 
-Para verificar se o agendamento está ativo:
+**Quando ocorre?**
+Sábados (após as 12:00h) ou Domingos, na primeira vez que o script for executado.
+
+**O que é apagado?**
+1.  `auditoria_visual/YYYY-MM-DD_Dia`: Todas as pastas de fotos brutas (prints originais do robô).
+2.  `auditoria_visual/TRIAGEM_AUTOMATIZADA/YYYY-MM-DD_Dia`: Todas as pastas de resultados da triagem local (fotos filtradas).
+
+> [!NOTE]
+> A limpeza remove apenas as fotos das pastas datadas da semana atual para manter o disco leve. Os dados extraídos já estarão salvos no Firebase.
+
+---
+
+## ⏰ 5. Agendamento (macOS LaunchAgent)
+
+O robô roda sozinho às **10:00** e **14:00** (Seg-Sáb).
+Para verificar o status:
 ```bash
 launchctl list | grep vejaopreco
 ```
 
----
-
 > [!TIP]
-> **Dica de Ouro**: Sempre olhe os logs `cron_playwright.log` se algo parecer não estar coletando. Eles detalham cada clique do robô.
+> **Dica**: Logs de erro ficam em `scripts/cron_playwright.log`. Se o robô travar, verifique este arquivo primeiro.
