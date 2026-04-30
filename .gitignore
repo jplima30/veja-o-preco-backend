@@ -35,7 +35,7 @@ playwright/.cache/
 scratch/
 npx
 test_video.py
-temp_wiki
+wiki-repo/
 
 # Data and Logs
 scripts/historico_posts.json
