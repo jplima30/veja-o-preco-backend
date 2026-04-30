@@ -91,6 +91,13 @@
 - [x] Redeploy após integração dos scrapers IA
 
 
+### Blindagem e Otimização (Sessão 16)
+- [x] Consolidar modelos Gemini 3.1 (Image para Visão, Lite para PDFs)
+- [x] Implementar Whitelist de Categorias (Alimentos, Higiene e Limpeza)
+- [x] Adicionar filtro de descarte no backend para categorias proibidas (Bazar/Eletrônicos/Álcool)
+- [x] Implementar limpeza automática semanal da pasta de auditoria visual
+- [x] Reorganizar manual de operação local (`readme-validators.md`)
+
 ---
 
 ## Fase 6 — App iOS (SwiftUI) 🔒 *(futura)*
@@ -110,4 +117,4 @@
 
 ---
 
-*Última atualização: 28/04/2026 — Backend 100% estabilizado e automatizado (Fase 5 Concluída)*
+*Última atualização: 30/04/2026 — Backend blindado com Whitelist e Modelos Gemini 3.1 (Fase 5+ Concluída)*
