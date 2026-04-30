@@ -176,6 +176,7 @@ def salvar_produto_e_oferta(
         "criado_em": datetime.now()
     })
 
+ feature/setup-inicial-functions
 
 @https_fn.on_request()
 def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
@@ -282,6 +283,8 @@ def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
     
     except Exception as e:
         return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
+ feature/setup-inicial-functions
+
 
 @https_fn.on_request()
 def buscar_encarte_atacadao(req: https_fn.Request) -> https_fn.Response:
