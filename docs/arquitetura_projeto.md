@@ -104,7 +104,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Objetivo:** Resolver conflitos de dependências (Numpy), bugs de runtime na nuvem e consolidar o pipeline de triagem local.
 
 **Resultados:**
-1. **Pipeline de Triagem Offline:** Implementado o script `triagem_ofertas.py` que utiliza **EasyOCR** localmente para filtrar imagens irrelevantes (posts sem preços) antes do upload. Isso reduz custos de API e evita poluição no banco.
+1. **Pipeline de Triagem Automatizada:** Implementado o script `triagem_automatizada.py` que utiliza **EasyOCR** localmente para filtrar imagens irrelevantes (posts sem preços) antes do upload. Isso reduz custos de API e evita poluição no banco.
 2. **Resolução Numpy/OCR:** Resolvido o conflito de versões entre `EasyOCR` e `Numpy 2.0`. Realizamos o downgrade para `Numpy 1.26.4` e alinhamos `opencv-python-headless` e `tifffile`, garantindo estabilidade no ambiente local.
 3. **Gerenciamento de Ambientes:** Isolamos o ambiente de triagem (`venv_triagem`) no Python 3.12, mantendo a compatibilidade com bibliotecas de visão computacional legadas.
 4. **Correção de Runtime (Cloud Functions):** Corrigido o bug `eh_video is not defined` no backend, garantindo que o processamento de imagens e frames de vídeo via Gemini funcione sem erros 500.
@@ -144,11 +144,39 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Objetivo:** Implementar modo de teste e validar a organização de pastas órfãs para garantir a estabilidade do fluxo de triagem.
 
 **Resultados:**
-1. **Modo de Diagnóstico:** O script `triagem_ofertas.py` agora suporta o comando `test <caminho>`, permitindo validar a organização de pastas sem depender do relógio do sistema ou disparos de cron.
+1. **Modo de Diagnóstico:** O script `triagem_automatizada.py` agora suporta o comando `test <caminho>`, permitindo validar a organização de pastas sem depender do relógio do sistema ou disparos de cron.
 2. **Organização de Órfãos:** Validada a movimentação automática de pastas de lojas para a subpasta `manual` quando capturadas fora das janelas padrão (`10h`/`14h`).
 3. **Robustez da Triagem:** A lógica de triagem foi atualizada para processar recursivamente todas as subpastas da janela selecionada, garantindo que nenhum dado seja perdido.
 
 **Status Atual:** Sistema autônomo, organizado e resiliente. As ferramentas de diagnóstico permitem manutenção rápida e segura da estrutura de dados. Pronto para servir de base sólida para o App iOS.
+
+---
+
+**Sessão 14 (Rigor na Triagem e Filtros de Segurança)**
+
+**Data:** 30 de Abril de 2026
+**Objetivo:** Aumentar a precisão da triagem automática para reduzir custos e poluição de dados, eliminando falsos positivos de preços.
+
+**Resultados:**
+1. **Rigor OCR (Anti-Data):** Implementada trava no `triagem_automatizada.py` que ignora blocos de texto contendo barras (`/`) durante a busca por preços soltos. Isso evita que datas de postagem ou validade sejam confundidas com valores monetários.
+2. **Filtro de Pureza Alfanumérica:** O sistema agora descarta blocos de texto com mais letras do que números (ex: ruídos de leitura de logos), a menos que o símbolo "R$" esteja explicitamente presente.
+3. **Validação de Preço Solto:** Números isolados sem vírgula só são aceitos se tiverem no mínimo 2 dígitos (ex: "10" é aceito, "9" sozinho exige "R$") ou se vierem acompanhados do símbolo "R$".
+4. **Organização Automática:** Scripts de triagem agora processam recursivamente subpastas temporais (`10h`, `14h`, `manual`), garantindo que capturas organizadas pelo cron não sejam ignoradas.
+5. **Auto-Envio Local:** O script `enviar_triagem.py` foi integrado como o elo final do pipeline local, enviando automaticamente os frames aprovados para a API do Gemini após o processamento do OCR.
+
+---
+
+**Sessão 15 (Resiliência de Vídeo e Economia de IA)**
+
+**Data:** 30 de Abril de 2026
+**Objetivo:** Corrigir bugs de processamento de vídeo e otimizar o consumo da API na nuvem.
+
+**Resultados:**
+1. **Correção `eh_video`:** Resolvido erro de referência no backend (`functions/main.py`) que impedia o processamento correto de frames de vídeo recebidos via Base64.
+2. **Check de Duplicidade (Post ID):** Implementada verificação prévia no Firestore dentro da Cloud Function. Se um `post_id` já foi processado no mesmo dia, o sistema aborta a chamada de IA, economizando tokens preciosos.
+3. **Aprimoramento do Sniffer:** O robô local foi ajustado para ignorar vídeos que não possuem metadados de preço no título ou na legenda (quando disponível), filtrando conteúdo institucional das redes sociais.
+
+**Status Atual:** Pipeline local e nuvem operando com máxima eficiência. Triagem extremamente rigorosa garante que apenas ofertas de alta qualidade cheguem ao banco de dados.
 
 ---
 
@@ -170,4 +198,4 @@ Para suportar a lógica de deduplicação de ofertas (evitar duplicatas para o m
 
 ---
 
-*Última atualização: 28/04/2026 — Hierarquia por janelas, Triagem automatizada e Configuração de Índices Firestore.*
+*Última atualização: 30/04/2026 — Rigor na Triagem OCR e Filtros Anti-Ruído.*

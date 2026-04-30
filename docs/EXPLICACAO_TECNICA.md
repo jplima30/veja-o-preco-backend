@@ -5,14 +5,19 @@ O backend do "Veja o Preço" é um sistema híbrido que utiliza três níveis de
 ## 1. Níveis de Extração
 - **API Direta**: Consumo direto de endpoints JSON/GraphQL (Atacadão, Seja Econômico). É a forma mais rápida e barata.
 - **Extração via I.A. (PDF)**: Para o Mix Mateus, processamos tabloides digitais usando o Gemini 3.1 Flash Lite (Foco em custo/volume).
-- **Híbrido (I.A. Vision + Triagem Local)**: Para o Assaí e redes sociais (Líder, Formosa, Guerreirão BR), usamos um robô local (`cron_playwright.py`). Ele captura imagens/vídeos e utiliza o **EasyOCR** localmente (`triagem_ofertas.py`) para filtrar o que não tem preço. O que for aprovado é enviado para o Gemini 3.1 Flash Image (Elite Vision) na nuvem para extração final.
+- **Híbrido (I.A. Vision + Triagem Automatizada)**: Para o Assaí e redes sociais (Líder, Formosa, Guerreirão BR), usamos um robô local (`cron_playwright.py`). Ele captura imagens/vídeos e utiliza o **EasyOCR** localmente (`triagem_automatizada.py`) com filtros rigorosos.
+    - **Filtro Anti-Data**: Ignora textos com barras (`/`) para não confundir datas com preços.
+    - **Filtro de Pureza**: Descarta ruídos visuais que o OCR lê como texto mas não têm o símbolo `R$`.
+    - **Auto-Envio**: O script `enviar_triagem.py` despacha as imagens aprovadas para a nuvem.
+  O que for aprovado é enviado para o Gemini 3.1 Flash Image (Elite Vision) na nuvem para extração final.
 
 ## 2. Padronização (O Contrato)
 Independente de onde venha o dado, o sistema sempre entrega o mesmo formato JSON para o App iOS, garantindo que o frontend nunca quebre.
 
 ## 3. Segurança e Performance
 - **Headers de Navegador**: O robô `cron_playwright` simula comportamento humano para evitar bloqueios das redes sociais (Error 403).
-- **Consumo Consciente**: Todas as chamadas de I.A. monitoram o uso de tokens para controle de custos, e usamos um histórico local (`historico_posts.json`) para nunca processar o mesmo post duas vezes.
+- **Consumo Consciente**: Todas as chamadas de I.A. monitoram o uso de tokens. Implementamos um **Check de Duplicidade** no Firestore: se um post já foi processado hoje, a I.A. nem é chamada.
+- **Deduplicação Inteligente**: Utilizamos índices compostos no Firestore para garantir que o mesmo produto no mesmo mercado não tenha ofertas duplicadas no mesmo dia.
 
 ---
 ## 4. Estrutura de Pastas e o que Sobe para a Nuvem
@@ -32,7 +37,7 @@ veja-o-preco-backend/
 ├── scripts/
 │   ├── cron_playwright.py       ← 🤖 Robô fantasma (Instagram e Site Assaí)
 │   ├── captura_visivel.command  ← 🖥️ Atalho para abrir o robô no Terminal (Mac)
-│   ├── triagem_ofertas.py       ← 🧠 Filtro de I.A. Local (OCR)
+│   ├── triagem_automatizada.py  ← 🧠 Filtro de I.A. Local (OCR)
 │   └── ...
 ```
 

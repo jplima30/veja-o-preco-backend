@@ -10,7 +10,7 @@ SENHA_SEGURA = "senha_segura_123"
 
 # Caminhos
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "auditoria_visual")
-PASTA_TRIAGEM = os.path.join(BASE_DIR, "TRIAGEM_DE_OFERTAS")
+PASTA_TRIAGEM = os.path.join(BASE_DIR, "TRIAGEM_AUTOMATIZADA")
 
 # Mapeamento de IDs (Sincronizado com cron_playwright.py)
 MAPEAMENTO_IDS = {
