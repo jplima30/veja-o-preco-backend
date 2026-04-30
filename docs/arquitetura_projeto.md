@@ -146,56 +146,23 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Resultados:**
 1. **Modo de Diagnóstico:** O script `triagem_automatizada.py` agora suporta o comando `test <caminho>`, permitindo validar a organização de pastas sem depender do relógio do sistema ou disparos de cron.
 2. **Organização de Órfãos:** Validada a movimentação automática de pastas de lojas para a subpasta `manual` quando capturadas fora das janelas padrão (`10h`/`14h`).
-3. **Robustez da Triagem:** A lógica de triagem foi atualizada para processar recursivamente todas as subpastas da janela selecionada, garantindo que nenhum dado seja perdido.
-
-**Status Atual:** Sistema autônomo, organizado e resiliente. As ferramentas de diagnóstico permitem manutenção rápida e segura da estrutura de dados. Pronto para servir de base sólida para o App iOS.
+3. **Robustez da Triagem:** A lógica de triagem foi atualizada para processar recursivamente todas as subpastas da janela selecionada, garantindo que nenhum item seja ignorado.
 
 ---
 
-**Sessão 14 (Rigor na Triagem e Filtros de Segurança)**
+**Sessão 16 (Blindagem de Categorias e Modelos Gemini 3.1)**
 
 **Data:** 30 de Abril de 2026
-**Objetivo:** Aumentar a precisão da triagem automática para reduzir custos e poluição de dados, eliminando falsos positivos de preços.
+**Objetivo:** Implementar camadas de segurança para garantir que apenas itens de supermercado entrem no banco de dados.
 
 **Resultados:**
-1. **Rigor OCR (Anti-Data):** Implementada trava no `triagem_automatizada.py` que ignora blocos de texto contendo barras (`/`) durante a busca por preços soltos. Isso evita que datas de postagem ou validade sejam confundidas com valores monetários.
-2. **Filtro de Pureza Alfanumérica:** O sistema agora descarta blocos de texto com mais letras do que números (ex: ruídos de leitura de logos), a menos que o símbolo "R$" esteja explicitamente presente.
-3. **Validação de Preço Solto:** Números isolados sem vírgula só são aceitos se tiverem no mínimo 2 dígitos (ex: "10" é aceito, "9" sozinho exige "R$") ou se vierem acompanhados do símbolo "R$".
-4. **Organização Automática:** Scripts de triagem agora processam recursivamente subpastas temporais (`10h`, `14h`, `manual`), garantindo que capturas organizadas pelo cron não sejam ignoradas.
-5. **Auto-Envio Local:** O script `enviar_triagem.py` foi integrado como o elo final do pipeline local, enviando automaticamente os frames aprovados para a API do Gemini após o processamento do OCR.
+1. **Modelos de Elite (Gemini 3.1):** Consolidamos o uso do `gemini-3.1-flash-image-preview` para visão (fotos/vídeos) e `gemini-3.1-flash-lite-preview` para textos (PDFs), garantindo o melhor equilíbrio entre inteligência visual e custo.
+2. **Whitelist de Categorias:** O sistema agora opera sob um regime de "Whitelist" (Alimentação, Higiene e Limpeza). Qualquer item fora desses eixos é descartado.
+3. **Filtro de Categoria em Código:** Adicionamos uma trava de segurança no `functions/main.py` que lê a categoria retornada pela IA. Se for "Bazar", "Eletrônicos" ou "Bebidas Alcoólicas", o registro é abortado antes de chegar ao Firestore.
+4. **Manual de Automação 2.0:** O `readme-validators.md` foi reescrito para separar comandos "Dentro vs Fora do Venv", facilitando o uso rápido via terminal.
+
+**Status Atual:** Sistema protegido contra poluição de dados (pneus, TVs, etc.) e documentação operacional simplificada.
 
 ---
 
-**Sessão 15 (Resiliência de Vídeo e Economia de IA)**
-
-**Data:** 30 de Abril de 2026
-**Objetivo:** Corrigir bugs de processamento de vídeo e otimizar o consumo da API na nuvem.
-
-**Resultados:**
-1. **Correção `eh_video`:** Resolvido erro de referência no backend (`functions/main.py`) que impedia o processamento correto de frames de vídeo recebidos via Base64.
-2. **Check de Duplicidade (Post ID):** Implementada verificação prévia no Firestore dentro da Cloud Function. Se um `post_id` já foi processado no mesmo dia, o sistema aborta a chamada de IA, economizando tokens preciosos.
-3. **Aprimoramento do Sniffer:** O robô local foi ajustado para ignorar vídeos que não possuem metadados de preço no título ou na legenda (quando disponível), filtrando conteúdo institucional das redes sociais.
-
-**Status Atual:** Pipeline local e nuvem operando com máxima eficiência. Triagem extremamente rigorosa garante que apenas ofertas de alta qualidade cheguem ao banco de dados.
-
----
-
-**Configuração do Banco de Dados (Firestore)**
-
-Para suportar a lógica de deduplicação de ofertas (evitar duplicatas para o mesmo produto no mesmo supermercado no mesmo dia), foram configurados os seguintes índices compostos:
-
-*   **Coleção:** `ofertas`
-*   **Campos:** 
-    1. `preco` (Ascendente)
-    2. `produto_id` (Ascendente)
-    3. `supermercado_id` (Ascendente)
-    4. `expira_em` (Ascendente)
-    5. `__name__` (Ascendente)
-*   **ID do Índice:** `CICAgOjXh4EK`
-*   **Status:** Ativado
-
-**Motivação Técnica:** O sistema utiliza filtros de igualdade em `produto_id` e `supermercado_id` combinados com filtros de intervalo/ordenação em `expira_em`. No Firestore, consultas que envolvem múltiplos campos com ordenação personalizada exigem explicitamente um índice composto para serem executadas.
-
----
-
-*Última atualização: 30/04/2026 — Rigor na Triagem OCR e Filtros Anti-Ruído.*
+*Última atualização: 30/04/2026 — Sessão 16: Blindagem de Categorias e Gemini 3.1.*
