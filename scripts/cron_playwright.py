@@ -420,13 +420,13 @@ if __name__ == "__main__":
     registrar_sucesso_janela(historico, janela_alvo)
 
     print("\n" + "="*60)
-    print("🚀 [PRÓXIMO PASSO] Iniciando Triagem de Ofertas automática...")
+    print("🚀 [PRÓXIMO PASSO] Iniciando Triagem Automatizada...")
     print("="*60)
     
     import subprocess
     # Caminho absoluto para o Python do venv de triagem
     venv_python = os.path.join(os.path.dirname(__file__), "..", "venv_triagem", "bin", "python3")
-    script_triagem = os.path.join(os.path.dirname(__file__), "triagem_ofertas.py")
+    script_triagem = os.path.join(os.path.dirname(__file__), "triagem_automatizada.py")
     
     try:
         print(f"  🧠 Rodando triagem [{janela_alvo}h] com: {venv_python}")

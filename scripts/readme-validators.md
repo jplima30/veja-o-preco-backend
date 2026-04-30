@@ -10,7 +10,7 @@ O projeto utiliza dois ambientes distintos para otimizar o uso de recursos:
 
 ### A. `venv_triagem` (Processamento Local)
 *   **O que contém**: Playwright (Scraper), EasyOCR (Triagem local), Bibliotecas pesadas.
-*   **Quando usar**: Para rodar o robô de redes sociais (`cron_playwright.py`) e a triagem local (`triagem_ofertas.py`).
+*   **Quando usar**: Para rodar o robô de redes sociais (`cron_playwright.py`) e a triagem automatizada (`triagem_automatizada.py`).
 *   **Caminho**: `/Users/jplima/Documents/veja-o-preco-backend/venv_triagem`
 
 ### B. `functions/venv` (Integração Cloud)
@@ -29,9 +29,14 @@ Use estes comandos para rodar os scripts de **qualquer lugar** do terminal, sem 
 /Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py
 ```
 
-### Rodar Apenas Triagem (OCR Local nas imagens baixadas)
+### Rodar Apenas Triagem Automatizada (OCR Local nas imagens baixadas)
 ```bash
-/Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/triagem_ofertas.py
+/Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/triagem_automatizada.py
+```
+
+### Rodar Triagem Local (Sem enviar para a nuvem)
+```bash
+/Users/jplima/Documents/veja-o-preco-backend/venv_triagem/bin/python3 /Users/jplima/Documents/veja-o-preco-backend/scripts/triagem_local.py
 ```
 
 ---
@@ -43,8 +48,13 @@ Use estes comandos para rodar os scripts de **qualquer lugar** do terminal, sem 
 *   `captura_visivel.command`: Script utilitário para abrir um terminal macOS e rodar o robô visivelmente.
 
 ### 🔍 Triagem e Filtragem (OCR)
-*   `triagem_ofertas.py`: Analisa as imagens baixadas. Se encontrar palavras proibidas (ex: "Bebida Alcoólica") ou se não encontrar preços, descarta a imagem para economizar tokens do Gemini.
-*   `limpar_bebidas.py`: Remove ofertas de álcool que possam ter passado pela triagem inicial.
+*   `triagem_automatizada.py`: O "Filtro". Analisa as imagens baixadas via EasyOCR. Aplica regras rigorosas:
+    - **Anti-Data**: Ignora blocos com `/`.
+    - **Anti-Ruído**: Descarta blocos com mais letras que números sem `R$`.
+    - **Mínimo 2 Dígitos**: Exige `10` ou `R$ 9`.
+*   `enviar_triagem.py`: O "Despachante". Acionado automaticamente pela triagem para enviar apenas os frames aprovados para a API do Gemini na nuvem.
+*   `triagem_local.py`: Versão de segurança para validar novas regras de OCR sem gastar API ou subir dados.
+*   `limpar_bebidas.py`: Script de limpeza pós-extração para remover álcool.
 
 ### 📑 Validadores de Encarte (PDF)
 *Esses scripts simulam o comportamento do backend para ler PDFs de supermercados.*

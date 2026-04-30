@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "auditoria_visual")
-PASTA_FILTRADA = os.path.join(BASE_DIR, "TRIAGEM_LOCAL_TESTE")
+PASTA_FILTRADA = os.path.join(BASE_DIR, "TRIAGEM_AUTOMATIZADA")
 ARQUIVO_LIMPEZA = os.path.join(BASE_DIR, ".last_cleanup")
 
 def realizar_faxina_semanal():
@@ -116,8 +116,8 @@ def limpar_pastas_orfas(caminho_dia):
         item_path = os.path.join(caminho_dia, item)
         # Se for um diretório e não for uma das pastas de janela protegidas
         if os.path.isdir(item_path) and item not in pastas_protegidas:
-            # Se o item for TRIAGEM_DE_OFERTAS (que pode estar no root do BASE_DIR, mas não dentro do dia)
-            # mas aqui estamos dentro de caminho_dia, então TRIAGEM_DE_OFERTAS não deveria estar aqui.
+            # Se o item for TRIAGEM_AUTOMATIZADA (que pode estar no root do BASE_DIR, mas não dentro do dia)
+            # mas aqui estamos dentro de caminho_dia, então TRIAGEM_AUTOMATIZADA não deveria estar aqui.
             print(f"🧹 [ORGANIZADOR] Movendo pasta órfã '{item}' para 'manual'...")
             try:
                 destino = os.path.join(pasta_manual, item)
@@ -239,7 +239,7 @@ def iniciar_triagem(janela=None, data_teste=None):
     
     # Extrai o contexto para o log (ex: 10h ou manual)
     contexto = os.path.basename(data_pasta)
-    print(f"\n🔍 [TRIAGEM] Iniciando processamento da janela: {contexto}")
+    print(f"\n🔍 [TRIAGEM AUTOMATIZADA] Iniciando processamento da janela: {contexto}")
     pasta_origem = os.path.join(BASE_DIR, data_pasta)
     pasta_saida_hoje = os.path.join(PASTA_FILTRADA, data_pasta)
 
@@ -253,7 +253,7 @@ def iniciar_triagem(janela=None, data_teste=None):
         shutil.rmtree(pasta_saida_hoje)
 
     print("\n" + "="*60)
-    print("🧠 TRIAGEM DE OFERTAS v3.0 (FOCO EM PREÇO)")
+    print("🧠 TRIAGEM AUTOMATIZADA v3.0 (FOCO EM PREÇO)")
     print("="*60)
     print(f"🚀 Analisando capturas de: {data_pasta}")
     
@@ -322,17 +322,28 @@ def iniciar_triagem(janela=None, data_teste=None):
                     print(f"  ⏭️ [IGNORADO] {img} (Sem indício de preço)")
 
     print("\n" + "="*60)
-    print("🏁 TRIAGEM FINALIZADA!")
+    print("🏁 TRIAGEM AUTOMATIZADA FINALIZADA!")
     print(f"📊 Total Analisado: {total_processado} imagens")
     print(f"⭐ Total Filtrado: {total_aprovado} imagens")
     print(f"📂 Resultados em: {pasta_saida_hoje}")
     print("="*60)
 
-    print(f"\n💡 [TESTE LOCAL] Processo finalizado. Nenhuma imagem foi enviada para a nuvem.")
+    # 4. Envio automático para a nuvem
+    if total_aprovado > 0:
+        print("\n🚀 [AUTO-ENVIO] Iniciando upload das ofertas filtradas...")
+        try:
+            import enviar_triagem
+            enviar_triagem.enviar_para_nuvem()
+        except ImportError:
+            print("⚠️ Erro: Script 'enviar_triagem.py' não encontrado na mesma pasta.")
+        except Exception as e:
+            print(f"⚠️ Erro no envio automático: {e}")
+    else:
+        print("\n❌ Nenhuma oferta válida encontrada para enviar hoje.")
 
 if __name__ == "__main__":
-    # Permite passar a janela como argumento: python3 triagem_ofertas.py 10
-    # Ou data completa para teste: python3 triagem_ofertas.py test 2026-04-29_Quarta/manual
+    # Permite passar a janela como argumento: python3 triagem_automatizada.py 10
+    # Ou data completa para teste: python3 triagem_automatizada.py test 2026-04-29_Quarta/manual
     arg1 = sys.argv[1] if len(sys.argv) > 1 else None
     arg2 = sys.argv[2] if len(sys.argv) > 2 else None
     
