@@ -98,21 +98,49 @@ def salvar_produto_e_oferta(
     db = firestore.client()
     produto_id = normalizar_nome(nome, unidade)
 
-    # --- FILTRO DE PALAVRAS PROIBIDAS (BEBIDAS ALCOÓLICAS) ---
+    # --- FILTRO DE CATEGORIAS E PALAVRAS PROIBIDAS ---
+    
+    # 1. Bloqueio por Categoria (Whitelist de Supermercado)
+    # Se a I.A. classificar como algo fora do escopo, bloqueamos preventivamente.
+    categorias_proibidas = [
+        "BAZAR", "ELETRÔNICOS", "ELETRO", "MODA", "VESTUÁRIO", 
+        "AUTOMOTIVO", "BRINQUEDOS", "FERRAMENTAS", "MÓVEIS", "CASA"
+    ]
+    if categoria.upper() in categorias_proibidas:
+        print(f"  🚫 Oferta bloqueada por CATEGORIA PROIBIDA: {categoria} - {nome}")
+        return {"produto_id": produto_id, "salvo": False, "motivo": "categoria_proibida"}
+
+    # 2. Lista de Palavras Proibidas (Safety Net)
     palavras_proibidas = [
+        # Bebidas Alcoólicas
         "cerveja", "whisky", "whiskey", "vodka", "vodca", "gin", "vinho", 
         "chopp", "cachaça", "licor", "tequila", "rum", "ice", "skol", 
         "brahma", "heineken", "budweiser", "spaten", "amstel", "corona",
         "stella", "antarctica", "itaipava", "schin", "kaiser", "bavaria",
-        "campari", "absolut", "smirnoff", "chandon", "espumante", "champagne"
+        "campari", "absolut", "smirnoff", "chandon", "espumante", "champagne",
+        
+        # Eletrônicos e Eletrodomésticos
+        "aspirador", "liquidificador", "celular", "smartphone", "televisor", "smart tv", 
+        "batedeira", "air fryer", "microondas", "lavadora", "geladeira", "fogao", "fogão", 
+        "ventilador", "notebook", "tablet", "ferro de passar", "sanduicheira", "grill", 
+        "smartwatch", "eletro", "fone", "carregador", "caixa de som", "furadeira", 
+        "parafusadeira", "micro-ondas", "secador", "prancha",
+        
+        # Bazar, Moda e Diversos (Não-Alimentares)
+        "pneu", "bicicleta", "moto", "carro", "bazar", "sandalia", "chinelo", "tenis", 
+        "sapato", "mochila", "bolsa", "varal", "mop", "vassoura", "balde", "escada",
+        "brinquedo", "boneca", "carrinho", "jogo", "bingo", "vestuario", "roupa", 
+        "camiseta", "bermuda", "calca", "meia", "mesa", "cadeira", "armario", 
+        "guarda-roupa", "colchao", "panela", "frigideira", "lampada", "lâmpada", 
+        "pilha", "bateria", "churrasqueira"
     ]
     nome_lower = nome.lower()
     
     import re
-    # Usa delimitadores de palavra (\b) para evitar que 'gin' bloqueie 'original' ou 'ice' bloqueie 'spices'
+    # Usa delimitadores de palavra (\b) para evitar bloqueios indevidos (ex: não bloquear 'mousse' por 'meia')
     if any(re.search(rf'\b{palavra}\b', nome_lower) for palavra in palavras_proibidas):
-        print(f"  🚫 Oferta bloqueada pelo Filtro do Backend: {nome}")
-        return {"produto_id": produto_id, "salvo": False, "motivo": "bebida_alcoolica"}
+        print(f"  🚫 Oferta bloqueada pelo Filtro de Palavras: {nome}")
+        return {"produto_id": produto_id, "salvo": False, "motivo": "palavra_proibida"}
 
     # --- UPSERT em /produtos ---
     ref_produto = db.collection("produtos").document(produto_id)
@@ -597,8 +625,9 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
             gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type="image/jpeg"))
 
         prompt = """
-        Analise o encarte do Assaí Atacadista e extraia os produtos (Alimentos, Higiene, Limgiene, etc.).
-        IGNORE APENAS Bebidas Alcoólicas (Cerveja, Vinho, etc.).
+        Analise o encarte do Assaí Atacadista e extraia os produtos de supermercado.
+        FOCO: Alimentos, Higiene, Limpeza e Bebidas Não-Alcoólicas.
+        IGNORE: Bebidas Alcoólicas (Cerveja, Vinho, etc.) e itens de Bazar (Eletrônicos, Eletro, Moda).
         Retorne APENAS o JSON puro no formato:
         {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA"}]}
         """
@@ -856,21 +885,23 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             # 5. Criar o Prompt Baseado no Contrato de Dados
             prompt_instrucao = """
             Você é um assistente especializado em extração de dados de encartes de supermercado.
-            Sua tarefa é ler o PDF anexado e extrair TODOS os produtos e preços visíveis.
+            Sua tarefa é ler o PDF anexado e extrair produtos de ALIMENTAÇÃO, HIGIENE e LIMPEZA.
             
             REGRAS OBRIGATÓRIAS:
             1. Retorne APENAS um objeto JSON válido.
-            2. Use exatamente os campos: produto, preco, unidade, categoria, imagem, validade.
-            3. O campo 'preco' deve ser um NÚMERO (Ex: 10.99).
-            4. Se não encontrar imagem ou validade, use null ou string vazia conforme o contrato.
-            5. Tente identificar a categoria (Ex: Mercearia, Hortifruti, Carnes, Bebidas).
+            2. IGNORE COMPLETAMENTE: Bebidas Alcoólicas, Eletrônicos, Bazar, Moda, Eletrodomésticos, Automotivo e Brinquedos.
+            3. Se encontrar itens de Bazar ou Eletrônicos, NÃO os inclua no JSON.
+            4. Use exatamente os campos: produto, preco, unidade, categoria, imagem, validade.
+            5. O campo 'preco' deve ser um NÚMERO (Ex: 10.99).
+            6. Identifique a categoria (Ex: Alimentos, Higiene, Limpeza, Hortifruti, Carnes).
             
             ESTRUTURA ESPERADA:
             {
                 "itens": [
-                    {"produto": "NOME", "preco": 0.0, "unidade": "UN", "categoria": "GERAL", "imagem": "", "validade": null}
+                    {"produto": "NOME", "preco": 0.0, "unidade": "UN", "categoria": "CATEGORIA", "imagem": "", "validade": null}
                 ]
             }
+            IMPORTANTE: Retorne APENAS o JSON puro.
             """
 
             # 6. Gerar o Conteúdo
@@ -1070,24 +1101,32 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             gemini_parts.append(uploaded_file)
 
         try:
-            # 4. Prompt de Visão estruturado com Filtro de Categorias (Líder Standard)
+            # 4. Prompt de Visão estruturado com Filtro de Categorias RÍGIDO
             prompt_vision = """
-            Você é um assistente de visão computacional especializado em varejo.
-            Analise a imagem(ns) ou os quadros de vídeo do encarte de supermercado em anexo.
+            Você é um assistente de visão computacional especializado em varejo de supermercado.
+            Analise a imagem(ns) ou os quadros de vídeo do encarte em anexo.
             
-            REGRAS OBRIGATÓRIAS:
-            1. Extraia itens de diversas categorias de supermercado como ALIMENTOS, HIGIENE, LIMPEZA, BEBIDAS NÃO-ALCOÓLICAS e BAZAR.
-            2. IGNORE APENAS Bebidas Alcoólicas. Se encontrar itens como Cerveja, Chopp, Vinho, Espumante, Whisky, Vodka, Gin, Cachaça, Rum ou Combos de Bebidas Alcoólicas, NÃO os inclua na lista final, mas CONTINUE extraindo normalmente os outros itens válidos da mesma imagem.
-            3. Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL. Se a imagem mostrar um produto mas não exibir o preço exato, IGNORE esse produto completamente. Não tente adivinhar.
-            4. Se não houver nenhum produto válido com preço visível em nenhuma imagem, retorne: {"itens": []}
-            5. Siga rigorosamente o padrão JSON abaixo:
+            FOCO TOTAL (Whitelist):
+            Extraia APENAS itens de supermercado das categorias: ALIMENTAÇÃO, HIGIENE e LIMPEZA.
             
+            BLOQUEIO ABSOLUTO (Ignore Completamente):
+            1. Bebidas Alcoólicas (Cerveja, Vinho, Whisky, etc.).
+            2. Eletrônicos e Eletrodomésticos (TV, Celular, Air Fryer, Ventilador, etc.).
+            3. Bazar e Casa (Pneus, Ferramentas, Panelas, Móveis, Lâmpadas, etc.).
+            4. Moda e Vestuário (Roupas, Calçados, Bolsas, etc.).
+            5. Brinquedos e Papelaria.
+            
+            REGRAS ADICIONAIS:
+            - Se encontrar itens proibidos, NÃO os inclua no JSON.
+            - Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL.
+            - Se a imagem mostrar um produto mas não exibir o preço exato, IGNORE-O.
+            
+            Padrão de saída JSON:
             {
                 "itens": [
                     {"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA", "imagem": "", "validade": "DATA SE HOUVER"}
                 ]
             }
-            IMPORTANTE: O campo "imagem" deve ser SEMPRE uma string vazia "".
             Retorne APENAS o JSON puro.
             """
             gemini_parts.append(prompt_vision)
