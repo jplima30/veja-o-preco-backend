@@ -53,4 +53,3 @@ Para uma visão detalhada de cada fase do projeto, acesse a nossa **Wiki oficial
 - **[🛒 Supermercados](https://github.com/jplima30/veja-o-preco-backend/wiki/Supermercados)**
 
 ---
-**Desenvolvido com Antigravity (Google DeepMind)** 🦾🤖
