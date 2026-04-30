@@ -597,9 +597,10 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
             gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type="image/jpeg"))
 
         prompt = """
-        Analise o encarte do Assaí Atacadista e extraia os produtos de ALIMENTOS.
+        Analise o encarte do Assaí Atacadista e extraia os produtos (Alimentos, Higiene, Limgiene, etc.).
+        IGNORE APENAS Bebidas Alcoólicas (Cerveja, Vinho, etc.).
         Retorne APENAS o JSON puro no formato:
-        {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "Geral"}]}
+        {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA"}]}
         """
         gemini_parts.append(prompt)
 
@@ -1071,14 +1072,14 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
         try:
             # 4. Prompt de Visão estruturado com Filtro de Categorias (Líder Standard)
             prompt_vision = """
-            Você é um assistente de visão computacional especializado em varejo alimentar.
+            Você é um assistente de visão computacional especializado em varejo.
             Analise a imagem(ns) ou os quadros de vídeo do encarte de supermercado em anexo.
             
             REGRAS OBRIGATÓRIAS:
-            1. Extraia APENAS itens que pertençam à categoria de ALIMENTOS (Mercearia, Hortifruti, Carnes, Laticínios, etc.).
-            2. Se a imagem contiver Bebidas alcoólicas (cervejas, vinhos), eletrônicos ou itens de higiene, simplesmente NÃO inclua esses itens na lista final, mas CONTINUE extraindo normalmente os alimentos válidos da mesma imagem.
-            3. Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL. Se a imagem mostrar um produto (como frutas, carnes, etc) mas não exibir o preço exato, IGNORE esse produto completamente. Não tente adivinhar.
-            4. Se não houver nenhum alimento com preço visível em nenhuma imagem, retorne: {"itens": []}
+            1. Extraia itens de diversas categorias de supermercado como ALIMENTOS, HIGIENE, LIMPEZA, BEBIDAS NÃO-ALCOÓLICAS e BAZAR.
+            2. IGNORE APENAS Bebidas Alcoólicas. Se encontrar itens como Cerveja, Chopp, Vinho, Espumante, Whisky, Vodka, Gin, Cachaça, Rum ou Combos de Bebidas Alcoólicas, NÃO os inclua na lista final, mas CONTINUE extraindo normalmente os outros itens válidos da mesma imagem.
+            3. Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL. Se a imagem mostrar um produto mas não exibir o preço exato, IGNORE esse produto completamente. Não tente adivinhar.
+            4. Se não houver nenhum produto válido com preço visível em nenhuma imagem, retorne: {"itens": []}
             5. Siga rigorosamente o padrão JSON abaixo:
             
             {
