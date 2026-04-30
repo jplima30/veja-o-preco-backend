@@ -176,4 +176,108 @@ def salvar_produto_e_oferta(
         "criado_em": datetime.now()
     })
 
-    return {"produto_id": produto_id, "salvo": True, "duplicado": False}
+@https_fn.on_request()
+def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
+    """
+    Fase 2: Extração Direta (Guerreirão AM).
+    Consome o portal QROfertas e extrai produtos via BeautifulSoup.
+    """
+    from bs4 import BeautifulSoup
+    
+    # URL principal é mais estável que o XHR para a lista completa
+    url = "https://portal.qrofertas.com/meio-a-meio-o-guerreiro/"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "max-age=0",
+        "Connection": "keep-alive"
+    }
+    
+    try:
+        # Acessando a página principal
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        itens_extraidos = []
+        
+        # O container principal dos cards na vitrine
+        cards = soup.select(".boxProdutoEst, .product")
+        
+        for card in cards:
+            try:
+                # 1. Nome (Microdata ou Visual)
+                nome_tag = card.select_one('[itemprop="name"]') or card.select_one(".nomeProduto span") or card.select_one(".nomeProdutoEst")
+                if not nome_tag: continue
+                nome = nome_tag.get_text(strip=True)
+                
+                # 2. Preço (Híbrido: Microdata -> Atributo -> Visual)
+                preco_final = 0.0
+                preco_tag = card.select_one('[itemprop="price"]')
+                
+                if preco_tag and (preco_tag.get("content") or preco_tag.get("value")):
+                    valor = preco_tag.get("content") or preco_tag.get("value")
+                    preco_final = float(valor.replace(",", "."))
+                else:
+                    # Fallback para o visual (.real + .cents)
+                    real = card.select_one(".real")
+                    cents = card.select_one(".cents")
+                    if real:
+                        v_real = "".join(filter(str.isdigit, real.get_text()))
+                        v_cents = "".join(filter(str.isdigit, cents.get_text())) if cents else "00"
+                        preco_final = float(f"{v_real}.{v_cents}")
+                
+                # 3. Unidade
+                unidade_tag = card.select_one(".unidadeProduto") or card.select_one(".unidVendaEst")
+                unidade = unidade_tag.get_text(strip=True).lower().replace("/", "") if unidade_tag else "un"
+                
+                # 4. Imagem
+                img_tag = card.select_one('[itemprop="image"]') or card.select_one(".ftProduto img") or card.select_one(".img-fluid")
+                imagem_url = img_tag.get("src") if img_tag else ""
+                if imagem_url and imagem_url.startswith("//"):
+                    imagem_url = "https:" + imagem_url
+                
+                if preco_final > 0:
+                    itens_extraidos.append({
+                        "produto": nome,
+                        "preco": preco_final,
+                        "unidade": unidade,
+                        "categoria": "Geral",
+                        "imagem": imagem_url,
+                        "validade": None
+                    })
+            except:
+                continue
+        
+        # --- SALVAR NO FIRESTORE ---
+        for item in itens_extraidos:
+            try:
+                salvar_produto_e_oferta(
+                    nome=item["produto"],
+                    preco=item["preco"],
+                    unidade=item["unidade"],
+                    categoria=item["categoria"],
+                    supermercado_id="guerreirao-am",
+                    loja="Meio a Meio Guerreirão (AM)",
+                    metodo="scraping_html",
+                    imagem_api=item.get("imagem", ""),
+                    validade=item.get("validade")
+                )
+            except Exception as e_save:
+                print(f"AVISO FIRESTORE - Erro ao salvar '{item['produto']}': {e_save}")
+        
+        return https_fn.Response(
+            json.dumps({
+                "sucesso": True,
+                "loja": "Meio a Meio Guerreirão (AM)",
+                "metodo": "Scraping HTML (Híbrido)",
+                "quantidade": len(itens_extraidos),
+                "itens": itens_extraidos
+            }, ensure_ascii=False),
+            mimetype="application/json"
+        )
+    
+    except Exception as e:
+        return https_fn.Response(json.dumps({"sucesso": False, "erro": str(e)}), mimetype="application/json", status=500)
