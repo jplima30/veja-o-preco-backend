@@ -18,5 +18,7 @@ Registro das execuções do motor de triagem automatizada e manual.
 ## [2026-05-01] - Sexta-feira
 - **Status:** Concluído (Retroativo).
 - **Janelas:** 10h, 14h e Manual.
-- **Atividade:** Processamento de encartes sazonais (Mês das Mães) no Mateus Site e atualização de preços MM Guerreirão.
-- **Sincronia:** Registro de posts únicos no Firestore para deduplicação.
+- **Atividade:** Manutenção de backend e ajuste na lógica de ofertas.
+- **Desenvolvimento:** Refatoração de scripts de extração e correção de bugs no fluxo de persistência local.
+- **Infraestrutura:** Validação de regras de segurança e emulação do Firebase para testes de integração de ofertas.
+- **Triagem:** Processamento de encartes sazonais (Mês das Mães) no Mateus Site e atualização de preços MM Guerreirão com registro no Firestore.
