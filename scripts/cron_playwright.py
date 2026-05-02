@@ -6,11 +6,20 @@ import json
 import base64
 import shutil
 import re
+import subprocess
+import glob
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
-USER_DATA_DIR = os.path.join(os.path.dirname(__file__), "playwright_profile")
+try:
+    import fitz # PyMuPDF para extração precisa de páginas
+    FITZ_AVAILABLE = True
+except ImportError:
+    FITZ_AVAILABLE = False
+
+USER_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "playwright_profile"))
 ENDPOINT_FIREBASE = "https://extrair-dados-imagem-kcglywisya-uc.a.run.app"
+ENDPOINT_PDF = "https://extrair-dados-encarte-kcglywisya-uc.a.run.app"
 HISTORICO_ARQUIVO = os.path.join(os.path.dirname(__file__), "historico_posts.json")
 MODO_AUDITORIA_VISUAL = True  # MODO AUDITORIA: Salva imagens localmente para triagem posterior via OCR
 JANELAS_HORARIO = [10, 14]  # Horários permitidos para varredura automática (10h e 14h)
@@ -98,7 +107,7 @@ ALVOS = [
     {"username": "assaiatacadistaoficial", "supermercado_id": "assai-am"}
 ]
 
-def processar_assai_site(page, historico):
+def processar_assai_site(page, historico, force=False):
     print("\n🌐 [MÉTODO SITE] Iniciando busca no site oficial do Assaí...")
     url_loja = "https://www.assai.com.br/ofertas/para/assai-augusto-montenegro"
     
@@ -194,9 +203,12 @@ def processar_assai_site(page, historico):
             id_chave = f"site-assai-{campanha}-{cluster}"
             
             historico_assai = historico.get("assai_site", {})
-            if id_chave in historico_assai:
+            if id_chave in historico_assai and not force:
                 print(f"  ⏭️ Encarte {id_chave} já processado anteriormente. Pulando...")
                 continue
+
+            if force:
+                print(f"  🔄 [FORCE] Ignorando histórico e limpando pasta para: {id_chave}")
 
             algum_novo = True
             print(f"  🔥 Processando Encarte NOVO: Campanha {campanha}, Cluster {cluster}")
@@ -218,6 +230,8 @@ def processar_assai_site(page, historico):
                         
                         # Auditoria
                         pasta_audit = os.path.join(PASTA_AUDITORIA_HOJE, "assai_site", id_chave)
+                        if force and os.path.exists(pasta_audit):
+                            shutil.rmtree(pasta_audit)
                         os.makedirs(pasta_audit, exist_ok=True)
                         with open(os.path.join(pasta_audit, f"pagina_{i}.jpg"), "wb") as f:
                             f.write(resp.content)
@@ -255,7 +269,215 @@ def processar_assai_site(page, historico):
     except Exception as e:
         print(f"  ❌ Erro crítico ao processar site do Assaí: {e}")
 
-def processar_instagram(page, historico):
+def processar_mateus_site(page, historico, force=False):
+    print("\n🛒 [MÉTODO SITE] Iniciando busca no site oficial do Mateus...")
+    url_mateus = "https://ofertasmateus.com/pa/ananindeua/mateus-jaderlandia"
+    
+    try:
+        print(f"  🛰️ Navegando para: {url_mateus}")
+        page.goto(url_mateus, timeout=60000)
+        page.wait_for_load_state("networkidle")
+        
+        # O site do Mateus carrega os encartes em uma grade
+        print("  🔍 Localizando encartes na página...")
+        try:
+            page.wait_for_selector(".encarte-item", timeout=10000)
+        except:
+            print("  ⚠️ Encartes não apareceram. Tentando clicar em 'Escolha o Encarte'...")
+            try:
+                page.click("text=Escolha o Encarte", timeout=5000)
+                page.wait_for_selector(".encarte-item", timeout=10000)
+            except: pass
+
+        encartes = page.locator(".encarte-item")
+        count = encartes.count()
+        
+        if count == 0:
+            print("  ⚠️ Nenhum encarte encontrado na página do Mateus.")
+            return
+
+        print(f"  📚 Encontrados {count} encartes. Verificando novidades...")
+        
+        historico_mateus = historico.get("mateus_site", {})
+        algum_novo = False
+
+        for i in range(count):
+            try:
+                item = encartes.nth(i)
+                titulo = item.locator(".encarte-nome").inner_text().strip()
+                
+                # [MELHORIA] Ignorar botão de fechar "Escolha o Encarte" que o site renderiza como item
+                if "Escolha o Encarte" in titulo:
+                    continue
+
+                print(f"  🔍 Verificando encarte: {titulo}")
+
+                # Clicar para abrir o modal e pegar o link do PDF
+                item.locator(".encarte-item-ver-btn").click()
+                page.wait_for_selector("a[title='Baixar encarte']", timeout=10000)
+                
+                link_pdf = page.locator("a[title='Baixar encarte']").get_attribute("href")
+                
+                if not link_pdf:
+                    print(f"  ⚠️ Não foi possível obter o link do PDF para '{titulo}'.")
+                    page.keyboard.press("Escape")
+                    continue
+
+                if not link_pdf.startswith("http"):
+                    link_pdf = "https://ofertasmateus.com" + link_pdf
+
+                # [MELHORIA] ID Chave baseado na URL do PDF para evitar duplicatas com nomes iguais (ex: "Folheto")
+                # Se o link for genérico (como api-proxy.php), usamos um hash do link completo
+                parsed_filename = link_pdf.split("/")[-1].split("?")[0].replace(".pdf", "")
+                if "proxy" in parsed_filename or len(parsed_filename) < 3:
+                    import hashlib
+                    id_pasta = hashlib.md5(link_pdf.encode()).hexdigest()[:10]
+                else:
+                    id_pasta = parsed_filename
+                
+                id_chave = f"mateus-{id_pasta}"
+
+                if id_chave in historico_mateus and not force:
+                    print(f"  ⏭️ Encarte '{titulo}' (ID: {id_pasta}) já processado. Pulando...")
+                    page.keyboard.press("Escape")
+                    continue
+                
+                if force:
+                    print(f"  🔄 [FORCE] Forçando re-processamento do encarte: {titulo}")
+                    # [LIMPEZA AGRESSIVA] No modo force, limpamos tudo do encarte específico
+                    pasta_mateus = os.path.join(PASTA_AUDITORIA_HOJE, "mateus_site")
+                    pasta_paginas = os.path.join(pasta_mateus, id_pasta)
+                    caminho_pdf_antigo = os.path.join(pasta_mateus, f"mateus_site_{id_pasta}.pdf")
+                    
+                    if os.path.exists(pasta_paginas):
+                        print(f"    🧹 [FORCE] Removendo pasta de imagens anterior: {id_pasta}")
+                        shutil.rmtree(pasta_paginas)
+                    if os.path.exists(caminho_pdf_antigo):
+                        print(f"    🧹 [FORCE] Removendo PDF anterior.")
+                        os.remove(caminho_pdf_antigo)
+
+                print(f"  🔥 NOVO ENCARTE: {titulo} (ID: {id_pasta})")
+                algum_novo = True
+
+                print(f"  🔗 Link capturado: {link_pdf}")
+
+                # No modo auditoria, baixamos o arquivo localmente
+                if MODO_AUDITORIA_VISUAL:
+                    print(f"  📥 Baixando PDF para auditoria local...")
+                    try:
+                        resp_pdf = requests.get(link_pdf, timeout=60)
+                        if resp_pdf.status_code == 200:
+                            pasta_mateus = os.path.join(PASTA_AUDITORIA_HOJE, "mateus_site")
+                            os.makedirs(pasta_mateus, exist_ok=True)
+                            
+                            # ID curto para pasta e arquivos
+                            nome_base = f"mateus_site_{id_pasta}"
+                            
+                            caminho_pdf = os.path.join(pasta_mateus, f"{nome_base}.pdf")
+                            
+                            with open(caminho_pdf, "wb") as f:
+                                f.write(resp_pdf.content)
+                            
+                            print(f"  ✅ PDF baixado: {nome_base}.pdf ({len(resp_pdf.content)} bytes)")
+
+                            # CAPTURA DE PÁGINAS (Preferencialmente via PyMuPDF para precisão de 1 imagem/página)
+                            print(f"  📸 Processando páginas do PDF...")
+                            try:
+                                pasta_paginas = os.path.join(pasta_mateus, id_pasta)
+                                if force and os.path.exists(pasta_paginas):
+                                    print(f"    🧹 [FORCE] Limpando pasta anterior: {id_pasta}")
+                                    shutil.rmtree(pasta_paginas)
+                                os.makedirs(pasta_paginas, exist_ok=True)
+                                
+                                if FITZ_AVAILABLE:
+                                    print("    ⚙️ Usando PyMuPDF para extração de alta precisão...")
+                                    doc = fitz.open(caminho_pdf)
+                                    total_paginas = len(doc)
+                                    print(f"    📄 PDF detectado com {total_paginas} páginas.")
+                                    
+                                    for i in range(total_paginas):
+                                        caminho_jpg = os.path.join(pasta_paginas, f"pagina_{i+1}.jpg")
+                                        page_obj = doc.load_page(i)
+                                        # Matrix(2, 2) aumenta a resolução (DPI) para 144 (72*2) para melhor OCR
+                                        pix = page_obj.get_pixmap(matrix=fitz.Matrix(2, 2))
+                                        pix.save(caminho_jpg)
+                                        print(f"    ✅ Página {i+1}/{total_paginas} extraída.")
+                                    doc.close()
+                                else:
+                                    print("    ⚠️ PyMuPDF não disponível. Usando fallback via Navegador (menos preciso)...")
+                                    pdf_page = page.context.new_page()
+                                    pdf_page.set_viewport_size({"width": 1280, "height": 1600})
+                                    abs_pdf_path = os.path.abspath(caminho_pdf)
+                                    pdf_page.goto(f"file://{abs_pdf_path}")
+                                    pdf_page.wait_for_timeout(5000)
+                                    pdf_page.mouse.click(640, 800)
+                                    
+                                    for j in range(1, 15):
+                                        caminho_img = os.path.join(pasta_paginas, f"pagina_{j}.png")
+                                        pdf_page.screenshot(path=caminho_img)
+                                        pdf_page.keyboard.press("PageDown")
+                                        pdf_page.wait_for_timeout(1500)
+                                        # [MELHORIA] Se não tem PyMuPDF, pelo menos limpamos o sips depois
+                                    pdf_page.close()
+                                
+                                # [OTIMIZAÇÃO] Se usamos o fallback (png), convertemos. Se usamos fitz (jpg), apenas logamos.
+                                if not FITZ_AVAILABLE:
+                                    print(f"    🪄 Otimizando imagens PNG para JPG...")
+                                    for png_file in glob.glob(os.path.join(pasta_paginas, "*.png")):
+                                        nome_sem_ext = os.path.splitext(png_file)[0]
+                                        caminho_jpg = f"{nome_sem_ext}.jpg"
+                                        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "70", "-Z", "1200", png_file, "--out", caminho_jpg], capture_output=True)
+                                        if os.path.exists(caminho_jpg): os.remove(png_file)
+                                
+                                print(f"  ✅  Imagens geradas em: {id_pasta}/")
+                            except Exception as e_conv:
+                                print(f"  ⚠️ Erro na captura via browser: {e_conv}")
+                            
+                            historico_mateus[id_chave] = {
+                                "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                                "url": link_pdf,
+                                "arquivo_local": caminho_pdf
+                            }
+                        else:
+                            print(f"  ❌ Erro ao baixar PDF (Status: {resp_pdf.status_code})")
+                    except Exception as e_down:
+                        print(f"  ❌ Falha no download do PDF: {e_down}")
+                else:
+                    print(f"  🚀 Enviando link para o Cérebro Gemini (PDF)...")
+                    payload = {
+                        "url": link_pdf,
+                        "supermercado_id": "mateus-jaderlandia",
+                        "loja": "Mix Mateus (Jaderlândia)"
+                    }
+                    resposta = requests.post(ENDPOINT_PDF, json=payload, timeout=120)
+                    
+                    if resposta.status_code == 200:
+                        print(f"  ✅ Encarte '{titulo}' processado com sucesso!")
+                        historico_mateus[id_chave] = {
+                            "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                            "url": link_pdf
+                        }
+                    else:
+                        print(f"  ❌ Erro no Firebase: {resposta.text}")
+
+                # Fecha o modal
+                page.keyboard.press("Escape")
+                time.sleep(1)
+
+            except Exception as e_item:
+                print(f"  ⚠️ Erro ao processar item {i} do Mateus: {e_item}")
+                page.keyboard.press("Escape")
+
+        if algum_novo:
+            historico["mateus_site"] = historico_mateus
+            salvar_historico(historico)
+        else:
+            print("  ✅ Tudo atualizado no Mateus.")
+
+    except Exception as e:
+        print(f"  ❌ Erro crítico ao processar site do Mateus: {e}")
+
+def processar_instagram(page, historico, force=False):
     for alvo in ALVOS:
         print(f"\n🔍 Acessando perfil do Instagram: @{alvo['username']}...")
         
@@ -276,6 +498,22 @@ def processar_instagram(page, historico):
             print(f"  ⏳ Aguardando carregamento da grade de posts...")
             time.sleep(5)
             
+            # [MELHORIA] Verificação de Login - Se o Instagram pedir login, pausamos para o usuário
+            # Usamos .first para evitar strict mode violation se houver mais de um botão "Entrar"
+            if "login" in page.url.lower() or page.locator("text=Entrar").first.is_visible():
+                print("\n" + "!"*60)
+                print("🔑 [AÇÃO REQUERIDA] O INSTAGRAM PEDIU LOGIN!")
+                print("   Como o navegador está VISÍVEL, por favor faça o login manualmente.")
+                print("   O script vai aguardar 30 segundos ou você pode pressionar ENTER aqui.")
+                print("!"*60 + "\n")
+                # Tenta esperar interação ou timeout
+                try:
+                    # Pequeno truque para esperar o usuário sem travar totalmente se for automático
+                    for _ in range(30):
+                        if not ("login" in page.url.lower()): break
+                        time.sleep(1)
+                except: pass
+            
             links = page.query_selector_all('a[href*="/p/"], a[href*="/reel/"]')
             if not links:
                 print(f"  ⚠️ Nenhum post visível para @{alvo['username']}.")
@@ -288,9 +526,12 @@ def processar_instagram(page, historico):
             posts_novos_count = 0
             for link in links[:15]:
                 href = link.get_attribute("href")
-                if href in historico_loja:
+                if href in historico_loja and not force:
                     print(f"  ⏭️ Post {href} já processado anteriormente. Pulando...")
                     continue
+
+                if force:
+                    print(f"  🔄 [FORCE] Forçando re-processamento do post: {href}")
 
                 print(f"  ✨ NOVIDADE! Post novo encontrado: {href}")
                 posts_novos_count += 1
@@ -401,18 +642,36 @@ if __name__ == "__main__":
     print(f"📂 [ARQUIVOS] Fotos desta sessão serão salvas em: {nome_janela_log}")
 
     with sync_playwright() as p:
-        # Abrindo o navegador (headless=False para você ver ele trabalhando!)
-        browser = p.chromium.launch_persistent_context(
-            user_data_dir=USER_DATA_DIR, 
-            headless=False
-        )
+        # Tenta abrir com perfil persistente, se falhar (perfil preso), abre um limpo
+        try:
+            print(f"🚀 Abrindo navegador com perfil persistente em: {os.path.basename(USER_DATA_DIR)}")
+            browser = p.chromium.launch_persistent_context(
+                user_data_dir=USER_DATA_DIR, 
+                headless=False,
+                no_viewport=False # Importante para manter o estado da janela
+            )
+        except Exception as e:
+            print("\n" + "!"*60)
+            print(f"⚠️  ALERTA: PERFIL DE LOGIN BLOQUEADO OU INDISPONÍVEL!")
+            print(f"   Erro: {e}")
+            print(f"   AÇÃO: Verifique se há outra instância do Playwright aberta e feche-a.")
+            print(f"   AVISO: Iniciando sessão TEMPORÁRIA. Logins não serão salvos nesta rodada.")
+            print("!"*60 + "\n")
+            
+            # Fallback para navegador normal sem perfil
+            browser_type = p.chromium.launch(headless=False)
+            browser = browser_type.new_context()
+
         page = browser.new_page()
 
         # 1. Primeiro: Atacar o site do Assaí (Ignora bloqueios de datacenter)
-        processar_assai_site(page, historico)
+        processar_assai_site(page, historico, force=force)
 
-        # 2. Segundo: Varredura nos perfis do Instagram
-        processar_instagram(page, historico)
+        # 2. Mateus: Novo método unificado via Browser
+        processar_mateus_site(page, historico, force=force)
+
+        # 3. Segundo: Varredura nos perfis do Instagram
+        processar_instagram(page, historico, force=force)
         
         browser.close()
     

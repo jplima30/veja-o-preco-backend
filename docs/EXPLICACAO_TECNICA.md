@@ -8,6 +8,7 @@ O backend do "Veja o Preço" é um sistema híbrido que utiliza três níveis de
 - **Híbrido (I.A. Vision + Triagem Automatizada)**: Para o Assaí e redes sociais (Líder, Formosa, Guerreirão BR), usamos um robô local (`cron_playwright.py`). Ele captura imagens/vídeos e utiliza o **EasyOCR** localmente (`triagem_automatizada.py`) com filtros rigorosos.
     - **Filtro Anti-Data**: Ignora textos com barras (`/`) para não confundir datas com preços.
     - **Filtro de Pureza**: Descarta ruídos visuais que o OCR lê como texto mas não têm o símbolo `R$`.
+    - **Proteção contra Gastos**: Implementamos o `historico_posts.json` local para que a IA nunca processe o mesmo post duas vezes no mesmo dia.
     - **Auto-Envio**: O script `enviar_triagem.py` despacha as imagens aprovadas para a nuvem.
   O que for aprovado é enviado para o Gemini 3.1 Flash Image (Elite Vision) na nuvem para extração final.
 

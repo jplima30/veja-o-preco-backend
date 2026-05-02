@@ -51,6 +51,7 @@ A separação entre Produto e Oferta é a decisão mais importante dessa fase. E
 ```
 
 > **Regra de Ouro**: Uma oferta tem uma **vida útil**. Após a validade, ela some da vitrine mas fica no histórico.
+> **Otimização de Performance**: Utilizamos `WriteBatch` do Firestore para realizar até 500 gravações em uma única operação, reduzindo custos e tempo de resposta.
 
 ---
 

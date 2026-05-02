@@ -7,6 +7,7 @@ import re
 import json
 import requests
 import tempfile
+import time
 from datetime import datetime, timedelta
 from firebase_functions import https_fn, options
 from firebase_admin import initialize_app, firestore
@@ -14,10 +15,21 @@ from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
 
+# Configuração global para evitar crash de rede no macOS (Segmentation Fault / _scproxy)
+# Desativa a detecção automática de proxy do sistema que causa o crash no Firebase Emulator
+os.environ["no_proxy"] = "*"
+session = requests.Session()
+session.trust_env = False
+
 initialize_app()
 
-# Cliente Firestore inicializado no nível do módulo (padrão recomendado)
-db = firestore.client()
+# Lazy loading para o Firestore (evita crash de rede na inicialização do módulo)
+_db_cache = None
+def get_db():
+    global _db_cache
+    if _db_cache is None:
+        _db_cache = firestore.client()
+    return _db_cache
 
 # Configuração do Gemini (Migrado para Secret Manager)
 def get_gemini_client():
@@ -60,7 +72,7 @@ def buscar_imagem(nome_produto: str, imagem_api: str = "") -> str:
     # Camada 2: Open Food Facts
     try:
         url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={requests.utils.quote(nome_produto)}&search_simple=1&action=process&json=1&page_size=1"
-        resp = requests.get(url, timeout=5)
+        resp = session.get(url, timeout=5)
         if resp.status_code == 200:
             dados = resp.json()
             produtos = dados.get("products", [])
@@ -143,7 +155,7 @@ def salvar_produto_e_oferta(
         return {"produto_id": produto_id, "salvo": False, "motivo": "palavra_proibida"}
 
     # --- UPSERT em /produtos ---
-    ref_produto = db.collection("produtos").document(produto_id)
+    ref_produto = get_db().collection("produtos").document(produto_id)
     doc_produto = ref_produto.get()
 
     if not doc_produto.exists:
@@ -168,7 +180,7 @@ def salvar_produto_e_oferta(
         expira_em = datetime.now() + timedelta(days=7)
 
     # --- DEDUPLICAÇÃO INTELIGENTE EM /ofertas ---
-    ofertas_duplicadas = db.collection("ofertas").where(
+    ofertas_duplicadas = get_db().collection("ofertas").where(
         "produto_id", "==", produto_id
     ).where(
         "supermercado_id", "==", supermercado_id
@@ -188,7 +200,7 @@ def salvar_produto_e_oferta(
         return {"produto_id": produto_id, "salvo": True, "duplicado": True}
 
     # --- Criar nova oferta em /ofertas ---
-    db.collection("ofertas").add({
+    get_db().collection("ofertas").add({
         "produto_id": produto_id,
         "produto_nome": nome,
         "supermercado_id": supermercado_id,
@@ -220,7 +232,7 @@ def get_status_extracao(req: https_fn.Request) -> https_fn.Response:
         hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # Busca todas as ofertas criadas hoje (simplificado para evitar erro de índice composto)
-        query = db.collection("ofertas").where(
+        query = get_db().collection("ofertas").where(
             filter=FieldFilter("criado_em", ">=", hoje_inicio)
         )
         
@@ -276,7 +288,7 @@ def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
         # Query base: apenas ofertas que ainda não expiraram
         from google.cloud.firestore_v1.base_query import FieldFilter
 
-        query = db.collection("ofertas").where(
+        query = get_db().collection("ofertas").where(
             filter=FieldFilter("expira_em", ">=", datetime.now())
         )
 
@@ -351,7 +363,7 @@ def buscar_encarte_guerreirao(req: https_fn.Request) -> https_fn.Response:
     
     try:
         # Acessando a página principal
-        response = requests.get(url, headers=headers, timeout=15)
+        response = session.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -467,22 +479,43 @@ def buscar_encarte_atacadao(req: https_fn.Request) -> https_fn.Response:
         ]
     }
     
+    query = """
+    query ProductsQuery($term: String, $selectedFacets: [SelectedFacetInput], $first: Int, $after: String, $sort: String) {
+      products(term: $term, selectedFacets: $selectedFacets, first: $first, after: $after, sort: $sort) {
+        edges {
+          node {
+            name
+            brand {
+              brandName
+            }
+            image {
+              url
+            }
+            offers {
+              offers {
+                price
+              }
+              lowPrice
+            }
+          }
+        }
+      }
+    }
+    """
+    
     params = {
         "operationName": "ProductsQuery",
-        "variables": json.dumps(variables)
+        "variables": json.dumps(variables),
+        "query": query
     }
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "*/*"
-    }
-
+    # 2. Chamada à API (Simulação de GET como o site faz)
     try:
-        response = requests.get(url_api, params=params, headers=headers, timeout=15)
+        response = session.get(url_api, params=params)
         response.raise_for_status()
-        dados_puros = response.json()
+        dados = response.json()
+        products = dados.get("data", {}).get("products", {}).get("edges", [])
         
-        products = dados_puros.get("data", {}).get("search", {}).get("products", {}).get("edges", [])
         itens_extraidos = []
         
         for p_edge in products:
@@ -567,7 +600,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         # 1. Buscar metadados da oferta (JSON)
         id_oferta = None
         try:
-            resp = requests.get(url_json, headers=headers, timeout=10)
+            resp = session.get(url_json, headers=headers, timeout=10)
             if resp.status_code == 200:
                 dados = resp.json()
                 for o in dados.get("ofertas", []):
@@ -581,7 +614,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         if not id_oferta:
             try:
                 url_loja = "https://www.assai.com.br/ofertas/para/assai-augusto-montenegro"
-                resp_loja = requests.get(url_loja, headers=headers, timeout=15)
+                resp_loja = session.get(url_loja, headers=headers, timeout=15)
                 if resp_loja.status_code == 200:
                     import re
                     # Procura por campaignId e clusterId no HTML (drupalSettings)
@@ -607,7 +640,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
             
             # Usar GET com timeout curto para verificar existência (CloudFront às vezes barra HEAD)
             try:
-                check = requests.get(url_img, headers=headers, timeout=5, stream=True)
+                check = session.get(url_img, headers=headers, timeout=5, stream=True)
                 if check.status_code == 200:
                     imagens_encarte.append(url_img)
                 else:
@@ -621,7 +654,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         # 3. Processar via Gemini Vision
         gemini_parts = []
         for url in imagens_encarte:
-            img_data = requests.get(url).content
+            img_data = session.get(url).content
             gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type="image/jpeg"))
 
         prompt = """
@@ -692,8 +725,7 @@ def buscar_encarte_economico(req: https_fn.Request) -> https_fn.Response:
     try:
         # Pegando a primeira página de ofertas (geralmente tem cerca de 40-50 itens por página)
         params = {"page": "1"}
-        
-        response = requests.get(url_api, headers=headers, params=params, timeout=15)
+        response = session.get(url_api, headers=headers, params=params, timeout=15)
         response.raise_for_status()
         dados_puros = response.json()
         
@@ -792,33 +824,50 @@ def buscar_encarte_mateus(req: https_fn.Request) -> https_fn.Response:
     Extração da lista de encartes atacando diretamente a API nativa invisível do site.
     """
     
-    # O Santo Graal interceptado
-    url_mestra_api = "https://ofertasmateus.com/api-proxy.php?endpoint=%2Fencartes%2Fpa%2Fananindeua%2Fmateus-jaderlandia%3Fmarca%3DSM"
+    # O Santo Graal interceptado (Removido filtro de marca para capturar todos os encartes como 'Derruba Preço')
+    url_mestra_api = "https://ofertasmateus.com/api-proxy.php?endpoint=%2Fencartes%2Fpa%2Fananindeua%2Fmateus-jaderlandia"
     
     try:
         # Puxando o tesouro da API
-        response = requests.get(url_mestra_api)
+        response = session.get(url_mestra_api)
         response.raise_for_status()
         
         dados_puros = response.json()
         
-        # Fase 1.1: Organizando a Escalabilidade (O Catálogo Completo)
-        catalogo_de_pdfs = []
+        # Fase 1.1: Organizando a Escalabilidade (Deduplicação Inteligente com Verificação de Link)
+        encartes_unicos = {}
         
-        # Laço de repetição que varre a lista suja e monta os metadados valiosos com os links
         for item in dados_puros.get("data", []):
+            titulo = item.get("descricao")
+            if not titulo:
+                continue
+            
             url_absoluta = "https://ofertasmateus.com/api-proxy.php?file=" + item["arquivo"]
             
-            catalogo_de_pdfs.append({
+            # Se o título já existe, verificamos se o novo link é válido antes de substituir
+            if titulo in encartes_unicos:
+                try:
+                    # Checagem HEAD ultra-rápida para garantir que o PDF existe
+                    check = session.head(url_absoluta, timeout=5)
+                    if check.status_code != 200:
+                        print(f"⚠️ Mateus API retornou link quebrado para '{titulo}'. Mantendo versão anterior.")
+                        continue
+                except Exception as e_head:
+                    print(f"⚠️ Erro ao validar link de '{titulo}': {e_head}")
+                    continue
+            
+            encartes_unicos[titulo] = {
                 "id_rastreio": item.get("id_encarte"),
                 "marca": item.get("marca"),
-                "titulo": item.get("descricao"),
+                "titulo": titulo,
                 "download_link": url_absoluta,
                 "data_inicio_banco": item.get("inicio"),
                 "data_inicio_tela": item.get("inicial"),
                 "data_vencimento_banco": item.get("validade"),
                 "data_vencimento_tela": item.get("valido")
-            })
+            }
+        
+        catalogo_de_pdfs = list(encartes_unicos.values())
         
         # Devolvemos ao navegador a lista polida e finalizada, pronta para a Inteligência Artificial
         dados_retorno = {
@@ -844,7 +893,7 @@ def buscar_encarte_mateus(req: https_fn.Request) -> https_fn.Response:
             status=500
         )
 
-@https_fn.on_request(secrets=["GEMINI_API_KEY"])
+@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
 def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
     """
     Fase 2: O Cérebro (Gemini 3.1 Flash Lite).
@@ -870,7 +919,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
     try:
         # 2. Download temporário do arquivo
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            response = requests.get(link_pdf, timeout=30)
+            response = session.get(link_pdf, timeout=30)
             response.raise_for_status()
             tmp_file.write(response.content)
             tmp_path = tmp_file.name
@@ -879,49 +928,82 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             # 3. Usar o Cliente Gemini Global (já configurado no topo do arquivo)
             
             # 4. Upload do arquivo para a API do Google
-            print(f"DEBUG GEMINI - Fazendo upload do arquivo: {tmp_path}")
-            uploaded_file = client.files.upload(file=tmp_path)
+            print(f"DEBUG GEMINI - Iniciando upload do arquivo: {tmp_path}")
+            try:
+                uploaded_file = client.files.upload(file=tmp_path)
+                print(f"DEBUG GEMINI - Upload concluído com sucesso: {uploaded_file.name}")
+            except Exception as e:
+                print(f"❌ ERRO GEMINI - Falha no upload: {str(e)}")
+                raise e
 
-            # 5. Criar o Prompt Baseado no Contrato de Dados
+            # 5. Roteamento e Prompt
+            modelo_escolhido = "gemini-3.1-flash-lite-preview"
             prompt_instrucao = """
-            Você é um assistente especializado em extração de dados de encartes de supermercado.
-            Sua tarefa é ler o PDF anexado e extrair produtos de ALIMENTAÇÃO, HIGIENE e LIMPEZA.
+            Você é um assistente de elite para extração de dados de encartes de supermercado.
+            Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
             
-            REGRAS OBRIGATÓRIAS:
-            1. Retorne APENAS um objeto JSON válido.
-            2. IGNORE COMPLETAMENTE: Bebidas Alcoólicas, Eletrônicos, Bazar, Moda, Eletrodomésticos, Automotivo e Brinquedos.
-            3. Se encontrar itens de Bazar ou Eletrônicos, NÃO os inclua no JSON.
-            4. Use exatamente os campos: produto, preco, unidade, categoria, imagem, validade.
-            5. O campo 'preco' deve ser um NÚMERO (Ex: 10.99).
-            6. Identifique a categoria (Ex: Alimentos, Higiene, Limpeza, Hortifruti, Carnes).
+            FOCO PRINCIPAL: 
+            Todos os itens de supermercado devem ser extraídos (Alimentação, Mercearia, Hortifruti, Carnes, Higiene, Limpeza, etc.).
             
-            ESTRUTURA ESPERADA:
+            REGRAS DE OURO:
+            1. Extraia o máximo de itens possível.
+            2. Se houver preço de "Leve 3 Pague 2" ou "Preço Clube", use o preço unitário principal.
+            3. RESTRIÇÃO CRÍTICA: IGNORE e NÃO extraia Bebidas Alcoólicas (Cervejas, Vinhos, Destilados, etc.).
+            4. IGNORE também itens que não são de supermercado core: TVs, Celulares, Pneus, Roupas, Eletrodomésticos e Brinquedos.
+            5. O campo 'preco' deve ser estritamente um NÚMERO (ex: 5.99).
+            
+            ESTRUTURA JSON OBRIGATÓRIA:
             {
                 "itens": [
-                    {"produto": "NOME", "preco": 0.0, "unidade": "UN", "categoria": "CATEGORIA", "imagem": "", "validade": null}
+                    {
+                        "produto": "NOME COMPLETO DO PRODUTO (Ex: Arroz Tio Urbano 5kg)",
+                        "preco": 0.0,
+                        "unidade": "un/kg/pacote",
+                        "categoria": "Alimentos/Higiene/Limpeza/Hortifruti/Carnes",
+                        "imagem": "URL se houver no PDF ou deixe vazio",
+                        "validade": "Data de validade da oferta se encontrada"
+                    }
                 ]
             }
-            IMPORTANTE: Retorne APENAS o JSON puro.
+            Retorne APENAS o JSON puro, sem comentários ou markdown.
             """
 
             # 6. Gerar o Conteúdo
-            print("DEBUG GEMINI - Iniciando processamento de I.A...")
-            response_gemini = client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
-                contents=[uploaded_file, prompt_instrucao],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
+            print(f"DEBUG GEMINI - Invocando modelo {modelo_escolhido} para extração de dados...")
+            tempo_invocacao = time.time()
+            try:
+                response_gemini = client.models.generate_content(
+                    model=modelo_escolhido,
+                    contents=[uploaded_file, prompt_instrucao],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
                 )
-            )
+            except Exception as e:
+                print(f"❌ ERRO GEMINI - Falha na geração de conteúdo: {str(e)}")
+                raise e
 
             # 7. Limpeza e Retorno
-            dados_extraidos = json.loads(response_gemini.text)
+            tempo_extraido = time.time()
+            print(f"DEBUG GEMINI - Resposta da IA recebida em {tempo_extraido - tempo_invocacao:.2f}s.")
             
-            # Capturar uso de tokens para monitoramento de custos
-            usage = response_gemini.usage_metadata
-            print(f"METRICAS GEMINI - Tokens: {usage.total_token_count} (Prompt: {usage.prompt_token_count}, Resposta: {usage.candidates_token_count})")
-
+            try:
+                texto_limpo = response_gemini.text.strip()
+                if texto_limpo.startswith("```json"):
+                    texto_limpo = texto_limpo.replace("```json", "").replace("```", "").strip()
+                
+                dados_extraidos = json.loads(texto_limpo)
+            except Exception as e_json:
+                print(f"❌ ERRO JSON - Falha ao decodificar resposta da IA: {str(e_json)}")
+                print(f"DEBUG BRUTO - Resposta: {response_gemini.text[:500]}...")
+                raise e_json
+            
             itens = dados_extraidos.get("itens", [])
+            print(f"DEBUG GEMINI - Extração concluída: {len(itens)} itens encontrados.")
+            
+            if not itens:
+                print("⚠️ AVISO - IA retornou 0 itens. Resposta completa para debug:")
+                print(json.dumps(dados_extraidos, indent=2))
 
             # --- Parâmetros de contexto (qual loja este PDF pertence) ---
             supermercado_id = ""
@@ -934,29 +1016,79 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 supermercado_id = req.args.get("supermercado_id", "mateus-jaderlandia")
                 loja_nome = req.args.get("loja", "Mix Mateus (Jaderlândia)")
 
-            # --- SALVAR NO FIRESTORE ---
+            # --- SALVAR NO FIRESTORE (OTIMIZADO COM BATCH) ---
             salvos = 0
+            ignorado_filtro = 0
+            
+            db_conn = get_db()
+            batch = db_conn.batch()
+            
+            # Filtro de categorias proibidas
+            categorias_proibidas = ["BAZAR", "ELETRÔNICOS", "ELETRO", "MODA", "VESTUÁRIO", "AUTOMOTIVO", "BRINQUEDOS", "FERRAMENTAS", "MÓVEIS", "CASA"]
+
             for item in itens:
                 try:
+                    nome = item.get("produto", "")
+                    categoria_item = item.get("categoria", "Geral")
+                    
+                    # 1. Validação de Preço
                     preco_raw = item.get("preco", 0)
                     preco = float(preco_raw) if preco_raw else 0
-                    if preco <= 0:
+                    if preco <= 0: continue
+
+                    # 2. Whitelist de Categoria
+                    if categoria_item.upper() in categorias_proibidas:
+                        ignorado_filtro += 1
                         continue
 
-                    salvar_produto_e_oferta(
-                        nome=item.get("produto", ""),
-                        preco=preco,
-                        unidade=item.get("unidade", "un"),
-                        categoria=item.get("categoria", "Geral"),
-                        supermercado_id=supermercado_id,
-                        loja=loja_nome,
-                        metodo="gemini_pdf",
-                        imagem_api=item.get("imagem", ""),
-                        validade=item.get("validade")
-                    )
+                    # 3. Preparar IDs
+                    unidade = item.get("unidade", "un")
+                    produto_id = normalizar_nome(nome, unidade)
+                    
+                    # --- OPERAÇÃO BATCH ---
+                    ref_prod = db_conn.collection("produtos").document(produto_id)
+                    batch.set(ref_prod, {
+                        "nome": nome,
+                        "unidade": unidade,
+                        "categoria": categoria_item,
+                        "atualizado_em": datetime.now()
+                    }, merge=True)
+
+                    # Referência da Oferta
+                    hoje_str = datetime.now().strftime("%Y-%m-%d")
+                    oferta_id = f"{supermercado_id}_{produto_id}_{hoje_str}"
+                    ref_oferta = db_conn.collection("ofertas").document(oferta_id)
+                    
+                    batch.set(ref_oferta, {
+                        "produto_id": produto_id,
+                        "produto_nome": nome,
+                        "supermercado_id": supermercado_id,
+                        "loja": loja_nome,
+                        "preco": preco,
+                        "unidade": unidade,
+                        "categoria": categoria_item,
+                        "metodo": "gemini_pdf_batch",
+                        "expira_em": datetime.now() + timedelta(days=7),
+                        "criado_em": datetime.now()
+                    }, merge=True)
+                    
                     salvos += 1
-                except Exception as e_save:
-                    print(f"AVISO FIRESTORE - Erro ao salvar '{item.get('produto', '?')}': {e_save}")
+                    
+                    # Firestore batch limit is 500
+                    if salvos % 200 == 0:
+                        batch.commit()
+                        batch = db_conn.batch()
+
+                except Exception as e_item:
+                    print(f"AVISO - Erro ao preparar item '{item.get('produto')}': {e_item}")
+
+            # Commit final
+            if salvos > 0:
+                batch.commit()
+                print(f"✅ BATCH COMPLETO - {salvos} itens processados para {loja_nome}.")
+
+            # Capturar uso de tokens
+            usage = response_gemini.usage_metadata
 
             # Adicionar metadados do cabeçalho
             resultado_final = {
@@ -966,9 +1098,9 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 "quantidade": len(itens),
                 "salvos_firestore": salvos,
                 "uso_tokens": {
-                    "total": usage.total_token_count,
-                    "prompt": usage.prompt_token_count,
-                    "resposta": usage.candidates_token_count
+                    "total": usage.total_token_count if usage else 0,
+                    "prompt": usage.prompt_token_count if usage else 0,
+                    "resposta": usage.candidates_token_count if usage else 0
                 },
                 "itens": itens
             }
@@ -989,7 +1121,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             json.dumps({"sucesso": False, "erro": str(e)}),
             mimetype="application/json", status=500
         )
-@https_fn.on_request(timeout_sec=300, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
+@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
 def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
     """
     Fase Especial: Visão Computacional (Gemini 3.1 Flash Lite).
@@ -1023,7 +1155,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             
             # Buscamos todas do dia e filtramos o post_id em memória para EVITAR ERRO DE ÍNDICE
-            docs_hoje = db.collection("ofertas")\
+            docs_hoje = get_db().collection("ofertas")\
                 .where("criado_em", ">=", hoje_inicio)\
                 .stream()
             
@@ -1067,7 +1199,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                 "Referer": "https://www.instagram.com/"
             }
             print(f"DEBUG VISION - Tentando baixar mídia (video/img)...")
-            response = requests.get(link_img, headers=headers, timeout=60)
+            response = session.get(link_img, headers=headers, timeout=60)
             response.raise_for_status()
             
             content_type = response.headers.get("Content-Type", "")
@@ -1080,8 +1212,13 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
 
             # 3. Upload do arquivo para a API do Google (Visão)
             tipo_nome = "vídeo" if is_video else "imagem"
-            print(f"DEBUG VISION - Fazendo upload do {tipo_nome}: {tmp_path}")
-            uploaded_file = client.files.upload(file=tmp_path)
+            print(f"DEBUG VISION - Iniciando upload do {tipo_nome}: {tmp_path}")
+            try:
+                uploaded_file = client.files.upload(file=tmp_path)
+                print(f"DEBUG VISION - Upload concluído: {uploaded_file.name}")
+            except Exception as e:
+                print(f"❌ ERRO VISION - Falha no upload: {str(e)}")
+                raise e
             
             # Se for vídeo, precisamos esperar o Gemini processar o arquivo antes de inferir
             if is_video:
@@ -1135,13 +1272,18 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             modelo_escolhido = "gemini-3.1-flash-image-preview"
             
             print(f"DEBUG VISION - Invocando modelo {modelo_escolhido} (Modo Vídeo: {is_video})...")
-            response_gemini = client.models.generate_content(
-                model=modelo_escolhido,
-                contents=gemini_parts,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
+            try:
+                response_gemini = client.models.generate_content(
+                    model=modelo_escolhido,
+                    contents=gemini_parts,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
                 )
-            )
+                print("DEBUG VISION - Resposta da IA (Visão) recebida.")
+            except Exception as e:
+                print(f"❌ ERRO VISION - Falha na geração de conteúdo: {str(e)}")
+                raise e
 
             # 6. Limpeza e Retorno
             dados_extraidos = json.loads(response_gemini.text)
