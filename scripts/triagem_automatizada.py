@@ -82,32 +82,38 @@ PALAVRAS_CHAVE_URGENCIA = [
     "OFERTA", "PROMO", "DESCONTO", "DESCONT", "PRECO", "VALOR", "APENAS",
     "LEVE", "PAGUE", "CADA", "UNIDADE", "SO HOJE", "R$", "RS",
     "VALIDO ATE", "VALIDADE", "PERIODO", "ECONOMIA", "POR", "DE:",
-    "OFF", "LITRO", "GRAMAS", "ML", "KG"
+    "OFF", "LITRO", "GRAMAS", "ML", "KG", "HORTIFRUTI", "ACOUGUE", 
+    "AÇOUGUE", "PADARIA", "MERCEARIA", "LIMPEZA", "HIGIENE", "BEBIDAS", "ALIMENTOS"
 ]
 
-PALAVRAS_CHAVE_BLOQUEIO = [
-    # Bebidas Alcoólicas
+# Categorias que bloqueiam a página INTEIRA (Seções que não queremos)
+PALAVRAS_CHAVE_BLOQUEIO_SECAO = [
+    "BAZAR", "ELETRO", "PNEU", "VESTUARIO", "CAMISETA", "BERMUDA", 
+    "CALCA", "MEIA", "MOTO", "CARRO", "CELULAR", "SMARTPHONE", "TELEVISOR", "SMART TV", 
+    "LAVADORA", "GELADEIRA", "NOTEBOOK", "TABLET", "MODA", "FASHION", 
+    "CALCADO", "CALÇADO", "CHUTEIRA", "RASTEIRA", "TAMANCO", "BOTINA",
+    "COLEÇÃO", "COLECAO", "VERÃO", "VERAO", "OUTONO", "INVERNO", "LOOK", "ESTILO"
+]
+
+# Categorias de produtos que queremos evitar, mas que podem estar "contaminando" uma página boa
+PALAVRAS_CHAVE_BLOQUEIO_PRODUTO = [
     "CERVEJA", "WHISKY", "WHISKEY", "VODKA", "VODCA", "GIN", "VINHO", 
     "CHOPP", "CACHAÇA", "LICOR", "TEQUILA", "RUM", "ICE", "SKOL", 
     "BRAHMA", "HEINEKEN", "BUDWEISER", "SPATEN", "AMSTEL", "CORONA",
     "STELLA", "ANTARCTICA", "ITAIPAVA", "SCHIN", "KAISER", "BAVARIA",
     "CAMPARI", "ABSOLUT", "SMIRNOFF", "CHANDON", "ESPUMANTE", "CHAMPAGNE",
-    
-    # Eletrônicos e Eletrodomésticos
-    "ASPIRADOR", "LIQUIDIFICADOR", "CELULAR", "SMARTPHONE", "TELEVISOR", "SMART TV", 
-    "BATEDEIRA", "AIR FRYER", "MICROONDAS", "LAVADORA", "GELADEIRA", "FOGAO", "FOGÃO", 
-    "VENTILADOR", "NOTEBOOK", "TABLET", "FERRO DE PASSAR", "SANDUICHEIRA", "GRILL", 
-    "SMARTWATCH", "ELETRO", "FONE", "CARREGADOR", "CAIXA DE SOM", "FURADEIRA", 
-    "PARAFUSADEIRA", "MICRO-ONDAS", "SECADOR", "PRANCHA",
-    
-    # Bazar, Moda e Diversos (Não-Alimentares)
-    "PNEU", "BICICLETA", "MOTO", "CARRO", "BAZAR", "SANDALIA", "CHINELO", "TENIS", 
-    "SAPATO", "MOCHILA", "BOLSA", "VARAL", "MOP", "VASSOURA", "BALDE", "ESCADA",
-    "BRINQUEDO", "BONECA", "CARRINHO", "JOGO", "BINGO", "VESTUARIO", "ROUPA", 
-    "CAMISETA", "BERMUDA", "CALCA", "MEIA", "MESA", "CADEIRA", "ARMARIO", 
-    "GUARDA-ROUPA", "COLCHAO", "PANELA", "FRIGIDEIRA", "LAMPADA", "LÂMPADA", 
-    "PILHA", "BATERIA", "CHURRASQUEIRA"
+    "ROUPA", "BALDE", "PANELA", "FRIGIDEIRA", "FOGAO", "FOGÃO", "VENTILADOR",
+    "LAMPADA", "LÂMPADA", "PILHA", "BATERIA", "BICICLETA", "CHURRASQUEIRA",
+    "MESA", "CADEIRA", "ARMARIO", "GUARDA-ROUPA", "COLCHAO", "BRINQUEDO", 
+    "BONECA", "CARRINHO", "JOGO", "ASPIRADOR", "LIQUIDIFICADOR", "BATEDEIRA", 
+    "AIR FRYER", "MICROONDAS", "FERRO DE PASSAR", "SANDUICHEIRA", "GRILL", 
+    "SMARTWATCH", "FONE", "CARREGADOR", "CAIXA DE SOM", "FURADEIRA", 
+    "PARAFUSADEIRA", "MICRO-ONDAS", "SECADOR", "PRANCHA", "SANDALIA", 
+    "CHINELO", "TENIS", "SAPATO", "MOCHILA", "BOLSA", "VARAL", "MOP", 
+    "VASSOURA", "ESCADA"
 ]
+
+FONTES_CONFIAVEIS = ["assai_site", "mateus_site"]
 
 def extrair_data_hoje(janela=None):
     hoje = datetime.now()
@@ -129,10 +135,10 @@ def limpar_pastas_orfas(caminho_dia):
     Move pastas de lojas que estão na raiz da pasta do dia (órfãs) 
     para dentro da subpasta 'manual', mantendo a organização.
     """
-    if not os.path.exists(caminho_dia):
+    if "test" in str(caminho_dia).lower() or os.path.isfile(caminho_dia):
         return
         
-    pastas_protegidas = ["10h", "14h", "manual"]
+    pastas_protegidas = ["10h", "14h", "manual", "TRIAGEM_AUTOMATIZADA"]
     pasta_manual = os.path.join(caminho_dia, "manual")
     os.makedirs(pasta_manual, exist_ok=True)
     
@@ -169,7 +175,8 @@ def analisar_imagem(reader, caminho_imagem):
         achou_preco = False
         achou_urgencia_ou_data = False
         preco_e_grande = False
-        item_bloqueado = False
+        secao_bloqueada = None
+        produto_bloqueado = None
         texto_extraido = []
 
         for (bbox, text, conf) in resultados:
@@ -219,21 +226,41 @@ def analisar_imagem(reader, caminho_imagem):
                     texto_extraido.append(text)
                     break
             
-            # 3. Busca por categorias bloqueadas (Bazar/Eletrônicos)
-            for b in PALAVRAS_CHAVE_BLOQUEIO:
+            # 3. Busca por categorias bloqueadas
+            # 3a. Bloqueio de SEÇÃO (Fatal para qualquer fonte)
+            for b in PALAVRAS_CHAVE_BLOQUEIO_SECAO:
                 if b in text_upper:
-                    item_bloqueado = True
+                    secao_bloqueada = b
+                    break
+            
+            # 3b. Bloqueio de PRODUTO (Pode ser flexível se houver outras coisas na página)
+            for p in PALAVRAS_CHAVE_BLOQUEIO_PRODUTO:
+                if p in text_upper:
+                    produto_bloqueado = p
                     break
             
             if re.search(PADRAO_VALIDADE, text_upper):
                 achou_urgencia_ou_data = True
                 texto_extraido.append(text)
 
-        # DECISÃO FINAL: Aprovado se achou preço e NÃO é categoria bloqueada
-        if achou_preco and not item_bloqueado:
+        # DECISÃO FINAL: 
+        # 1. Se for uma seção proibida (Bazar/Eletro), bloqueia sempre.
+        if secao_bloqueada:
+            return False, f"BLOQUEIO_SECAO: {secao_bloqueada}"
+        
+        # 2. Se for um produto proibido (Álcool), bloqueia...
+        if produto_bloqueado:
+            # ...A MENOS que seja uma página densa com outros preços detectados.
+            if len(texto_extraido) > 3:
+                return True, "Aprovado (Misto) | " + " | ".join(texto_extraido)
+            else:
+                return False, f"BLOQUEIO_PRODUTO: {produto_bloqueado}"
+        
+        # 3. Se achou preço, aprovado.
+        if achou_preco:
             return True, " | ".join(texto_extraido)
         
-        return False, "Bloqueado (Categoria)" if item_bloqueado else ""
+        return False, ""
     except Exception as e:
         print(f"      ⚠️ Erro ao analisar {os.path.basename(caminho_imagem)}: {e}")
         return False, ""
@@ -258,16 +285,14 @@ def iniciar_triagem(janela=None, data_teste=None):
     else:
         data_pasta = extrair_data_hoje(janela)
 
-    # 2. Identifica e limpa pastas órfãs antes de processar
-    # Tanto na origem (Auditoria) quanto na saída (Triagem)
-    # Extrai o nome do dia (ex: 2026-04-28_Terca)
-    dia_root = data_pasta.split(os.sep)[0]
-    caminho_base_dia = os.path.join(BASE_DIR, dia_root)
-    caminho_saida_dia = os.path.join(PASTA_FILTRADA, dia_root)
-    
-    limpar_pastas_orfas(caminho_base_dia)
-    limpar_pastas_orfas(caminho_saida_dia)
-    
+    # Identifica o "Nível da Janela" (ex: 2026-05-02_Sabado/manual)
+    # Isso é usado para manter a estrutura de saída consistente mesmo em testes profundos
+    partes_pasta = data_pasta.split(os.sep)
+    if len(partes_pasta) >= 2:
+        pasta_dia_janela = os.path.join(partes_pasta[0], partes_pasta[1])
+    else:
+        pasta_dia_janela = data_pasta
+
     # Extrai o contexto para o log (ex: 10h ou manual)
     contexto = os.path.basename(data_pasta)
     print(f"\n🔍 [TRIAGEM AUTOMATIZADA] Iniciando processamento da janela: {contexto}")
@@ -313,42 +338,65 @@ def iniciar_triagem(janela=None, data_teste=None):
         imagens = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
         
         if imagens:
-            partes_caminho = root.split(os.sep)
-            # Tenta pegar a loja e o post id
+            # Calcula o caminho relativo a partir do Nível da Janela (ex: manual)
+            # para manter a estrutura idêntica na saída sem aninhamentos extras.
+            caminho_root_bruto = os.path.join(BASE_DIR, pasta_dia_janela)
+            rel_path = os.path.relpath(root, caminho_root_bruto)
+            
+            # Tenta pegar a loja e o post id para o log
+            partes_rel = rel_path.split(os.sep)
             try:
-                loja = partes_caminho[-2]
-                post_id = partes_caminho[-1]
+                # Se rel_path for '.', estamos na raiz da janela
+                if rel_path == ".":
+                    loja = "Geral"
+                    post_id = "Raiz"
+                else:
+                    loja = partes_rel[0]
+                    post_id = partes_rel[-1] if len(partes_rel) > 1 else "Post"
             except IndexError:
                 loja = "Geral"
                 post_id = "Post"
             
-            print(f"\n🔍 Loja: {loja} | Post: {post_id}")
+            print(f"\n🔍 Local: {rel_path} | Loja: {loja} | Post: {post_id}")
             
-            # VIA RÁPIDA: Se for do site do Assaí, aprovamos direto sem rodar o OCR
-            if "assai_site" in loja.lower():
-                print(f"  ⚡ [VIA RÁPIDA] Fonte confiável detectada. Copiando tudo...")
-                for img in imagens:
-                    total_processado += 1
-                    total_aprovado += 1
-                    destino_dir = os.path.join(pasta_saida_hoje, loja, post_id)
-                    os.makedirs(destino_dir, exist_ok=True)
-                    shutil.copy2(os.path.join(root, img), os.path.join(destino_dir, img))
-                continue
+            # TRIAGEM ESPECIAL (Fontes Confiáveis): Aceitamos tudo, menos o que for explicitamente bloqueado
+            es_fonte_confiavel = any(f in loja.lower() for f in FONTES_CONFIAVEIS)
 
-            # TRIAGEM NORMAL (OCR): Para redes sociais e outras fontes
             for img in imagens:
                 caminho_completo = os.path.join(root, img)
                 total_processado += 1
                 
                 tem_preco, texto = analisar_imagem(reader, caminho_completo)
                 
-                if tem_preco:
+                # Lógica para SITES (Mateus/Assaí):
+                # Sites são mais organizados, mas o OCR pode falhar no preço.
+                # Aceitamos se (Tem Preço) OU (Não é Bazar).
+                aprovado = tem_preco
+                if es_fonte_confiavel:
+                    # Se detectou bloqueio de seção (Sandália, etc), ignora SEMPRE.
+                    if "BLOQUEIO_SECAO" in (texto or ""):
+                        aprovado = False
+                    else:
+                        # Se não é bazar, e não achou preço, ainda damos uma chance se o OCR achou palavras de urgência
+                        # ou se o texto extraído é denso (indicando uma página de produtos).
+                        achou_urgencia = any(k in (texto or "").upper() for k in PALAVRAS_CHAVE_URGENCIA)
+                        if not tem_preco and achou_urgencia:
+                            aprovado = True
+                            texto = f"Aprovado (Urgência detectada em Site)"
+                        elif not tem_preco:
+                            # Se não achou NADA (nem preço, nem urgência), ignoramos para evitar lixo de bazar sem texto.
+                            aprovado = False
+                            texto = "Ignorado (Site sem indícios de ofertas)"
+
+                if aprovado:
                     total_aprovado += 1
-                    destino_dir = os.path.join(pasta_saida_hoje, loja, post_id)
+                    # O destino agora é calculado a partir da pasta base de triagem + caminho relativo
+                    destino_dir = os.path.join(PASTA_FILTRADA, pasta_dia_janela, rel_path)
                     os.makedirs(destino_dir, exist_ok=True)
                     
                     shutil.copy2(caminho_completo, os.path.join(destino_dir, img))
-                    print(f"  ✅ [APROVADO] {img} -> (Texto: {texto[:60]}...)")
+                    info_texto = f" -> (Texto: {texto[:60]}...)" if texto else ""
+                    print(f"  ✅ [APROVADO] {img}{info_texto}")
                 else:
                     motivo = f" ({texto})" if texto else " (Sem indício de preço)"
                     print(f"  ⏭️ [IGNORADO] {img}{motivo}")
@@ -366,8 +414,9 @@ def iniciar_triagem(janela=None, data_teste=None):
         try:
             import enviar_triagem
             enviar_triagem.enviar_para_nuvem()
-        except ImportError:
-            print("⚠️ Erro: Script 'enviar_triagem.py' não encontrado na mesma pasta.")
+        except ImportError as e:
+            print(f"⚠️ Erro ao carregar 'enviar_triagem.py': {e}")
+            print("💡 Dica: Certifique-se de estar usando o venv correto (venv_triagem).")
         except Exception as e:
             print(f"⚠️ Erro no envio automático: {e}")
     else:

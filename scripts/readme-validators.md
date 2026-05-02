@@ -4,6 +4,16 @@ Este guia detalha como operar o ecossistema de coleta, triagem e validação do 
 
 ---
 
+## 🔥 0. Iniciando o Ambiente (Firebase)
+
+Para que os validadores e a IA funcionem localmente, você **deve** iniciar o emulador do Firebase:
+
+```bash
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES && firebase emulators:start
+```
+
+---
+
 ## 🏗️ 1. Ambientes Virtuais (Venvs)
 
 O projeto utiliza dois ambientes distintos. Ative-os quando quiser rodar comandos simples (ex: `python3 script.py`):
@@ -56,10 +66,13 @@ Se você já deu `source venv_triagem/bin/activate`, use estes comandos curtos:
 *   **Dashboard de Saúde**: `python3 scripts/auditoria_dashboard.py`
 
 ### No Ambiente `functions/venv`:
-*   **Testar IA**: `python3 scripts/testar_visao.py`
+*   **Iniciar Firebase Emulator**: `export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES && firebase emulators:start`
+*   **Testar IA**: `python3 scripts/testar_visao.py` *(Requer Firebase Emulator ligado)*
 *   **Validar PDF Atacadão**: `python3 scripts/validador_atacadao.py`
 *   **Validar PDF Mateus**: `python3 scripts/validador_mateus.py`
-*   **Validar PDF Econômico**: `python3 scripts/validador_economico.py`
+    *   *Comportamento*: Processa **todos** os encartes únicos por padrão.
+    *   *Uso Individual*: `python3 scripts/validador_mateus.py [ID]` (ex: `python3 scripts/validador_mateus.py 3`)
+    *   *Requisito*: Firebase Emulator ligado.
 
 ---
 

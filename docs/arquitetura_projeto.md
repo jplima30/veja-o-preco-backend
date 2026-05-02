@@ -165,4 +165,32 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 30/04/2026 — Sessão 16: Blindagem de Categorias e Gemini 3.1.*
+**Sessão 17 (Unificação Mateus e Padronização Browser)**
+
+**Data:** 01 de Maio de 2026
+**Objetivo:** Unificar o scraper do Mateus no fluxo `cron_playwright.py` e consolidar a arquitetura baseada em nuvem.
+
+**Resultados:**
+1. **Unificação Mateus (Site)**: O Mateus deixou de ser um script isolado e foi integrado ao `cron_playwright.py`. Agora ele usa navegação Playwright para capturar o link direto do PDF.
+2. **Modelo Gemini 3.1 Confirmado**: Reafirmamos o uso dos modelos `gemini-3.1-flash-image-preview` e `gemini-3.1-flash-lite-preview` como os motores oficiais de extração na nuvem.
+3. **Fluxo de Dados PDF**: O link do PDF capturado pelo Mateus é enviado diretamente para o `ENDPOINT_PDF`. O Gemini 3.1 Flash Image processa o documento na nuvem, eliminando a necessidade de conversão local.
+4. **Resiliência de Interface**: Adicionada lógica de interação para modais (Escape) e botões de seleção de loja no site do Mateus para evitar quebras em mudanças de layout.
+
+---
+
+**Sessão 18 (Blindagem de Dados e Otimização Firestore)**
+
+**Data:** 02 de Maio de 2026
+**Objetivo:** Implementar travas de categoria, batching no Firestore e limpeza automática de duplicatas.
+
+**Resultados:**
+1. **Batch Firestore (x500)**: Implementamos o uso de `WriteBatch` para realizar até 500 escritas de uma só vez. Isso reduz drasticamente o tempo de processamento e o consumo de recursos na nuvem.
+2. **Proteção Contra Lixo (Whitelist)**: Adicionada uma camada de validação em código (`functions/main.py`) que descarta itens de categorias proibidas (Sandálias, Eletrônicos, Bazar) antes mesmo de tentarem entrar no banco de dados.
+3. **Economia de IA (Histórico Local)**: O arquivo `historico_posts.json` agora é o guardião local. Ele impede que o mesmo post do Instagram seja enviado para análise de IA mais de uma vez por dia, gerando economia real de créditos.
+4. **Resiliência de OCR**: Melhoria na triagem local para ignorar ruídos visuais de lojas de departamento que possam "vazar" nos perfis oficiais dos supermercados.
+
+**Status Atual:** Sistema blindado contra poluição, otimizado para custo zero e com deploy de produção 100% atualizado. Próxima etapa: Desenvolvimento da UI Premium em SwiftUI.
+
+---
+
+*Última atualização: 02/05/2026 — Sessão 18: Blindagem de Dados e Otimização Firestore.*
