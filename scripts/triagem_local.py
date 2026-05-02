@@ -29,6 +29,7 @@ def realizar_faxina_semanal():
     
     # Identificador da semana atual (Ano-Semana)
     semana_atual = agora.strftime("%Y-%U")
+    hoje_str = agora.strftime("%Y-%m-%d") # Proteção para não apagar o dia de hoje
     
     # Verifica se já limpamos esta semana
     ultima_limpeza = ""
@@ -46,6 +47,8 @@ def realizar_faxina_semanal():
             for item in os.listdir(BASE_DIR):
                 item_path = os.path.join(BASE_DIR, item)
                 if os.path.isdir(item_path) and re.match(r"\d{4}-\d{2}-\d{2}", item):
+                    if hoje_str in item:
+                        continue
                     try:
                         shutil.rmtree(item_path)
                         print(f"    🗑️ Removida: {item}")
@@ -58,6 +61,8 @@ def realizar_faxina_semanal():
                 for item in os.listdir(PASTA_FILTRADA):
                     item_path = os.path.join(PASTA_FILTRADA, item)
                     if os.path.isdir(item_path) and re.match(r"\d{4}-\d{2}-\d{2}", item):
+                        if hoje_str in item:
+                            continue
                         try:
                             shutil.rmtree(item_path)
                             print(f"    🗑️ Triagem removida: {item}")
@@ -243,8 +248,7 @@ def iniciar_triagem(janela=None, data_teste=None):
         print("❌ EasyOCR não encontrado. Instale com: pip install easyocr")
         return
 
-    # 1. Realiza faxina de sábado se necessário
-    realizar_faxina_semanal()
+    # O gatilho da faxina foi movido para o final do processo
 
     # Se a janela não foi passada, tenta descobrir pelo horário atual
     if not janela:
@@ -361,6 +365,9 @@ def iniciar_triagem(janela=None, data_teste=None):
     print("="*60)
 
     print(f"\n💡 [TESTE LOCAL] Processo finalizado. Nenhuma imagem foi enviada para a nuvem.")
+
+    # Realiza faxina de sábado se necessário (Movido para o final)
+    realizar_faxina_semanal()
 
 if __name__ == "__main__":
     # Permite passar a janela como argumento: python3 triagem_local.py 10
