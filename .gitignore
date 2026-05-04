@@ -40,3 +40,6 @@ wiki-repo/
 # Data and Logs
 scripts/historico_posts.json
 scripts/*.log
+
+# EasyOCR Local Models
+.easyocr/
