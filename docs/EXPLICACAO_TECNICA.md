@@ -31,6 +31,7 @@ veja-o-preco-backend/
 │   └── ...
 │
 ├── auditoria_visual/            ← 📸 Provas Visuais (Scraping local do Playwright)
+├── .easyocr/                    ← 🧠 Modelos locais de IA do EasyOCR (Pesos da rede)
 │   └── 2026-04-26_Domingo/      ← 🗂️ Pastas separadas automaticamente por dia
 │       ├── 10h/                 ← 🕙 Capturas da manhã
 │       └── 14h/                 ← 🕑 Capturas da tarde

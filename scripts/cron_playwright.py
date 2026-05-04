@@ -10,6 +10,8 @@ import subprocess
 import glob
 from datetime import datetime
 from playwright.sync_api import sync_playwright
+import random
+from playwright_stealth import Stealth
 
 try:
     import fitz # PyMuPDF para extração precisa de páginas
@@ -494,9 +496,18 @@ def processar_instagram(page, historico, force=False):
         page.on("response", handle_response)
         
         try:
+            # Simula um pequeno atraso humano antes de digitar a URL
+            time.sleep(random.uniform(1.5, 3.5))
             page.goto(f"https://www.instagram.com/{alvo['username']}/", timeout=60000)
-            print(f"  ⏳ Aguardando carregamento da grade de posts...")
-            time.sleep(5)
+            print(f"  ⏳ Aguardando carregamento da grade de posts (Modo Humano)...")
+            
+            # Movimento errático de mouse antes de esperar
+            page.mouse.move(random.randint(100, 500), random.randint(100, 500))
+            time.sleep(random.uniform(4.0, 6.5))
+            
+            # Rola a tela levemente como um humano visualizando o feed
+            page.mouse.wheel(0, random.randint(300, 800))
+            time.sleep(random.uniform(1.5, 3.0))
             
             # [MELHORIA] Verificação de Login - Se o Instagram pedir login, pausamos para o usuário
             # Usamos .first para evitar strict mode violation se houver mais de um botão "Entrar"
@@ -537,9 +548,12 @@ def processar_instagram(page, historico, force=False):
                 posts_novos_count += 1
                 media_capturada.clear()
                 
-                print("  🖱️ Clicando no post para abrir o modal...")
+                print("  🖱️ Aproximando o mouse e clicando no post...")
+                # Hover antes de clicar (Ação comum humana)
+                link.hover()
+                time.sleep(random.uniform(0.5, 1.5))
                 link.click()
-                time.sleep(5) # Espera carregar vídeo/fotos
+                time.sleep(random.uniform(4.5, 7.0)) # Espera carregar vídeo/fotos de forma natural
                 
                 video_count = page.locator("video").count()
                 frames_b64 = []
@@ -604,8 +618,9 @@ def processar_instagram(page, historico, force=False):
                             print(f"  ❌ Erro no Firebase: {resp.status_code} - {resp.text}")
 
                 print("  ⌨️ Fechando o post (Esc)...")
+                time.sleep(random.uniform(0.8, 2.2))
                 page.keyboard.press("Escape")
-                time.sleep(2)
+                time.sleep(random.uniform(1.5, 3.0))
             
             if posts_novos_count == 0:
                 print(f"  ✅ Não há novos posts em @{alvo['username']}.")
@@ -663,6 +678,7 @@ if __name__ == "__main__":
             browser = browser_type.new_context()
 
         page = browser.new_page()
+        Stealth().apply_stealth_sync(page)
 
         # 1. Primeiro: Atacar o site do Assaí (Ignora bloqueios de datacenter)
         processar_assai_site(page, historico, force=force)
