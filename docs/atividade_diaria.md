@@ -4,6 +4,11 @@ Registro das execuções do motor de triagem automatizada e manual.
 
 ---
 
+## [2026-05-08] - Sexta-feira
+- **Status:** Concluído.
+- **Atividade:** Resolução de instabilidades no login do Playwright.
+- **Desenvolvimento:** Criação do script dedicado `logar_instagram.py` com blindagem Stealth, e mapeamento do mecanismo de fallback de sessão no Chromium.
+
 ## [2026-05-03] - Domingo
 - **Status:** Em andamento (Triagem das 14h concluída).
 - **Atividade:** Processamento de encartes e validação de ofertas.
