@@ -480,6 +480,16 @@ def processar_mateus_site(page, historico, force=False):
         print(f"  ❌ Erro crítico ao processar site do Mateus: {e}")
 
 def processar_instagram(page, historico, force=False):
+    print("\n🌡️ [AQUECIMENTO] Acessando a página inicial do Instagram primeiro para gerar cookies/sessão naturais...")
+    try:
+        page.goto("https://www.instagram.com/", timeout=60000)
+        time.sleep(random.uniform(3.0, 5.0))
+        page.mouse.move(random.randint(100, 500), random.randint(100, 500))
+        page.mouse.wheel(0, random.randint(300, 800))
+        time.sleep(random.uniform(2.0, 4.0))
+    except Exception as e:
+        print(f"⚠️ Erro no aquecimento: {e}")
+
     for alvo in ALVOS:
         print(f"\n🔍 Acessando perfil do Instagram: @{alvo['username']}...")
         
@@ -657,12 +667,27 @@ if __name__ == "__main__":
     print(f"📂 [ARQUIVOS] Fotos desta sessão serão salvas em: {nome_janela_log}")
 
     with sync_playwright() as p:
+        # Parâmetros de camuflagem avançada para o Chromium
+        stealth_args = [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--start-maximized"
+        ]
+        stealth_ignore_default_args = ["--enable-automation"]
+        user_agent_mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
         # Tenta abrir com perfil persistente, se falhar (perfil preso), abre um limpo
         try:
             print(f"🚀 Abrindo navegador com perfil persistente em: {os.path.basename(USER_DATA_DIR)}")
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=USER_DATA_DIR, 
                 headless=False,
+                args=stealth_args,
+                ignore_default_args=stealth_ignore_default_args,
+                user_agent=user_agent_mac,
+                viewport={"width": 1920, "height": 1080},
+                locale="pt-BR",
+                timezone_id="America/Sao_Paulo",
                 no_viewport=False # Importante para manter o estado da janela
             )
         except Exception as e:
@@ -674,8 +699,17 @@ if __name__ == "__main__":
             print("!"*60 + "\n")
             
             # Fallback para navegador normal sem perfil
-            browser_type = p.chromium.launch(headless=False)
-            browser = browser_type.new_context()
+            browser_type = p.chromium.launch(
+                headless=False,
+                args=stealth_args,
+                ignore_default_args=stealth_ignore_default_args
+            )
+            browser = browser_type.new_context(
+                user_agent=user_agent_mac,
+                viewport={"width": 1920, "height": 1080},
+                locale="pt-BR",
+                timezone_id="America/Sao_Paulo"
+            )
 
         page = browser.new_page()
         Stealth().apply_stealth_sync(page)
