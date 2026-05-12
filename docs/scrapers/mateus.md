@@ -16,7 +16,7 @@ O site do Mateus utiliza um proxy para servir os encartes.
 
 ### Fase 2: O Cérebro (`extrair_dados_encarte`)
 Como os dados estão "presos" no formato visual do PDF, utilizamos o **Gemini 3.1 Flash Lite**.
-- **Modelo**: `gemini-3.1-flash-lite-preview`
+- **Modelo**: `gemini-3.1-flash-lite`
 - **Processo**:
     1. Download do PDF para diretório temporário.
     2. Upload para a Google Files API.

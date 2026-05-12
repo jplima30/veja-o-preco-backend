@@ -28,7 +28,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Objetivo:** Finalizar Mix Mateus (PDF) e inaugurar a Visão Computacional para o Guerreirãon BR.
 
 **Descobertas e Decisões:**
-1. **Migração para Gemini 3.1 Flash Lite:** Adotamos o modelo mais recente (`gemini-3.1-flash-lite-preview`) por ser otimizado para extrações rápidas e de baixo custo, mantendo alta precisão.
+1. **Migração para Gemini 3.1 Flash Lite:** Adotamos o modelo mais recente (`gemini-3.1-flash-lite`) por ser otimizado para extrações rápidas e de baixo custo, mantendo alta precisão.
 2. **Telemetria de Tokens:** Implementamos um sistema de monitoramento de custos que injeta o uso de `prompt` e `resposta` em cada JSON, permitindo controle total do ROI.
 3. **Padrão Vision AI:** Criamos a função `extrair_dados_imagem` como solução universal para mercados sem site (Líder, Formosa, Guerreirão BR).
 4. **Solução 403 e Truncamento de URL:** Identificamos que links de redes sociais devem ser enviados via **POST** para evitar truncamento de caracteres especiais e exigem headers de navegador real para evitar o bloqueio 403 do Meta.
@@ -156,7 +156,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Objetivo:** Implementar camadas de segurança para garantir que apenas itens de supermercado entrem no banco de dados.
 
 **Resultados:**
-1. **Modelos de Elite (Gemini 3.1):** Consolidamos o uso do `gemini-3.1-flash-image-preview` para visão (fotos/vídeos) e `gemini-3.1-flash-lite-preview` para textos (PDFs), garantindo o melhor equilíbrio entre inteligência visual e custo.
+1. **Modelos de Elite (Gemini 3.1):** Consolidamos o uso do `gemini-3.1-flash-image-preview` para visão (fotos/vídeos) e `gemini-3.1-flash-lite` para textos (PDFs), garantindo o melhor equilíbrio entre inteligência visual e custo.
 2. **Whitelist de Categorias:** O sistema agora opera sob um regime de "Whitelist" (Alimentação, Higiene e Limpeza). Qualquer item fora desses eixos é descartado.
 3. **Filtro de Categoria em Código:** Adicionamos uma trava de segurança no `functions/main.py` que lê a categoria retornada pela IA. Se for "Bazar", "Eletrônicos" ou "Bebidas Alcoólicas", o registro é abortado antes de chegar ao Firestore.
 4. **Manual de Automação 2.0:** O `readme-validators.md` foi reescrito para separar comandos "Dentro vs Fora do Venv", facilitando o uso rápido via terminal.
@@ -172,7 +172,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 **Resultados:**
 1. **Unificação Mateus (Site)**: O Mateus deixou de ser um script isolado e foi integrado ao `cron_playwright.py`. Agora ele usa navegação Playwright para capturar o link direto do PDF.
-2. **Modelo Gemini 3.1 Confirmado**: Reafirmamos o uso dos modelos `gemini-3.1-flash-image-preview` e `gemini-3.1-flash-lite-preview` como os motores oficiais de extração na nuvem.
+2. **Modelo Gemini 3.1 Confirmado**: Reafirmamos o uso dos modelos `gemini-3.1-flash-image-preview` e `gemini-3.1-flash-lite` como os motores oficiais de extração na nuvem.
 3. **Fluxo de Dados PDF**: O link do PDF capturado pelo Mateus é enviado diretamente para o `ENDPOINT_PDF`. O Gemini 3.1 Flash Image processa o documento na nuvem, eliminando a necessidade de conversão local.
 4. **Resiliência de Interface**: Adicionada lógica de interação para modais (Escape) e botões de seleção de loja no site do Mateus para evitar quebras em mudanças de layout.
 

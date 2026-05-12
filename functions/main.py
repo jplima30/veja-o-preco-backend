@@ -937,7 +937,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 raise e
 
             # 5. Roteamento e Prompt
-            modelo_escolhido = "gemini-3.1-flash-lite-preview"
+            modelo_escolhido = "gemini-3.1-flash-lite"
             prompt_instrucao = """
             Você é um assistente de elite para extração de dados de encartes de supermercado.
             Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
