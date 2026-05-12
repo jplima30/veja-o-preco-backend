@@ -1,8 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // 1. Bloqueia leitura e escrita globais por padrão
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+    
+    // 2. Permite apenas LEITURA pública para as coleções do App iOS
+    match /ofertas/{document} {
+      allow read: if true;
+    }
+    match /produtos/{document} {
+      allow read: if true;
     }
   }
 }
