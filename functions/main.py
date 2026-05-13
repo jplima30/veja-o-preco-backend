@@ -14,6 +14,7 @@ from firebase_admin import initialize_app, firestore
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Configuração global para evitar crash de rede no macOS (Segmentation Fault / _scproxy)
 # Desativa a detecção automática de proxy do sistema que causa o crash no Firebase Emulator
@@ -228,7 +229,7 @@ def get_status_extracao(req: https_fn.Request) -> https_fn.Response:
     Usado pelo script local para comparar o que já subiu para a nuvem.
     """
     try:
-        from google.cloud.firestore_v1.base_query import FieldFilter
+
         hoje_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # Busca todas as ofertas criadas hoje (simplificado para evitar erro de índice composto)
@@ -286,7 +287,7 @@ def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
         limite = int(req.args.get("limite", 100))
 
         # Query base: apenas ofertas que ainda não expiraram
-        from google.cloud.firestore_v1.base_query import FieldFilter
+
 
         query = get_db().collection("ofertas").where(
             filter=FieldFilter("expira_em", ">=", datetime.now())
@@ -1446,7 +1447,7 @@ def limpar_ofertas_expiradas(event: scheduler_fn.ScheduledEvent) -> None:
     Vassoura: Apaga do Firestore todas as ofertas cujo 'expira_em' já passou,
     garantindo que o App nunca mostre oferta velha e poupando armazenamento gratuito.
     """
-    from google.cloud.firestore_v1.base_query import FieldFilter
+
     
     print("CRON: Iniciando limpeza de ofertas expiradas...")
     db_cliente = firestore.client()
