@@ -64,7 +64,7 @@
 
 ### Scrapers IA → Firestore (Redes Maiores)
 - [x] Integrar `buscar_encarte_mateus` com `salvar_produto_e_oferta` (Gemini PDF → Firestore)
-- [x] Construir motor de navegação para Instagram (`cron_playwright.py` + bypass Playwright stealth)
+- [x] Construir motor de navegação para Instagram (`cron_playwright.py` + perfil persistente natural sem stealth)
 - [x] Integrar `extrair_dados_imagem` (Líder) com Firestore (`lider-am`)
 - [x] Integrar `extrair_dados_imagem` (Formosa) com Firestore (`formosa-am`)
 - [x] Integrar `extrair_dados_imagem` (Guerreirão BR) com Firestore (`guerreirao-br`)
