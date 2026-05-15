@@ -4,6 +4,11 @@ Registro das execuções do motor de triagem automatizada e manual.
 
 ---
 
+## [2026-05-14] - Quinta-feira
+- **Status:** Concluído.
+- **Atividade:** Resolução de instabilidades no login do Playwright (Erro ERR_TOO_MANY_REDIRECTS).
+- **Desenvolvimento:** Remoção da biblioteca stealth devido à detecção ativa pelo Instagram, adoção de perfil persistente "natural" com User-Agent atualizado e fallback para bloqueios de conta (`logar_instagram.py`).
+
 ## [2026-05-08] - Sexta-feira
 - **Status:** Concluído.
 - **Atividade:** Resolução de instabilidades no login do Playwright.

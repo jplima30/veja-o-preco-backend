@@ -674,7 +674,7 @@ if __name__ == "__main__":
             "--start-maximized"
         ]
         stealth_ignore_default_args = ["--enable-automation"]
-        user_agent_mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        modern_user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
         # Tenta abrir com perfil persistente, se falhar (perfil preso), abre um limpo
         try:
@@ -682,10 +682,11 @@ if __name__ == "__main__":
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=USER_DATA_DIR, 
                 headless=False,
+                channel="chrome",
                 args=stealth_args,
                 ignore_default_args=stealth_ignore_default_args,
-                user_agent=user_agent_mac,
                 viewport={"width": 1920, "height": 1080},
+                user_agent=modern_user_agent,
                 locale="pt-BR",
                 timezone_id="America/Sao_Paulo",
                 no_viewport=False # Importante para manter o estado da janela
@@ -701,18 +702,21 @@ if __name__ == "__main__":
             # Fallback para navegador normal sem perfil
             browser_type = p.chromium.launch(
                 headless=False,
+                channel="chrome",
                 args=stealth_args,
                 ignore_default_args=stealth_ignore_default_args
             )
             browser = browser_type.new_context(
-                user_agent=user_agent_mac,
                 viewport={"width": 1920, "height": 1080},
+                user_agent=modern_user_agent,
                 locale="pt-BR",
                 timezone_id="America/Sao_Paulo"
             )
 
+        if len(browser.pages) > 0:
+            browser.pages[0].close()
+
         page = browser.new_page()
-        Stealth().apply_stealth_sync(page)
 
         # 1. Primeiro: Atacar o site do Assaí (Ignora bloqueios de datacenter)
         processar_assai_site(page, historico, force=force)

@@ -76,7 +76,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 **Resultados:**
 1. **Endpoint Público:** Deploy do `get_ofertas_do_dia` testado e validado via URL pública (consumindo dados reais do Firestore).
-2. **Motor Playwright (`cron_playwright.py`):** Sistema reescrito para navegação local em redes sociais, capaz de "roubar" URLs da aba de network (sniffer) e fatiar vídeos do Reels em frames (imagens múltiplas) baseados no tamanho do vídeo.
+2. **Motor Playwright (`cron_playwright.py`):** Sistema reescrito para navegação local em redes sociais. Utiliza um perfil persistente natural (sem bibliotecas de stealth ativas, para evitar loops de bloqueio de conta) e é capaz de "roubar" URLs da aba de network (sniffer) e fatiar vídeos do Reels em frames (imagens múltiplas) baseados no tamanho do vídeo.
 3. **Múltiplos Alvos Instagram/Facebook:** Líder, Formosa, Guerreirão BR e Assaí Atacadista integrados com sucesso no Playwright.
 4. **Resolução de Conflitos Multimodal:** Aprimoramento da API Gemini Flash 2.5/3.1 para aceitar fluxos mistos (imagens estáticas vs frames de vídeo) em Base64 ou URL direta sem estourar limites.
 5. **Auditoria Visual:** Criação de estrutura rotativa automática de pastas (`auditoria_visual/YYYY-MM-DD_Dia`) para salvar os frames do Playwright antes de enviar à nuvem.
