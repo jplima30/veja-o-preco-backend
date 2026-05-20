@@ -193,4 +193,15 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 02/05/2026 — Sessão 18: Blindagem de Dados e Otimização Firestore.*
+**Sessão 19 (Agendamento Nativo MacOS e Logs)**
+
+**Data:** 20 de Maio de 2026
+**Objetivo:** Clarificar o mecanismo de agendamento automático no MacOS e implementar um sistema de logs visível e persistente.
+
+**Resultados:**
+1. **LaunchAgent vs CRON**: Mapeado que a automação não roda via `cron` tradicional, mas sim através do `launchd` do MacOS (`com.vejaopreco.captura.visivel.plist`). Isso permite abrir ativamente o Terminal para rodar os scripts, garantindo que variáveis de ambiente como `$PATH` e bibliotecas compiladas do Homebrew carreguem corretamente.
+2. **Log em Tempo Real (`tee`)**: Atualizado o `captura_visivel.command` para que a saída do robô continue visível no pop-up do Terminal, mas seja paralelamente salva no arquivo `cron_hoje.log`. Isso abandona a geração antiga (e estática) do `cron_playwright.log` e permite debugar possíveis falhas nas janelas das 10h e 14h.
+
+---
+
+*Última atualização: 20/05/2026 — Sessão 19: Agendamento Nativo MacOS e Logs.*
