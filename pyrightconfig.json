@@ -2,11 +2,11 @@
   "include": [
     "functions"
   ],
-  "pythonVersion": "3.13",
+  "pythonVersion": "3.12",
   "venvPath": "/Users/jplima/Documents/veja-o-preco-backend/functions",
   "venv": "venv",
   "extraPaths": [
-    "/Users/jplima/Documents/veja-o-preco-backend/functions/venv/lib/python3.13/site-packages"
+    "/Users/jplima/Documents/veja-o-preco-backend/functions/venv/lib/python3.12/site-packages"
   ]
 }
 
