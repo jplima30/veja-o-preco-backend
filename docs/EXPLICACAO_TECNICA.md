@@ -38,7 +38,8 @@ veja-o-preco-backend/
 │
 ├── scripts/
 │   ├── cron_playwright.py       ← 🤖 Robô fantasma (Instagram e Site Assaí)
-│   ├── captura_visivel.command  ← 🖥️ Atalho para abrir o robô no Terminal (Mac)
+│   ├── captura_visivel.command  ← 🖥️ Atalho do LaunchAgent p/ rodar no Terminal e gerar log
+│   ├── cron_hoje.log            ← 📝 Arquivo onde a execução do LaunchAgent fica salva
 │   ├── triagem_automatizada.py  ← 🧠 Filtro de I.A. Local (OCR)
 │   └── ...
 ```
