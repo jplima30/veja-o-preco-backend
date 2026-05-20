@@ -201,7 +201,8 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 **Resultados:**
 1. **LaunchAgent vs CRON**: Mapeado que a automação não roda via `cron` tradicional, mas sim através do `launchd` do MacOS (`com.vejaopreco.captura.visivel.plist`). Isso permite abrir ativamente o Terminal para rodar os scripts, garantindo que variáveis de ambiente como `$PATH` e bibliotecas compiladas do Homebrew carreguem corretamente.
 2. **Log em Tempo Real (`tee`)**: Atualizado o `captura_visivel.command` para que a saída do robô continue visível no pop-up do Terminal, mas seja paralelamente salva no arquivo `cron_hoje.log`. Isso abandona a geração antiga (e estática) do `cron_playwright.log` e permite debugar possíveis falhas nas janelas das 10h e 14h.
+3. **Fuga da Descontinuação (Legacy Sunset)**: Identificamos que o endpoint `buscar_encarte_assai` ainda utilizava o `gemini-1.5-flash` (marcado para sunset pelo Google). Atualizamos o motor para o `gemini-3.1-flash-image-preview`, que é a ferramenta multimodal com a melhor relação de custo-benefício, garantindo a sobrevida da função e evitando quedas do serviço.
 
 ---
 
-*Última atualização: 20/05/2026 — Sessão 19: Agendamento Nativo MacOS e Logs.*
+*Última atualização: 20/05/2026 — Sessão 19: Agendamento Nativo MacOS, Logs e Atualização de Modelos Gemini.*

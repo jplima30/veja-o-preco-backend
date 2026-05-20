@@ -668,7 +668,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         gemini_parts.append(prompt)
 
         response_gemini = client.models.generate_content(
-            model="gemini-1.5-flash", # Usando 1.5 flash para estabilidade e custo
+            model="gemini-3.1-flash-image-preview", # Atualizado para o motor visual 3.1
             contents=gemini_parts
         )
 
