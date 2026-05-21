@@ -4,6 +4,10 @@ import re
 import sys
 from datetime import datetime
 
+# Garante que a saída seja impressa em tempo real no terminal/cron
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
 # Garante que o script consiga importar outros scripts na mesma pasta
 sys.path.append(os.path.dirname(__file__))
 

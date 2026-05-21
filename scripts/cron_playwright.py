@@ -1,5 +1,10 @@
 import os
 import sys
+
+# Garante que a saída seja impressa em tempo real no terminal/cron
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
 import time
 import requests
 import json
@@ -577,7 +582,12 @@ def processar_instagram(page, historico, force=False):
                         for t in range(0, int(duration), step):
                             page.evaluate(f'() => document.querySelector("video").currentTime = {t}')
                             time.sleep(1.5)
-                            img_bytes = page.locator("video").first.screenshot(type="jpeg", quality=75)
+                            # Usa a área (bounding box) para recortar da tela inteira e ignorar instabilidade do elemento
+                            box = page.locator("video").first.bounding_box()
+                            if box:
+                                img_bytes = page.screenshot(type="jpeg", quality=75, clip=box)
+                            else:
+                                img_bytes = page.screenshot(type="jpeg", quality=75)
                             frames_b64.append(base64.b64encode(img_bytes).decode('utf-8'))
                             print(f"    📸 Frame capturado: {t}s")
                             
@@ -742,9 +752,9 @@ if __name__ == "__main__":
     script_triagem = os.path.join(os.path.dirname(__file__), "triagem_automatizada.py")
     
     try:
-        print(f"  🧠 Rodando triagem [{janela_alvo}h] com: {venv_python}")
-        # Passa a janela como argumento para a triagem
-        subprocess.run([venv_python, script_triagem, str(janela_alvo)], check=True)
+        print(f"  🧠 Rodando triagem [{janela_alvo}h] com: {venv_python}", flush=True)
+        # Passa a janela como argumento para a triagem e o flag -u para unbuffered
+        subprocess.run([venv_python, "-u", script_triagem, str(janela_alvo)], check=True)
     except Exception as e:
         print(f"⚠️ Erro ao iniciar triagem automática: {e}")
     
