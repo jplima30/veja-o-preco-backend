@@ -9,7 +9,7 @@ O projeto utiliza uma arquitetura híbrida de extração de dados, combinando ra
 ## 🚀 Tecnologias e Inovações
 - **Core**: Python 3.12 + Firebase Functions.
 - **I.A. Engine**: **Gemini 3.1** (Flash Image para Visão e Flash Lite para PDFs).
-- **Automation**: **Playwright Stealth** para captura de redes sociais.
+- **Automation**: **Playwright** com perfil persistente para captura de redes sociais.
 - **Computer Vision**: **EasyOCR** local para triagem inteligente de imagens.
 - **Database**: **Cloud Firestore** com arquitetura de deduplicação e histórico.
 

@@ -16,7 +16,6 @@ import glob
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 import random
-from playwright_stealth import Stealth
 
 try:
     import fitz # PyMuPDF para extração precisa de páginas
@@ -678,12 +677,12 @@ if __name__ == "__main__":
 
     with sync_playwright() as p:
         # Parâmetros de camuflagem avançada para o Chromium
-        stealth_args = [
+        chromium_args = [
             "--disable-blink-features=AutomationControlled",
             "--disable-infobars",
             "--start-maximized"
         ]
-        stealth_ignore_default_args = ["--enable-automation"]
+        chromium_ignore_args = ["--enable-automation"]
         modern_user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
         # Tenta abrir com perfil persistente, se falhar (perfil preso), abre um limpo
@@ -693,8 +692,8 @@ if __name__ == "__main__":
                 user_data_dir=USER_DATA_DIR, 
                 headless=False,
                 channel="chrome",
-                args=stealth_args,
-                ignore_default_args=stealth_ignore_default_args,
+                args=chromium_args,
+                ignore_default_args=chromium_ignore_args,
                 viewport={"width": 1920, "height": 1080},
                 user_agent=modern_user_agent,
                 locale="pt-BR",
@@ -713,8 +712,8 @@ if __name__ == "__main__":
             browser_type = p.chromium.launch(
                 headless=False,
                 channel="chrome",
-                args=stealth_args,
-                ignore_default_args=stealth_ignore_default_args
+                args=chromium_args,
+                ignore_default_args=chromium_ignore_args
             )
             browser = browser_type.new_context(
                 viewport={"width": 1920, "height": 1080},
