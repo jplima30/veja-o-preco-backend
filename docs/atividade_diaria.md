@@ -4,6 +4,18 @@ Registro das execuções do motor de triagem automatizada e manual.
 
 ---
 
+## [2026-06-07] - Domingo
+- **Status:** Concluído.
+- **Atividade:** Manutenção de emergência — Faturamento, Migração de Modelo e Deploy.
+- **Infraestrutura:**
+  - Diagnosticada suspensão do faturamento Firebase (débito R$13,57 — API Gemini de Abril e Maio).
+  - Faturamento reestabelecido pelo usuário via pagamento do débito.
+  - Firebase CLI atualizado: `15.17.0` → `15.19.1`.
+- **Desenvolvimento:**
+  - Migração do modelo `gemini-3.1-flash-image-preview` (depreciação: 25/06/2026) para `gemini-3.1-flash-image` (GA) nas funções `buscar_encarte_assai` e `extrair_dados_imagem`.
+  - Deploy completo das 11 Cloud Functions após reativação do faturamento.
+- **Resultado:** Sistema 100% operacional. Sem erros 503/403.
+
 ## [2026-05-14] - Quinta-feira
 - **Status:** Concluído.
 - **Atividade:** Resolução de instabilidades no login do Playwright (Erro ERR_TOO_MANY_REDIRECTS).
