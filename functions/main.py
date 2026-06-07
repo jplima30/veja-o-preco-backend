@@ -668,7 +668,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         gemini_parts.append(prompt)
 
         response_gemini = client.models.generate_content(
-            model="gemini-3.1-flash-image-preview", # Atualizado para o motor visual 3.1
+            model="gemini-3.1-flash-image", # Migrado do preview (deprecado 25/06/2026) para estável
             contents=gemini_parts
         )
 
@@ -1270,7 +1270,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             gemini_parts.append(prompt_vision)
 
             # 5. Roteamento (Utilizando 3.1-flash-image para máximo Q.I. Visual em fotos e vídeos)
-            modelo_escolhido = "gemini-3.1-flash-image-preview"
+            modelo_escolhido = "gemini-3.1-flash-image" # Migrado do preview (deprecado 25/06/2026) para estável
             
             print(f"DEBUG VISION - Invocando modelo {modelo_escolhido} (Modo Vídeo: {is_video})...")
             try:
