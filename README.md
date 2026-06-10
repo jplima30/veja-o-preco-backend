@@ -103,11 +103,3 @@ firebase deploy --only functions
 | [💻 Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local) | Comandos práticos para rodar e testar o sistema |
 
 ---
-
-<div align="center">
-
-**Desenvolvido com ❤️ e Antigravity (Google DeepMind)** 🦾🤖
-
-*Belém do Pará, Brasil 🇧🇷*
-
-</div>
