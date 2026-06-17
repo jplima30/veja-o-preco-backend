@@ -371,8 +371,8 @@ def processar_mateus_site(page, historico, force=False):
                 if MODO_AUDITORIA_VISUAL:
                     print(f"  📥 Baixando PDF para auditoria local...")
                     try:
-                        resp_pdf = requests.get(link_pdf, timeout=60)
-                        if resp_pdf.status_code == 200:
+                        resp_pdf = page.request.get(link_pdf)
+                        if resp_pdf.status == 200:
                             pasta_mateus = os.path.join(PASTA_AUDITORIA_HOJE, "mateus_site")
                             os.makedirs(pasta_mateus, exist_ok=True)
                             
@@ -382,9 +382,9 @@ def processar_mateus_site(page, historico, force=False):
                             caminho_pdf = os.path.join(pasta_mateus, f"{nome_base}.pdf")
                             
                             with open(caminho_pdf, "wb") as f:
-                                f.write(resp_pdf.content)
+                                f.write(resp_pdf.body())
                             
-                            print(f"  ✅ PDF baixado: {nome_base}.pdf ({len(resp_pdf.content)} bytes)")
+                            print(f"  ✅ PDF baixado: {nome_base}.pdf ({len(resp_pdf.body())} bytes)")
 
                             # CAPTURA DE PÁGINAS (Preferencialmente via PyMuPDF para precisão de 1 imagem/página)
                             print(f"  📸 Processando páginas do PDF...")
@@ -445,7 +445,7 @@ def processar_mateus_site(page, historico, force=False):
                                 "arquivo_local": caminho_pdf
                             }
                         else:
-                            print(f"  ❌ Erro ao baixar PDF (Status: {resp_pdf.status_code})")
+                            print(f"  ❌ Erro ao baixar PDF (Status: {resp_pdf.status})")
                     except Exception as e_down:
                         print(f"  ❌ Falha no download do PDF: {e_down}")
                 else:
