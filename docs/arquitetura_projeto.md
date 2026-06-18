@@ -205,11 +205,38 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 18/06/2026 — Sessão 20: Resiliência em Captura de Reels.*
+*Última atualização: 18/06/2026 — Sessão 21: Resiliência em Captura de Reels.*
 
 ---
 
-**Sessão 20 (Resiliência em Captura de Reels do Instagram)**
+**Sessão 20 (Migração de Modelos e Resolução de Faturamento)**
+
+**Data:** 07 de Junho de 2026
+**Objetivo:** Resolver interrupção do serviço por faturamento Firebase suspenso, migrar modelo Gemini depreciado e atualizar Firebase CLI.
+
+**Contexto:**
+O sistema estava retornando erros `503` nas Cloud Functions e `403 Forbidden` no Secret Manager. A causa raiz foi identificada como a suspensão do faturamento Firebase por débito em aberto de **R$13,57** (custos de API Gemini de Abril e Maio de 2026).
+
+**Resultados:**
+1. **Diagnóstico de Custo Confirmado:** 100% dos custos são da API Gemini (extração visual). Cloud Functions = R$0 (coberto pelo free tier do Google). Custo médio: ~R$6,78/mês para o volume atual de encartes.
+2. **Migração de Modelo (Urgente):** O modelo `gemini-3.1-flash-image-preview` tinha data de descontinuação em **25/06/2026**. Migramos proativamente para `gemini-3.1-flash-image` (GA) nos dois pontos de uso:
+   - `buscar_encarte_assai` (linha ~671 do `main.py`)
+   - `extrair_dados_imagem` (linha ~1273 do `main.py`)
+   - `gemini-3.1-flash-lite` mantido sem alterações (estável até 05/2027)
+3. **Resolução do Faturamento:** Pagamento do débito reestabelecido. Deploy concluído com todas as **11 funções** reamplantadas com sucesso.
+4. **Firebase CLI Atualizado:** Versão `15.17.0` → `15.19.1`.
+
+**Modelos Gemini em uso após a sessão:**
+
+| Função | Modelo | Status |
+|--------|--------|--------|
+| `buscar_encarte_assai` | `gemini-3.1-flash-image` | ✅ GA (estável) |
+| `extrair_dados_imagem` | `gemini-3.1-flash-image` | ✅ GA (estável) |
+| `extrair_dados_encarte` | `gemini-3.1-flash-lite` | ✅ Estável até 05/2027 |
+
+---
+
+**Sessão 21 (Resiliência em Captura de Reels do Instagram)**
 
 **Data:** 18 de Junho de 2026
 **Objetivo:** Corrigir o erro `Page.screenshot: Timeout 30000ms exceeded` que impedia a captura de frames de vídeos (Reels) do Instagram.
