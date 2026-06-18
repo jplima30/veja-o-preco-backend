@@ -6,6 +6,7 @@ O backend do "Veja o Preço" é um sistema híbrido que utiliza três níveis de
 - **API Direta**: Consumo direto de endpoints JSON/GraphQL (Atacadão, Seja Econômico). É a forma mais rápida e barata.
 - **Extração via I.A. (PDF)**: Para o Mix Mateus, processamos tabloides digitais usando o Gemini 3.1 Flash Lite (Foco em custo/volume).
 - **Híbrido (I.A. Vision + Triagem Automatizada)**: Para o Assaí e redes sociais (Líder, Formosa, Guerreirão BR), usamos um robô local (`cron_playwright.py`). Ele captura imagens/vídeos e utiliza o **EasyOCR** localmente (`triagem_automatizada.py`) com filtros rigorosos.
+    - **Resiliência em Vídeos (Reels)**: O robô força `video.play()` antes de capturar, isola erros por frame individual (timeout de 8s cada) e possui fallback automático para a thumbnail do vídeo se todos os frames falharem.
     - **Filtro Anti-Data**: Ignora textos com barras (`/`) para não confundir datas com preços.
     - **Filtro de Pureza**: Descarta ruídos visuais que o OCR lê como texto mas não têm o símbolo `R$`.
     - **Proteção contra Gastos**: Implementamos o `historico_posts.json` local para que a IA nunca processe o mesmo post duas vezes no mesmo dia.
