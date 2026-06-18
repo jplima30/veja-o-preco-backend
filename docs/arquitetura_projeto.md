@@ -205,4 +205,23 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 20/05/2026 — Sessão 19: Agendamento Nativo MacOS, Logs e Atualização de Modelos Gemini.*
+*Última atualização: 18/06/2026 — Sessão 20: Resiliência em Captura de Reels.*
+
+---
+
+**Sessão 20 (Resiliência em Captura de Reels do Instagram)**
+
+**Data:** 18 de Junho de 2026
+**Objetivo:** Corrigir o erro `Page.screenshot: Timeout 30000ms exceeded` que impedia a captura de frames de vídeos (Reels) do Instagram.
+
+**Diagnóstico:**
+O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermercadoslider`) e 3 do Assaí (`@assaiatacadistaoficial`). A causa raiz era tripla:
+1. O Instagram inicia Reels pausados no modal — o código nunca chamava `video.play()`.
+2. O `try/except` envolvia o loop inteiro — um frame com erro abortava todos os outros.
+3. Não havia fallback — se os frames falhassem, o post era completamente ignorado.
+
+**Resultados:**
+1. **Reprodução Forçada:** O robô agora executa `video.muted = true; video.play()` e aguarda `readyState >= 2` (HAVE_CURRENT_DATA) antes de iniciar a captura.
+2. **Resiliência por Frame:** Cada frame é capturado em seu próprio bloco `try/except` com timeout reduzido de **30s → 8s**. Um contador de falhas consecutivas aborta após 3 erros seguidos para não travar o CRON.
+3. **Fallback Poster/Thumbnail:** Se nenhum frame for capturado, o sistema extrai o atributo `poster` do elemento `<video>` (thumbnail de alta resolução que o Instagram sempre fornece) e o usa como imagem estática.
+4. **Validação Manual:** Teste com `--force` confirmou que os 9 Reels que falhavam de manhã agora são capturados com sucesso. Triagem processou **567 imagens** e filtrou **66 aprovadas** com **~57 ofertas novas** extraídas.
