@@ -575,29 +575,75 @@ def processar_instagram(page, historico, force=False):
 
                 if video_count > 0:
                     print("  🎥 VÍDEO detectado! Extraindo frames para auditoria visual...")
+                    
+                    # [FIX] Forçar reprodução do vídeo — Instagram inicia Reels pausados no modal
+                    try:
+                        page.evaluate('() => { const v = document.querySelector("video"); if(v) { v.muted = true; v.play(); } }')
+                        page.wait_for_function(
+                            '() => { const v = document.querySelector("video"); return v && v.readyState >= 2; }',
+                            timeout=8000
+                        )
+                        print("    ▶️ Vídeo reproduzindo com sucesso.")
+                    except Exception as e_play:
+                        print(f"    ⚠️ Não foi possível iniciar reprodução do vídeo: {e_play}")
+                    
+                    # [FIX] Captura de frames com try/except individual (resiliência)
                     try:
                         duration = page.evaluate('() => document.querySelector("video")?.duration || 15')
                         step = max(2, int(duration / 15))
+                        falhas_consecutivas = 0
+                        
                         for t in range(0, int(duration), step):
-                            page.evaluate(f'() => document.querySelector("video").currentTime = {t}')
-                            time.sleep(1.5)
-                            # Usa a área (bounding box) para recortar da tela inteira e ignorar instabilidade do elemento
-                            box = page.locator("video").first.bounding_box()
-                            if box:
-                                img_bytes = page.screenshot(type="jpeg", quality=75, clip=box)
-                            else:
-                                img_bytes = page.screenshot(type="jpeg", quality=75)
-                            frames_b64.append(base64.b64encode(img_bytes).decode('utf-8'))
-                            print(f"    📸 Frame capturado: {t}s")
-                            
-                            # Auditoria
-                            post_id = href.strip("/").split("/")[-1]
-                            pasta_audit = os.path.join(PASTA_AUDITORIA_HOJE, alvo['username'], post_id)
-                            os.makedirs(pasta_audit, exist_ok=True)
-                            with open(os.path.join(pasta_audit, f"frame_{t}s.jpg"), "wb") as f:
-                                f.write(img_bytes)
+                            try:
+                                page.evaluate(f'() => document.querySelector("video").currentTime = {t}')
+                                time.sleep(1.5)
+                                box = page.locator("video").first.bounding_box()
+                                if box:
+                                    img_bytes = page.screenshot(type="jpeg", quality=75, clip=box, timeout=8000)
+                                else:
+                                    img_bytes = page.screenshot(type="jpeg", quality=75, timeout=8000)
+                                frames_b64.append(base64.b64encode(img_bytes).decode('utf-8'))
+                                print(f"    📸 Frame capturado: {t}s")
+                                falhas_consecutivas = 0
+                                
+                                # Auditoria
+                                post_id = href.strip("/").split("/")[-1]
+                                pasta_audit = os.path.join(PASTA_AUDITORIA_HOJE, alvo['username'], post_id)
+                                os.makedirs(pasta_audit, exist_ok=True)
+                                with open(os.path.join(pasta_audit, f"frame_{t}s.jpg"), "wb") as f:
+                                    f.write(img_bytes)
+                            except Exception as e_frame:
+                                falhas_consecutivas += 1
+                                print(f"    ⚠️ Frame {t}s falhou ({falhas_consecutivas}x): {e_frame}")
+                                if falhas_consecutivas >= 3:
+                                    print(f"    🛑 3 falhas consecutivas — abortando captura de frames deste vídeo.")
+                                    break
                     except Exception as e:
-                        print(f"    ❌ Erro ao extrair frames: {e}")
+                        print(f"    ❌ Erro ao configurar captura de frames: {e}")
+                    
+                    # [FIX] Fallback: se nenhum frame foi capturado, tentar poster/thumbnail do vídeo
+                    if not frames_b64:
+                        print("    🔄 Nenhum frame capturado. Tentando fallback via poster/thumbnail...")
+                        try:
+                            poster_url = page.evaluate('() => document.querySelector("video")?.poster || ""')
+                            if poster_url and poster_url.startswith("http"):
+                                img_resp = requests.get(poster_url, timeout=10)
+                                if img_resp.status_code == 200:
+                                    midia_final = poster_url
+                                    print(f"    ✅ Thumbnail recuperada com sucesso: {poster_url[:60]}...")
+                                    
+                                    # Auditoria do fallback
+                                    post_id = href.strip("/").split("/")[-1]
+                                    pasta_audit = os.path.join(PASTA_AUDITORIA_HOJE, alvo['username'], post_id)
+                                    os.makedirs(pasta_audit, exist_ok=True)
+                                    with open(os.path.join(pasta_audit, "thumbnail_fallback.jpg"), "wb") as f:
+                                        f.write(img_resp.content)
+                                else:
+                                    print(f"    ❌ Falha ao baixar poster (status {img_resp.status_code})")
+                            else:
+                                print("    ❌ Nenhum poster/thumbnail disponível no elemento <video>.")
+                        except Exception as e_poster:
+                            print(f"    ❌ Erro no fallback de poster: {e_poster}")
                 else:
                     if media_capturada:
                         midia_final = media_capturada[-1]["url"]
