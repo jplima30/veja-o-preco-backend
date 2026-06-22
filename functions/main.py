@@ -8,9 +8,11 @@ import json
 import requests
 import tempfile
 import time
+import io
+from PIL import Image
 from datetime import datetime, timedelta
 from firebase_functions import https_fn, options
-from firebase_admin import initialize_app, firestore
+from firebase_admin import initialize_app, firestore, storage
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
@@ -57,6 +59,75 @@ def normalizar_nome(nome: str, unidade: str = "") -> str:
     texto = re.sub(r'[^a-z0-9\s]', '', texto)
     texto = re.sub(r'\s+', '-', texto.strip())
     return texto
+
+
+def baixar_e_otimizar_imagem(url: str, produto_id: str) -> str:
+    """
+    Baixa uma imagem da URL, redimensiona para 200x200 pixels,
+    compacta em JPEG com 75% de qualidade e faz o upload para o Firebase Storage.
+    Retorna a URL pública da imagem hospedada.
+    """
+    if not url or not url.startswith("http"):
+        return ""
+        
+    try:
+        # 1. Download da imagem original
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+        resp = session.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            print(f"❌ Erro ao baixar imagem da URL: {url} (Status {resp.status_code})")
+            return ""
+            
+        # 2. Processamento com Pillow em memória
+        img_bytes = io.BytesIO(resp.content)
+        with Image.open(img_bytes) as img:
+            # Converter para RGB se necessário (ex: PNG com canal alfa)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+                
+            # Redimensionamento para 200x200 px com filtro de alta qualidade
+            img_redimensionada = img.resize((200, 200), Image.Resampling.LANCZOS)
+            
+            # Salvar em buffer de bytes na memória
+            output_buffer = io.BytesIO()
+            img_redimensionada.save(output_buffer, "JPEG", quality=75)
+            output_buffer.seek(0)
+            
+            # 3. Enviar para o Firebase Storage
+            bucket = storage.bucket("veja-o-preco.firebasestorage.app")
+            blob_name = f"produtos/{produto_id}.jpg"
+            blob = bucket.blob(blob_name)
+            
+            blob.upload_from_string(
+                output_buffer.getvalue(),
+                content_type="image/jpeg"
+            )
+            
+            # Tornar a imagem pública para download
+            blob.make_public()
+            public_url = blob.public_url
+            
+            tamanho_kb = len(output_buffer.getvalue()) / 1024
+            print(f"✅ Imagem otimizada e carregada no Storage: {public_url} ({tamanho_kb:.2f} KB)")
+            
+            # Opcional: Salvar também uma cópia local para auditoria em desenvolvimento
+            try:
+                base_dir = "/Users/jplima/Documents/veja-o-preco-backend"
+                target_dir = os.path.join(base_dir, "auditoria_visual", "imagens_otimizadas")
+                os.makedirs(target_dir, exist_ok=True)
+                target_path = os.path.join(target_dir, f"{produto_id}.jpg")
+                with open(target_path, "wb") as f_local:
+                    f_local.write(output_buffer.getvalue())
+            except Exception:
+                pass
+                
+            return public_url
+            
+    except Exception as e:
+        print(f"❌ Erro ao otimizar e fazer upload da imagem: {e}")
+        return ""
 
 
 def buscar_imagem(nome_produto: str, imagem_api: str = "") -> str:
@@ -159,8 +230,13 @@ def salvar_produto_e_oferta(
     ref_produto = get_db().collection("produtos").document(produto_id)
     doc_produto = ref_produto.get()
 
+    imagem_url = ""
     if not doc_produto.exists:
-        imagem_url = buscar_imagem(nome, imagem_api)
+        imagem_original = buscar_imagem(nome, imagem_api)
+        if imagem_original:
+            imagem_url = baixar_e_otimizar_imagem(imagem_original, produto_id)
+            if not imagem_url:
+                imagem_url = imagem_original
         ref_produto.set({
             "nome": nome,
             "marca": marca,
@@ -171,7 +247,31 @@ def salvar_produto_e_oferta(
             "atualizado_em": datetime.now()
         })
     else:
-        ref_produto.update({"atualizado_em": datetime.now()})
+        dados_produto = doc_produto.to_dict()
+        imagem_url = dados_produto.get("imagem_url", "")
+        
+        # Radar de Repetição / Caching no Storage / Bypass
+        # Se a imagem cadastrada for externa, tenta otimizar agora e salvar no Storage
+        if imagem_url and not any(host in imagem_url for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
+            imagem_otimizada = baixar_e_otimizar_imagem(imagem_url, produto_id)
+            if imagem_otimizada:
+                imagem_url = imagem_otimizada
+                ref_produto.update({
+                    "imagem_url": imagem_url,
+                    "atualizado_em": datetime.now()
+                })
+        elif not imagem_url:
+            imagem_original = buscar_imagem(nome, imagem_api)
+            if imagem_original:
+                imagem_otimizada = baixar_e_otimizar_imagem(imagem_original, produto_id)
+                imagem_url = imagem_otimizada if imagem_otimizada else imagem_original
+                ref_produto.update({
+                    "imagem_url": imagem_url,
+                    "atualizado_em": datetime.now()
+                })
+        else:
+            # Bypass Total (Já é uma imagem no Storage)
+            ref_produto.update({"atualizado_em": datetime.now()})
 
     # --- Calcular data de expiração da oferta ---
     if validade:
@@ -214,6 +314,7 @@ def salvar_produto_e_oferta(
         "validade": validade,
         "post_id": post_id,
         "expira_em": expira_em,
+        "imagem_url": imagem_url,
         "criado_em": datetime.now()
     })
 
@@ -320,7 +421,7 @@ def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
                 "loja": oferta.get("loja", ""),
                 "supermercado_id": oferta.get("supermercado_id", ""),
                 "validade": oferta.get("validade"),
-                "imagem": oferta.get("imagem", ""),
+                "imagem_url": oferta.get("imagem_url", ""),
             })
 
         return https_fn.Response(

@@ -100,6 +100,18 @@
 
 ---
 
+## Fase 5.1 — CRON Inteligente e Caching no Storage (Issue #4) 🚀
+
+- [ ] Adicionar dependência `Pillow==10.3.0` no `functions/requirements.txt`
+- [ ] Implementar a função `baixar_e_otimizar_imagem(url, produto_id)` em `main.py`
+- [ ] Validar localmente a otimização de imagem na pasta `auditoria_visual/imagens_otimizadas/`
+- [ ] Configurar upload de imagem para o Firebase Storage
+- [ ] Integrar bypass (radar de repetição) no script `salvar_produto_e_oferta` para reaproveitar imagens
+- [ ] Denormalizar a URL da imagem nas ofertas no Firestore e ajustar endpoint `/get_ofertas_do_dia`
+
+---
+
+
 ## Fase 6 — App iOS (SwiftUI) 🔒 *(futura)*
 
 - [ ] Conectar App ao endpoint `get_ofertas_do_dia`
