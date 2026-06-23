@@ -33,11 +33,13 @@ def gerar_resumo():
     query = ofertas_ref.where(filter=FieldFilter('criado_em', '>=', hoje_inicio_br)).order_by('criado_em', direction=firestore.Query.ASCENDING)
     docs = query.stream()
     
-    ofertas_por_loja = {}
-    total_ofertas = 0
-    com_storage = 0
-    com_externo = 0
-    sem_imagem = 0
+    ofertas_site = {}
+    ofertas_social = {}
+    total_site = 0
+    com_storage_site = 0
+    com_externo_site = 0
+    sem_imagem_site = 0
+    total_social = 0
     
     for doc in docs:
         d = doc.to_dict()
@@ -47,6 +49,7 @@ def gerar_resumo():
         unidade = d.get('unidade', 'un')
         img_url = d.get('imagem_url', '')
         criado_em = d.get('criado_em')
+        metodo = d.get('metodo', '')
         
         # Converte criado_em para exibição local (UTC-3)
         if criado_em:
@@ -55,55 +58,99 @@ def gerar_resumo():
         else:
             hora_str = "--:--"
             
-        status_img = "❌ SEM IMAGEM"
-        if img_url:
-            if any(host in img_url for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
-                status_img = "✅ STORAGE"
-                com_storage += 1
-            else:
-                status_img = "⚠️ LINK EXTERNO"
-                com_externo += 1
-        else:
-            sem_imagem += 1
+        es_rede_social = (metodo == 'gemini_vision')
+        
+        if es_rede_social:
+            if loja == "Extração via Visão (IA)":
+                supermercado_id = d.get('supermercado_id', '')
+                if supermercado_id:
+                    loja = f"Insta/Face ({supermercado_id})"
             
-        total_ofertas += 1
+            total_social += 1
+            if loja not in ofertas_social:
+                ofertas_social[loja] = []
+            ofertas_social[loja].append({
+                "produto": prod,
+                "preco": preco,
+                "unidade": unidade,
+                "hora": hora_str
+            })
+        else:
+            status_img = "❌ SEM IMAGEM"
+            if img_url:
+                if any(host in img_url for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
+                    status_img = "✅ STORAGE"
+                    com_storage_site += 1
+                else:
+                    status_img = "⚠️ LINK EXTERNO"
+                    com_externo_site += 1
+            else:
+                sem_imagem_site += 1
+                
+            total_site += 1
+            if loja not in ofertas_site:
+                ofertas_site[loja] = []
+            ofertas_site[loja].append({
+                "produto": prod,
+                "preco": preco,
+                "unidade": unidade,
+                "status_img": status_img,
+                "hora": hora_str
+            })
         
-        if loja not in ofertas_por_loja:
-            ofertas_por_loja[loja] = []
-        ofertas_por_loja[loja].append({
-            "produto": prod,
-            "preco": preco,
-            "unidade": unidade,
-            "status_img": status_img,
-            "hora": hora_str
-        })
-        
-    if total_ofertas == 0:
+    if total_site == 0 and total_social == 0:
         print("\n📭 Nenhuma oferta nova foi encontrada no banco de dados hoje até o momento.")
         print("  Dica: Verifique se o CRON da nuvem ou a triagem local já finalizaram com sucesso.")
         print("="*70 + "\n")
         return
         
-    # Exibe resumo detalhado por loja
-    for loja, itens in ofertas_por_loja.items():
-        print(f"\n🏪 Supermercado: {loja} ({len(itens)} ofertas)")
-        print("-" * 70)
-        # Formata colunas de ofertas
-        print(f"{'HORA':<6} | {'PRODUTO':<38} | {'PREÇO':<10} | {'IMAGEM':<12}")
-        print("-" * 70)
-        for it in itens:
-            prod_trunc = it["produto"][:36] + "..." if len(it["produto"]) > 38 else it["produto"]
-            preco_str = f"R$ {it['preco']:.2f} ({it['unidade']})"
-            print(f"{it['hora']:<6} | {prod_trunc:<38} | {preco_str:<10} | {it['status_img']:<12}")
+    # 1. Seção de Sites/E-commerce
+    if total_site > 0:
+        print("\n" + "="*70)
+        print("🛍️  CONVERSÃO DE IMAGENS DE SITES / E-COMMERCE (200x200)")
+        print("="*70)
+        for loja, itens in ofertas_site.items():
+            print(f"\n🏪 Supermercado: {loja} ({len(itens)} ofertas)")
+            print("-" * 70)
+            print(f"{'HORA':<6} | {'PRODUTO':<38} | {'PREÇO':<10} | {'IMAGEM':<12}")
+            print("-" * 70)
+            for it in itens:
+                prod_trunc = it["produto"][:36] + "..." if len(it["produto"]) > 38 else it["produto"]
+                preco_str = f"R$ {it['preco']:.2f} ({it['unidade']})"
+                print(f"{it['hora']:<6} | {prod_trunc:<38} | {preco_str:<10} | {it['status_img']:<12}")
+
+    # 2. Seção de Redes Sociais
+    if total_social > 0:
+        print("\n" + "="*70)
+        print("📱 EXTRAÇÕES DE REDES SOCIAIS (Triagem OCR Local + Visão Gemini)")
+        print("  * Nota: Estas ofertas não possuem fotos individuais de produto.")
+        print("="*70)
+        for loja, itens in ofertas_social.items():
+            print(f"\n🏪 Canal: {loja} ({len(itens)} ofertas)")
+            print("-" * 70)
+            print(f"{'HORA':<6} | {'PRODUTO':<38} | {'PREÇO':<10} | {'IMAGEM':<12}")
+            print("-" * 70)
+            for it in itens:
+                prod_trunc = it["produto"][:36] + "..." if len(it["produto"]) > 38 else it["produto"]
+                preco_str = f"R$ {it['preco']:.2f} ({it['unidade']})"
+                print(f"{it['hora']:<6} | {prod_trunc:<38} | {preco_str:<10} | {'🎨 ÍCONE APP':<12}")
             
     # Estatísticas Finais
     print("\n" + "="*70)
-    print("📊 ESTATÍSTICAS DO DIA")
+    print("📊 ESTATÍSTICAS DA OPERAÇÃO DE HOJE")
     print("="*70)
-    print(f"📈 Total de Ofertas Processadas Hoje: {total_ofertas}")
-    print(f"  - Imagens convertidas para o Storage: {com_storage} ({(com_storage/total_ofertas*100):.1f}%)")
-    print(f"  - Mantidas com links externos:        {com_externo} ({(com_externo/total_ofertas*100):.1f}%)")
-    print(f"  - Ofertas sem imagem de produto:      {sem_imagem} ({(sem_imagem/total_ofertas*100):.1f}%)")
+    print(f"📈 Total de Ofertas Processadas Hoje: {total_site + total_social}")
+    
+    if total_site > 0:
+        print(f"\n💻 Sites & E-commerce ({total_site} itens):")
+        print(f"  - Imagens convertidas para o Storage: {com_storage_site} ({(com_storage_site/total_site*100):.1f}%)")
+        print(f"  - Mantidas com links externos:        {com_externo_site} ({(com_externo_site/total_site*100):.1f}%)")
+        print(f"  - Sem imagem de produto:              {sem_imagem_site} ({(sem_imagem_site/total_site*100):.1f}%)")
+        
+    if total_social > 0:
+        print(f"\n📱 Redes Sociais ({total_social} itens):")
+        print(f"  - Usando ícones de categoria (padrão): {total_social} (100.0%)")
+        
     print("="*70 + "\n")
 
 if __name__ == "__main__":
