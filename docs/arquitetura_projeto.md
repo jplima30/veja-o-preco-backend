@@ -252,3 +252,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Resiliência por Frame:** Cada frame é capturado em seu próprio bloco `try/except` com timeout reduzido de **30s → 8s**. Um contador de falhas consecutivas aborta após 3 erros seguidos para não travar o CRON.
 3. **Fallback Poster/Thumbnail:** Se nenhum frame for capturado, o sistema extrai o atributo `poster` do elemento `<video>` (thumbnail de alta resolução que o Instagram sempre fornece) e o usa como imagem estática.
 4. **Validação Manual:** Teste com `--force` confirmou que os 9 Reels que falhavam de manhã agora são capturados com sucesso. Triagem processou **567 imagens** e filtrou **66 aprovadas** com **~57 ofertas novas** extraídas.
+
+---
+
+**Sessão 22 (Segregação de Relatórios no Terminal e Estatísticas Diárias)**
+
+**Data:** 23 de Junho de 2026
+**Objetivo:** Implementar um script local de resumo para as ofertas do dia atual no Firestore e separar as métricas de conversão de imagens entre Sites/E-commerce (200x200 no Storage) e Redes Sociais (ícones padrão).
+
+**Resultados:**
+1. **Script de Resumo (`resumo_hoje.py`):** Criação de um utilitário em Python que realiza a busca das ofertas inseridas hoje no Firestore e organiza o relatório final em formato de tabela no terminal.
+2. **Segregação de Fontes:** Divisão da saída do relatório em duas categorias claras:
+   * **🛍️ CONVERSÃO DE IMAGENS DE SITES / E-COMMERCE:** Produtos que possuem imagens individuais isoladas e que foram otimizadas e cacheadas com sucesso no Firebase Storage (`✅ STORAGE` ou `⚠️ LINK EXTERNO`).
+   * **📱 EXTRAÇÕES DE REDES SOCIAIS:** Ofertas lidas de frames do Instagram/Facebook onde imagens individuais de produto não são esperadas (utilizando o status `🎨 ÍCONE APP`).
+3. **Métricas de Operação Divididas:** A taxa de conversão do Storage agora é calculada especificamente sobre as ofertas de sites (onde a conversão de foto é elegível), mantendo 100% de conformidade com os ícones de categorias nas ofertas de redes sociais.
+4. **Integração nas Automações:** Adicionado o acionamento do script ao final do `captura_visivel.command` (executado pelo `launchd` local às 10h e 14h) e como uma dica em `rodar_cron_manual.py`.
