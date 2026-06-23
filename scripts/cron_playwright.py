@@ -1,4 +1,5 @@
 import os
+os.environ["PW_TEST_SCREENSHOT_NO_FONTS_READY"] = "1"
 import sys
 
 # Garante que a saída seja impressa em tempo real no terminal/cron
@@ -597,11 +598,15 @@ def processar_instagram(page, historico, force=False):
                             try:
                                 page.evaluate(f'() => document.querySelector("video").currentTime = {t}')
                                 time.sleep(1.5)
-                                box = page.locator("video").first.bounding_box()
-                                if box:
-                                    img_bytes = page.screenshot(type="jpeg", quality=75, clip=box, timeout=8000)
+                                video_element = page.locator("video").first
+                                if video_element.is_visible():
+                                    img_bytes = video_element.screenshot(type="jpeg", quality=75, timeout=15000)
                                 else:
-                                    img_bytes = page.screenshot(type="jpeg", quality=75, timeout=8000)
+                                    box = video_element.bounding_box()
+                                    if box:
+                                        img_bytes = page.screenshot(type="jpeg", quality=75, clip=box, timeout=15000)
+                                    else:
+                                        img_bytes = page.screenshot(type="jpeg", quality=75, timeout=15000)
                                 frames_b64.append(base64.b64encode(img_bytes).decode('utf-8'))
                                 print(f"    📸 Frame capturado: {t}s")
                                 falhas_consecutivas = 0

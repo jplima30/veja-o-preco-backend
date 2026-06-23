@@ -100,16 +100,26 @@
 
 ---
 
-## Fase 5.1 — CRON Inteligente e Caching no Storage (Issue #4) 🚀
+## Fase 5.1 — CRON Inteligente e Caching no Storage (Issue #4) ✅
 
-- [ ] Adicionar dependência `Pillow==10.3.0` no `functions/requirements.txt`
-- [ ] Implementar a função `baixar_e_otimizar_imagem(url, produto_id)` em `main.py`
-- [ ] Validar localmente a otimização de imagem na pasta `auditoria_visual/imagens_otimizadas/`
-- [ ] Configurar upload de imagem para o Firebase Storage
-- [ ] Integrar bypass (radar de repetição) no script `salvar_produto_e_oferta` para reaproveitar imagens
-- [ ] Denormalizar a URL da imagem nas ofertas no Firestore e ajustar endpoint `/get_ofertas_do_dia`
+- [x] Adicionar dependência `Pillow==10.3.0` no `functions/requirements.txt`
+- [x] Implementar a função `baixar_e_otimizar_imagem(url, produto_id)` em `main.py`
+- [x] Validar localmente a otimização de imagem na pasta `auditoria_visual/imagens_otimizadas/`
+- [x] Configurar upload de imagem para o Firebase Storage
+- [x] Integrar bypass (radar de repetição) no script `salvar_produto_e_oferta` para reaproveitar imagens
+- [x] Denormalizar a URL da imagem nas ofertas no Firestore e ajustar endpoint `/get_ofertas_do_dia`
 
 ---
+
+## Manutenção — Junho 2026 (Sessão 21) ✅
+
+### Correção de Timeout no Scanner do Instagram
+- [x] Diagnosticar falhas de timeout nos screenshots de Reels do Instagram no cron das 10h
+- [x] Configurar a variável de ambiente `PW_TEST_SCREENSHOT_NO_FONTS_READY=1` em `cron_playwright.py` para ignorar espera de fontes
+- [x] Otimizar captura de tela de vídeos utilizando `locator.screenshot()` diretamente no elemento
+- [x] Incrementar o timeout padrão de screenshots para 15000ms
+- [x] Validar o funcionamento de ponta a ponta com execução manual (`--force`)
+
 
 
 ## Fase 6 — App iOS (SwiftUI) 🔒 *(futura)*
