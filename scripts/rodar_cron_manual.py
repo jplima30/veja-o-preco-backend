@@ -72,3 +72,12 @@ if __name__ == "__main__":
     print("pelo nosso Navegador Fantasma local. Para rodar, use:")
     print("python scripts/cron_playwright.py")
     print("=========================================================")
+
+    # Exibe o resumo das ofertas salvas hoje se as dependências estiverem disponíveis
+    try:
+        from resumo_hoje import gerar_resumo
+        gerar_resumo()
+    except Exception as e:
+        print(f"\n💡 Dica: Para ver o resumo detalhado das ofertas de hoje no Firestore, rode:")
+        print("functions/venv/bin/python3 scripts/resumo_hoje.py")
+        print("=========================================================\n")
