@@ -40,6 +40,9 @@ def gerar_resumo():
     com_externo_site = 0
     sem_imagem_site = 0
     total_social = 0
+    com_storage_social = 0
+    com_externo_social = 0
+    sem_imagem_social = 0
     
     for doc in docs:
         d = doc.to_dict()
@@ -60,12 +63,28 @@ def gerar_resumo():
             
         es_rede_social = (metodo == 'gemini_vision')
         
+        # Define status da imagem
+        status_img = "🎨 ÍCONE APP" if es_rede_social else "❌ SEM IMAGEM"
+        if img_url:
+            if any(host in img_url for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
+                status_img = "✅ STORAGE"
+            else:
+                status_img = "⚠️ LINK EXTERNO"
+        
         if es_rede_social:
             if loja == "Extração via Visão (IA)":
                 supermercado_id = d.get('supermercado_id', '')
                 if supermercado_id:
                     loja = f"Insta/Face ({supermercado_id})"
             
+            # Contabilidade
+            if status_img == "✅ STORAGE":
+                com_storage_social += 1
+            elif status_img == "⚠️ LINK EXTERNO":
+                com_externo_social += 1
+            else:
+                sem_imagem_social += 1
+                
             total_social += 1
             if loja not in ofertas_social:
                 ofertas_social[loja] = []
@@ -73,17 +92,15 @@ def gerar_resumo():
                 "produto": prod,
                 "preco": preco,
                 "unidade": unidade,
+                "status_img": status_img,
                 "hora": hora_str
             })
         else:
-            status_img = "❌ SEM IMAGEM"
-            if img_url:
-                if any(host in img_url for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
-                    status_img = "✅ STORAGE"
-                    com_storage_site += 1
-                else:
-                    status_img = "⚠️ LINK EXTERNO"
-                    com_externo_site += 1
+            # Contabilidade
+            if status_img == "✅ STORAGE":
+                com_storage_site += 1
+            elif status_img == "⚠️ LINK EXTERNO":
+                com_externo_site += 1
             else:
                 sem_imagem_site += 1
                 
@@ -123,7 +140,7 @@ def gerar_resumo():
     if total_social > 0:
         print("\n" + "="*70)
         print("📱 EXTRAÇÕES DE REDES SOCIAIS (Triagem OCR Local + Visão Gemini)")
-        print("  * Nota: Estas ofertas não possuem fotos individuais de produto.")
+        print("  * Nota: Imagens herdadas do banco (sincronizadas) mostram status ✅ STORAGE.")
         print("="*70)
         for loja, itens in ofertas_social.items():
             print(f"\n🏪 Canal: {loja} ({len(itens)} ofertas)")
@@ -133,7 +150,7 @@ def gerar_resumo():
             for it in itens:
                 prod_trunc = it["produto"][:36] + "..." if len(it["produto"]) > 38 else it["produto"]
                 preco_str = f"R$ {it['preco']:.2f} ({it['unidade']})"
-                print(f"{it['hora']:<6} | {prod_trunc:<38} | {preco_str:<10} | {'🎨 ÍCONE APP':<12}")
+                print(f"{it['hora']:<6} | {prod_trunc:<38} | {preco_str:<10} | {it['status_img']:<12}")
             
     # Estatísticas Finais
     print("\n" + "="*70)
@@ -149,7 +166,10 @@ def gerar_resumo():
         
     if total_social > 0:
         print(f"\n📱 Redes Sociais ({total_social} itens):")
-        print(f"  - Usando ícones de categoria (padrão): {total_social} (100.0%)")
+        print(f"  - Usando imagens do Storage (sincronizadas): {com_storage_social} ({(com_storage_social/total_social*100):.1f}%)")
+        if com_externo_social > 0:
+            print(f"  - Mantidas com links externos:               {com_externo_social} ({(com_externo_social/total_social*100):.1f}%)")
+        print(f"  - Usando ícones de categoria (padrão):       {sem_imagem_social} ({(sem_imagem_social/total_social*100):.1f}%)")
         
     print("="*70 + "\n")
 
