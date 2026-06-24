@@ -264,6 +264,6 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 1. **Script de Resumo (`resumo_hoje.py`):** Criação de um utilitário em Python que realiza a busca das ofertas inseridas hoje no Firestore e organiza o relatório final em formato de tabela no terminal.
 2. **Segregação de Fontes:** Divisão da saída do relatório em duas categorias claras:
    * **🛍️ CONVERSÃO DE IMAGENS DE SITES / E-COMMERCE:** Produtos que possuem imagens individuais isoladas e que foram otimizadas e cacheadas com sucesso no Firebase Storage (`✅ STORAGE` ou `⚠️ LINK EXTERNO`).
-   * **📱 EXTRAÇÕES DE REDES SOCIAIS:** Ofertas lidas de frames do Instagram/Facebook onde imagens individuais de produto não são esperadas (utilizando o status `🎨 ÍCONE APP`).
+   * **📱 EXTRAÇÕES DE REDES SOCIAIS:** Ofertas lidas de frames do Instagram/Facebook onde imagens individuais de produto não são esperadas (utilizando o status `🎨 ÍCONE APP` por padrão, ou `✅ STORAGE` quando a imagem foi herdada/sincronizada de um cadastro prévio).
 3. **Métricas de Operação Divididas:** A taxa de conversão do Storage agora é calculada especificamente sobre as ofertas de sites (onde a conversão de foto é elegível), mantendo 100% de conformidade com os ícones de categorias nas ofertas de redes sociais.
 4. **Integração nas Automações:** Adicionado o acionamento do script ao final do `captura_visivel.command` (executado pelo `launchd` local às 10h e 14h) e como uma dica em `rodar_cron_manual.py`.
