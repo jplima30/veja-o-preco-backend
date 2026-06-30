@@ -424,6 +424,10 @@ def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
                 "imagem_url": oferta.get("imagem_url", ""),
             })
 
+        headers = {
+            "Cache-Control": "public, max-age=600"
+        }
+
         return https_fn.Response(
             json.dumps({
                 "sucesso": True,
@@ -435,7 +439,8 @@ def get_ofertas_do_dia(req: https_fn.Request) -> https_fn.Response:
                 },
                 "ofertas": ofertas
             }, ensure_ascii=False, default=str),
-            mimetype="application/json"
+            mimetype="application/json",
+            headers=headers
         )
 
     except Exception as e:

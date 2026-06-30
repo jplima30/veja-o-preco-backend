@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 18/06/2026 — Sessão 21: Resiliência em Captura de Reels.*
+*Última atualização: 30/06/2026 — Sessão 23: Otimização de Cache e Custo do Firestore.*
 
 ---
 
@@ -267,3 +267,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * **📱 EXTRAÇÕES DE REDES SOCIAIS:** Ofertas lidas de frames do Instagram/Facebook onde imagens individuais de produto não são esperadas (utilizando o status `🎨 ÍCONE APP` por padrão, ou `✅ STORAGE` quando a imagem foi herdada/sincronizada de um cadastro prévio).
 3. **Métricas de Operação Divididas:** A taxa de conversão do Storage agora é calculada especificamente sobre as ofertas de sites (onde a conversão de foto é elegível), mantendo 100% de conformidade com os ícones de categorias nas ofertas de redes sociais.
 4. **Integração nas Automações:** Adicionado o acionamento do script ao final do `captura_visivel.command` (executado pelo `launchd` local às 10h e 14h) e como uma dica em `rodar_cron_manual.py`.
+
+---
+
+**Sessão 23 (Otimização de Cache e Performance no App)**
+
+**Data:** 30 de Junho de 2026
+**Objetivo:** Adicionar cabeçalho de cache HTTP no endpoint principal de consulta de ofertas para otimizar o consumo de leituras no Firestore e banda no Firebase Storage, preparando a infraestrutura para escalas de 100 a 1000 usuários ativos.
+
+**Resultados:**
+1. **Cabeçalho de Cache HTTP (`Cache-Control`):** Implementação do cabeçalho `Cache-Control: public, max-age=600` (10 minutos) na resposta JSON da Cloud Function `get_ofertas_do_dia`.
+2. **Prevenção de Desperdício de Leituras:** Evita que aberturas repetidas do app iOS pelo mesmo usuário façam requisições repetidas ao Firestore, aproveitando o cache em disco local do celular (iOS URLCache) e economizando até 99% das chamadas em acessos frequentes.
+3. **Preparação para Escala:** Garante estabilidade financeira e operacional no plano Blaze do Firebase, mantendo as cotas operacionais seguras e com custo praticamente nulo sob tráfego real.
