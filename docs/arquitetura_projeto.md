@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 30/06/2026 — Sessão 23: Otimização de Cache e Custo do Firestore.*
+*Última atualização: 30/06/2026 — Sessão 24: Extração e Recorte de Imagens de Produtos via IA.*
 
 ---
 
@@ -279,3 +279,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 1. **Cabeçalho de Cache HTTP (`Cache-Control`):** Implementação do cabeçalho `Cache-Control: public, max-age=600` (10 minutos) na resposta JSON da Cloud Function `get_ofertas_do_dia`.
 2. **Prevenção de Desperdício de Leituras:** Evita que aberturas repetidas do app iOS pelo mesmo usuário façam requisições repetidas ao Firestore, aproveitando o cache em disco local do celular (iOS URLCache) e economizando até 99% das chamadas em acessos frequentes.
 3. **Preparação para Escala:** Garante estabilidade financeira e operacional no plano Blaze do Firebase, mantendo as cotas operacionais seguras e com custo praticamente nulo sob tráfego real.
+
+---
+
+**Sessão 24 (Recorte e Extração Automática de Imagens de Produtos via IA)**
+
+**Data:** 30 de Junho de 2026
+**Objetivo:** Implementar o recorte inteligente de fotos de produtos a partir de panfletos e posts de redes sociais compostos. Usar o Gemini 3.1 Flash para extrair a coordenada delimadora `box_2d` e processar a imagem em memória na Cloud Function via `Pillow`.
+
+**Resultados:**
+1. **Recorte Inteligente em Memória (`upload_imagem_cortada`):** Criação de um helper que converte coordenadas relativas da IA (0 a 1000) em pixels físicos, executa o crop (recorte), redimensiona para 200x200 pixels, exporta para JPEG (75% de qualidade) e carrega no Firebase Storage.
+2. **Atualização das Cloud Functions (`extrair_dados_imagem` e `buscar_encarte_assai`):**
+   * Prompts do Gemini atualizados para retornar `"box_2d"` (caixa delimadora justa ao redor do produto físico) e `"quadro_index"` (número identificador do frame ou página do encarte).
+   * Lógica do loop de inserção ajustada para realizar o recorte e salvar a imagem individual para cada item extraído das Redes Sociais e do Tabloide Assaí.
+3. **Mecanismo de Bypass de Repetição:** Proteção em `salvar_produto_e_oferta` para identificar links de imagem que já estejam no Storage próprio, pulando downloads externos redundantes e otimizando performance.
+4. **Validação Local:** Script de teste local com imagem sintética e mocks da API do Storage validou com sucesso as fórmulas matemáticas de mapeamento e a integridade final dos pixels recortados.
