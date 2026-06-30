@@ -130,6 +130,81 @@ def baixar_e_otimizar_imagem(url: str, produto_id: str) -> str:
         return ""
 
 
+def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: str) -> str:
+    """
+    Recorta uma imagem original com base no box_2d [ymin, xmin, ymax, xmax] normalizado (0 a 1000),
+    redimensiona para 200x200 pixels, compacta em JPEG 75% e faz o upload para o Firebase Storage.
+    Retorna a URL pública.
+    """
+    if not img_bytes_original or not box_2d or len(box_2d) != 4:
+        return ""
+        
+    try:
+        # 1. Processamento com Pillow
+        img_bytes = io.BytesIO(img_bytes_original)
+        with Image.open(img_bytes) as img:
+            # Converter para RGB se necessário
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+                
+            width, height = img.size
+            
+            # Mapear coordenadas normalizadas (0 a 1000) para pixels
+            ymin, xmin, ymax, xmax = box_2d
+            left = (xmin / 1000.0) * width
+            top = (ymin / 1000.0) * height
+            right = (xmax / 1000.0) * width
+            bottom = (ymax / 1000.0) * height
+            
+            # Garantir limites válidos e tamanho mínimo
+            left = max(0.0, min(left, width))
+            top = max(0.0, min(top, height))
+            right = max(left + 1, min(right, width))
+            bottom = max(top + 1, min(bottom, height))
+            
+            # Fazer o corte (crop)
+            img_cortada = img.crop((left, top, right, bottom))
+            
+            # Redimensionamento para 200x200 px
+            img_redimensionada = img_cortada.resize((200, 200), Image.Resampling.LANCZOS)
+            
+            # Salvar em buffer
+            output_buffer = io.BytesIO()
+            img_redimensionada.save(output_buffer, "JPEG", quality=75)
+            output_buffer.seek(0)
+            
+            # 2. Upload para Storage
+            bucket = storage.bucket("veja-o-preco.firebasestorage.app")
+            blob_name = f"produtos/{produto_id}.jpg"
+            blob = bucket.blob(blob_name)
+            
+            blob.upload_from_string(
+                output_buffer.getvalue(),
+                content_type="image/jpeg"
+            )
+            blob.make_public()
+            public_url = blob.public_url
+            
+            tamanho_kb = len(output_buffer.getvalue()) / 1024.0
+            print(f"✂️ Imagem recortada, otimizada e carregada no Storage: {public_url} ({tamanho_kb:.2f} KB)")
+            
+            # Copiar localmente para auditoria (seguindo o padrão do baixar_e_otimizar_imagem)
+            try:
+                base_dir = "/Users/jplima/Documents/veja-o-preco-backend"
+                target_dir = os.path.join(base_dir, "auditoria_visual", "imagens_otimizadas")
+                os.makedirs(target_dir, exist_ok=True)
+                target_path = os.path.join(target_dir, f"{produto_id}.jpg")
+                with open(target_path, "wb") as f_local:
+                    f_local.write(output_buffer.getvalue())
+            except Exception:
+                pass
+                
+            return public_url
+    except Exception as e:
+        print(f"❌ Erro ao recortar/otimizar imagem do produto {produto_id}: {e}")
+        return ""
+
+
 def buscar_imagem(nome_produto: str, imagem_api: str = "") -> str:
     """
     Busca a melhor imagem disponível para um produto em 3 camadas:
@@ -234,9 +309,12 @@ def salvar_produto_e_oferta(
     if not doc_produto.exists:
         imagem_original = buscar_imagem(nome, imagem_api)
         if imagem_original:
-            imagem_url = baixar_e_otimizar_imagem(imagem_original, produto_id)
-            if not imagem_url:
+            if any(host in imagem_original for host in ["firebasestorage.googleapis.com", "storage.googleapis.com"]):
                 imagem_url = imagem_original
+            else:
+                imagem_url = baixar_e_otimizar_imagem(imagem_original, produto_id)
+                if not imagem_url:
+                    imagem_url = imagem_original
         ref_produto.set({
             "nome": nome,
             "marca": marca,
@@ -760,22 +838,43 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
 
         # 3. Processar via Gemini Vision
         gemini_parts = []
+        imagens_bytes = []
         for url in imagens_encarte:
             img_data = session.get(url).content
+            imagens_bytes.append(img_data)
             gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type="image/jpeg"))
 
         prompt = """
         Analise o encarte do Assaí Atacadista e extraia os produtos de supermercado.
         FOCO: Alimentos, Higiene, Limpeza e Bebidas Não-Alcoólicas.
         IGNORE: Bebidas Alcoólicas (Cerveja, Vinho, etc.) e itens de Bazar (Eletrônicos, Eletro, Moda).
+        
+        REGRAS ADICIONAIS:
+        - Para cada produto extraído, identifique as coordenadas da foto do produto (o pacote, garrafa ou item físico propriamente dito, excluindo o preço ou outras decorações) e retorne como "box_2d" no formato [ymin, xmin, ymax, xmax] normalizado de 0 a 1000. Seja o mais restrito e justo possível à embalagem/produto em si.
+        - Informe no campo "quadro_index" o índice (base 0) da imagem/página do encarte onde o produto foi identificado e de onde o box_2d foi calculado.
+        
         Retorne APENAS o JSON puro no formato:
-        {"itens": [{"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA"}]}
+        {
+            "itens": [
+                {
+                    "produto": "NOME",
+                    "preco": 0.0,
+                    "unidade": "un",
+                    "categoria": "CATEGORIA",
+                    "box_2d": [ymin, xmin, ymax, xmax],
+                    "quadro_index": 0
+                }
+            ]
+        }
         """
         gemini_parts.append(prompt)
 
         response_gemini = client.models.generate_content(
             model="gemini-3.1-flash-image", # Migrado do preview (deprecado 25/06/2026) para estável
-            contents=gemini_parts
+            contents=gemini_parts,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
         )
 
         # 4. Parse e Salvar no Firestore
@@ -785,6 +884,23 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
             itens = resultado.get("itens", [])
 
             for item in itens:
+                # --- RECORTE DE IMAGEM VIA IA ---
+                img_bytes_original = None
+                box_2d = item.get("box_2d")
+                try:
+                    quadro_index = int(item.get("quadro_index", 0))
+                except Exception:
+                    quadro_index = 0
+
+                if box_2d and len(box_2d) == 4:
+                    if 0 <= quadro_index < len(imagens_bytes):
+                        img_bytes_original = imagens_bytes[quadro_index]
+
+                imagem_url_crop = ""
+                if img_bytes_original:
+                    temp_prod_id = normalizar_nome(item.get("produto", ""), item.get("unidade", "un"))
+                    imagem_url_crop = upload_imagem_cortada(img_bytes_original, box_2d, temp_prod_id)
+
                 salvar_produto_e_oferta(
                     nome=item["produto"],
                     preco=item["preco"],
@@ -793,7 +909,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
                     supermercado_id="assai",
                     loja="Assaí Atacadista",
                     metodo="site_tabloide",
-                    imagem_api=""
+                    imagem_api=imagem_url_crop if imagem_url_crop else ""
                 )
 
             return https_fn.Response(
@@ -1364,11 +1480,21 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             - Se encontrar itens proibidos, NÃO os inclua no JSON.
             - Extraia APENAS produtos que tenham o PREÇO CLARAMENTE VISÍVEL E LEGÍVEL.
             - Se a imagem mostrar um produto mas não exibir o preço exato, IGNORE-O.
+            - Para cada produto extraído, identifique as coordenadas da foto do produto (o pacote, garrafa ou item físico propriamente dito, excluindo o preço ou outras decorações) e retorne como "box_2d" no formato [ymin, xmin, ymax, xmax] normalizado de 0 a 1000. Seja o mais restrito e justo possível à embalagem/produto em si.
+            - Informe no campo "quadro_index" o índice (base 0) da imagem ou frame do vídeo onde o produto foi identificado e de onde o box_2d foi calculado.
             
             Padrão de saída JSON:
             {
                 "itens": [
-                    {"produto": "NOME", "preco": 0.0, "unidade": "un", "categoria": "CATEGORIA", "imagem": "", "validade": "DATA SE HOUVER"}
+                    {
+                        "produto": "NOME",
+                        "preco": 0.0,
+                        "unidade": "un",
+                        "categoria": "CATEGORIA",
+                        "validade": "DATA SE HOUVER",
+                        "box_2d": [ymin, xmin, ymax, xmax],
+                        "quadro_index": 0
+                    }
                 ]
             }
             Retorne APENAS o JSON puro.
@@ -1416,6 +1542,29 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                             continue
                         
                         count_extraidos += 1
+
+                        # --- RECORTE DE IMAGEM VIA IA ---
+                        img_bytes_original = None
+                        box_2d = item.get("box_2d")
+                        try:
+                            quadro_index = int(item.get("quadro_index", 0))
+                        except Exception:
+                            quadro_index = 0
+
+                        if box_2d and len(box_2d) == 4:
+                            if frames_b64:
+                                if 0 <= quadro_index < len(frames_b64):
+                                    import base64
+                                    img_bytes_original = base64.b64decode(frames_b64[quadro_index])
+                            elif tmp_path and os.path.exists(tmp_path) and not is_video:
+                                with open(tmp_path, "rb") as f:
+                                    img_bytes_original = f.read()
+
+                        imagem_url_crop = ""
+                        if img_bytes_original:
+                            temp_prod_id = normalizar_nome(item.get("produto", ""), item.get("unidade", "un"))
+                            imagem_url_crop = upload_imagem_cortada(img_bytes_original, box_2d, temp_prod_id)
+
                         res = salvar_produto_e_oferta(
                             nome=item.get("produto", ""),
                             preco=preco,
@@ -1424,7 +1573,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                             supermercado_id=supermercado_id,
                             loja=loja_nome,
                             metodo="gemini_vision",
-                            imagem_api=item.get("imagem", ""),
+                            imagem_api=imagem_url_crop if imagem_url_crop else item.get("imagem", ""),
                             validade=item.get("validade"),
                             post_id=post_id
                         )
