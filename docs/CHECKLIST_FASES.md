@@ -122,10 +122,10 @@
 
 
 
-## Fase 6 — App iOS (SwiftUI) 🔒 *(futura)*
+## Fase 6 — App iOS (SwiftUI) ⚙️
 
-- [ ] Conectar App ao endpoint `get_ofertas_do_dia`
-- [ ] Implementar tela de ofertas com dados reais
+- [x] Conectar App ao Firestore (Coleção `ofertas`)
+- [x] Implementar tela de ofertas com dados reais (Mapeamento de chaves via CodingKeys e AsyncImagePhase)
 - [ ] Timeline de preços
 - [ ] Alertas de hortifruti
 
