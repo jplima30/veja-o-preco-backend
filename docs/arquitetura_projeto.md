@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 30/06/2026 — Sessão 24: Extração e Recorte de Imagens de Produtos via IA.*
+*Última atualização: 30/06/2026 — Sessão 25: Rastreabilidade de Imagens e Curação de Catálogo via Script.*
 
 ---
 
@@ -294,3 +294,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Lógica do loop de inserção ajustada para realizar o recorte e salvar a imagem individual para cada item extraído das Redes Sociais e do Tabloide Assaí.
 3. **Mecanismo de Bypass de Repetição:** Proteção em `salvar_produto_e_oferta` para identificar links de imagem que já estejam no Storage próprio, pulando downloads externos redundantes e otimizando performance.
 4. **Validação Local:** Script de teste local com imagem sintética e mocks da API do Storage validou com sucesso as fórmulas matemáticas de mapeamento e a integridade final dos pixels recortados.
+
+---
+
+**Sessão 25 (Rastreabilidade de Imagens e Curação de Catálogo via Script)**
+
+**Data:** 30 de Junho de 2026
+**Objetivo:** Implementar o rastreamento da procedência/qualidade das imagens no Firestore (campo `imagem_origem`) e criar um script utilitário interativo para higienização guiada do catálogo de produtos, substituindo recortes temporários de encartes por imagens limpas de alta qualidade de forma semi-automatizada.
+
+**Resultados:**
+1. **Rastreabilidade no Firestore (`imagem_origem`):**
+   * Adicionada a propriedade `imagem_origem` no documento do produto em `/produtos` com os status: `"auto_crop"` (recorte automático por IA), `"open_food_facts"` (imagem limpa da base livre), `"api_loja"` (imagem oficial da API do mercado), `"manual"` (imagem higienizada pelo desenvolvedor) ou `"padrao"` (sem imagem/ícone).
+   * Implementada retrocompatibilidade que promove imagens legadas salvas no Storage para o status `"manual"` por segurança, blindando-as contra sobrescritas automáticas nas rodadas do CRON diário.
+2. **Resolução de Distorções (`ImageOps.pad`):**
+   * Refatorado o processamento de imagens do helper `upload_imagem_cortada` na Cloud Function para utilizar a função `ImageOps.pad` da biblioteca Pillow, redimensionando as imagens para exatamente `200x200` pixels preservando a proporção original do produto (aspect ratio) e preenchendo as laterais com fundo branco limpo.
+3. **Utilitário de Curação (`scripts/completar_imagens.py`):**
+   * Criação de um script interativo que varre o Firestore em tempo real procurando produtos com imagem pendente ou classificados como `"auto_crop"`.
+   * Realiza a consulta automatizada na API do Open Food Facts e, caso encontre uma imagem válida de estúdio, executa a carga no Storage e a atualização no Firestore.
+   * Se a busca falhar, interrompe no terminal de forma guiada para que o desenvolvedor cole uma URL do Google Imagens, automatizando o restante do fluxo (download, ajuste de proporção sem distorção, upload no Storage e registro).

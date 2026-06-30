@@ -165,8 +165,9 @@ def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: s
             # Fazer o corte (crop)
             img_cortada = img.crop((left, top, right, bottom))
             
-            # Redimensionamento para 200x200 px
-            img_redimensionada = img_cortada.resize((200, 200), Image.Resampling.LANCZOS)
+            # Redimensionamento para 200x200 px preservando proporção com fundo branco
+            from PIL import ImageOps
+            img_redimensionada = ImageOps.pad(img_cortada, (200, 200), color="white", centering=(0.5, 0.5))
             
             # Salvar em buffer
             output_buffer = io.BytesIO()
@@ -246,7 +247,8 @@ def salvar_produto_e_oferta(
     marca: str = "",
     preco_antigo: float = None,
     validade: str = None,
-    post_id: str = None
+    post_id: str = None,
+    imagem_origem: str = ""
 ) -> dict:
     """
     Realiza o UPSERT do produto e registra a oferta no Firestore.
@@ -315,12 +317,25 @@ def salvar_produto_e_oferta(
                 imagem_url = baixar_e_otimizar_imagem(imagem_original, produto_id)
                 if not imagem_url:
                     imagem_url = imagem_original
+        
+        # Determina a origem final
+        origem_final = imagem_origem
+        if not origem_final:
+            if imagem_url:
+                if imagem_original == imagem_api:
+                    origem_final = "api_loja"
+                else:
+                    origem_final = "open_food_facts"
+            else:
+                origem_final = "padrao"
+
         ref_produto.set({
             "nome": nome,
             "marca": marca,
             "unidade": unidade,
             "categoria": categoria,
             "imagem_url": imagem_url,
+            "imagem_origem": origem_final,
             "criado_em": datetime.now(),
             "atualizado_em": datetime.now()
         })
@@ -334,8 +349,10 @@ def salvar_produto_e_oferta(
             imagem_otimizada = baixar_e_otimizar_imagem(imagem_url, produto_id)
             if imagem_otimizada:
                 imagem_url = imagem_otimizada
+                origem_final = dados_produto.get("imagem_origem") or "open_food_facts"
                 ref_produto.update({
                     "imagem_url": imagem_url,
+                    "imagem_origem": origem_final,
                     "atualizado_em": datetime.now()
                 })
         elif not imagem_url:
@@ -343,13 +360,29 @@ def salvar_produto_e_oferta(
             if imagem_original:
                 imagem_otimizada = baixar_e_otimizar_imagem(imagem_original, produto_id)
                 imagem_url = imagem_otimizada if imagem_otimizada else imagem_original
+                
+                origem_final = imagem_origem
+                if not origem_final:
+                    if imagem_original == imagem_api:
+                        origem_final = "api_loja"
+                    else:
+                        origem_final = "open_food_facts"
+
                 ref_produto.update({
                     "imagem_url": imagem_url,
+                    "imagem_origem": origem_final,
                     "atualizado_em": datetime.now()
                 })
         else:
             # Bypass Total (Já é uma imagem no Storage)
-            ref_produto.update({"atualizado_em": datetime.now()})
+            # Para retrocompatibilidade: se o produto antigo não tiver imagem_origem, setamos como "manual" para proteger
+            if "imagem_origem" not in dados_produto:
+                ref_produto.update({
+                    "imagem_origem": "manual",
+                    "atualizado_em": datetime.now()
+                })
+            else:
+                ref_produto.update({"atualizado_em": datetime.now()})
 
     # --- Calcular data de expiração da oferta ---
     if validade:
@@ -909,7 +942,8 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
                     supermercado_id="assai",
                     loja="Assaí Atacadista",
                     metodo="site_tabloide",
-                    imagem_api=imagem_url_crop if imagem_url_crop else ""
+                    imagem_api=imagem_url_crop if imagem_url_crop else "",
+                    imagem_origem="auto_crop" if imagem_url_crop else ""
                 )
 
             return https_fn.Response(
@@ -1575,7 +1609,8 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                             metodo="gemini_vision",
                             imagem_api=imagem_url_crop if imagem_url_crop else item.get("imagem", ""),
                             validade=item.get("validade"),
-                            post_id=post_id
+                            post_id=post_id,
+                            imagem_origem="auto_crop" if imagem_url_crop else ""
                         )
                         
                         # Log detalhado para depuração no console do Firebase
