@@ -172,7 +172,7 @@ def curar_imagens():
             # Piloto automático (sem imagem ou auto_crop)
             incluir = (not url or origem == "auto_crop")
             
-        if incluir:
+        if incluir and not doc.id.startswith("_"):
             produtos_pendentes.append((doc.id, d))
             
     if not produtos_pendentes:
