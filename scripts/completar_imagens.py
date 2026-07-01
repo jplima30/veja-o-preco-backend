@@ -130,7 +130,7 @@ def curar_imagens():
     print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
     print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
     print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
-    print("  [5] PILOTO AUTOMÁTICO (Busca no Open Food Facts e salva em lote 100% silencioso)")
+    print("  [5] PILOTO AUTOMÁTICO (Busca no Open Food Facts + DuckDuckGo em lote 100% silencioso)")
     
     opcao_modo = input("\n👉 Digite a opção desejada [1-5] (ou Enter para a Padrão 1): ").strip()
     if not opcao_modo:
