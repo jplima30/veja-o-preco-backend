@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 01/07/2026 — Sessão 28: Busca Exclusiva via DuckDuckGo com Coleta e Download Resiliente de Multi-Links.*
+*Última atualização: 01/07/2026 — Sessão 29: Sincronização de Imagens para Ofertas e Refinamento de Duplicados.*
 
 ---
 
@@ -374,3 +374,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Fluxo de Download Resiliente:**
    * O loop principal do script agora testa sequencialmente cada uma das 4 URLs retornadas. Caso o primeiro link falhe com erro HTTP 403 (bloqueio do servidor de origem) ou HTTP 404 (link quebrado), o script avança automaticamente para o próximo link.
    * O produto só é pulado ou encaminhado para a entrada manual se todas as 4 tentativas de download falharem, garantindo máxima automação no Piloto Automático (Opção 5).
+
+---
+
+**Sessão 29 (Sincronização de Imagens para Ofertas e Refinamento de Duplicados)**
+
+**Data:** 01 de Julho de 2026
+**Objetivo:** Ajustar as normalizações de ID de produto para filtrar sufixos de unidade presentes no final do nome dos produtos enviados pelos scrapers (ex: `"ACÉM COM OSSO KG"`). Criar um script utilitário para sincronizar as imagens dos produtos curados nas ofertas ativas correspondentes.
+
+**Resultados:**
+1. **Filtro de Unidade Redundante no Nome (main.py):**
+   * Modificada a função `normalizar_nome` em [functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py#L62-L77) para remover qualquer sufixo redundante de unidade do final do nome (`kg`, `quilo`, `un`, `cada`, `g`, etc.) usando expressões regulares antes de aplicar a concatenação do ID.
+2. **Reconfiguração do Mesclador (`scripts/mesclar_produtos.py`):**
+   * Replicada a mesma regex de limpeza de sufixo redundante no gerador de ID interno do script de mesclagem, permitindo que produtos como `acem-com-osso-resfriado-bovino-kg-quilo` agrupem-se e sejam consolidados sob o ID correto `acem-com-osso-resfriado-bovino-kg`.
+3. **Novo Script de Sincronização (`scripts/sincronizar_imagens_ofertas.py`):**
+   * Desenvolvido script para varrer todas as ofertas do Firestore e atualizar o campo `imagem_url` com a URL curada do produto correspondente, propagando as imagens de estúdio para a tela do iOS App.
+4. **Deploy de Cloud Functions:**
+   * Implantadas as Cloud Functions (`buscar_encarte_assai`, `extrair_dados_imagem`) com a nova lógica de ID refinada.
