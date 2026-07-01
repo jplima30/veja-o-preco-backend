@@ -3,6 +3,7 @@ import os
 import requests
 import io
 import urllib.parse
+import time
 from datetime import datetime
 from PIL import Image, ImageOps
 
@@ -21,18 +22,35 @@ def inicializar_firebase():
 def buscar_open_food_facts(nome_produto: str) -> str:
     """
     Busca a imagem do produto no Open Food Facts usando o nome.
+    Respeita os limites de taxa da API (10 buscas/minuto) e evita bloqueios (HTTP 403/503).
     """
     try:
         query_safe = urllib.parse.quote(nome_produto)
         url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={query_safe}&search_simple=1&action=process&json=1&page_size=1"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            dados = resp.json()
-            produtos = dados.get("products", [])
-            if produtos:
-                imagem = produtos[0].get("image_front_url", "")
-                if imagem:
-                    return imagem
+        
+        headers = {
+            "User-Agent": "VejaOPrecoCuratorApp/1.0 (contact: jplima30@github.com)"
+        }
+        
+        # Garante intervalo mínimo de 1.2 segundos entre consultas para evitar o limite de 10/minuto
+        time.sleep(1.2)
+        
+        for tentativa in range(3):
+            resp = requests.get(url, headers=headers, timeout=5)
+            
+            if resp.status_code == 200:
+                dados = resp.json()
+                produtos = dados.get("products", [])
+                if produtos:
+                    imagem = produtos[0].get("image_front_url", "")
+                    if imagem:
+                        return imagem
+                return ""
+            elif resp.status_code in (503, 429):
+                print(f"   ⚠️ Rate limit / Bloqueio temporário (HTTP {resp.status_code}). Retentando em 6s...")
+                time.sleep(6.0)
+            else:
+                return ""
     except Exception as e:
         print(f"  ⚠️ Erro na busca do Open Food Facts: {e}")
     return ""
