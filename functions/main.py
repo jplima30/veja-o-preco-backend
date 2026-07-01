@@ -44,12 +44,28 @@ def get_gemini_client():
 # MÓDULO FIRESTORE — Utilitários de Persistência
 # ==============================================================================
 
+def normalizar_unidade(unidade: str) -> str:
+    """
+    Padroniza unidades de medida comuns para evitar duplicações de cadastro.
+    """
+    u = unidade.strip().lower()
+    if u in ("cada", "unidade", "unid", "und", "un"):
+        return "un"
+    if u in ("quilo", "kilo", "kg"):
+        return "kg"
+    if u in ("litro", "litros", "l"):
+        return "l"
+    if u in ("grama", "gramas", "gr", "g"):
+        return "g"
+    return u
+
 def normalizar_nome(nome: str, unidade: str = "") -> str:
     """
     Gera um ID único e legível para um produto.
     Ex: "Arroz Agulhinha Tio Urbano", "5kg" → "arroz-agulhinha-tio-urbano-5kg"
     """
-    texto = f"{nome} {unidade}".strip().lower()
+    unidade_norm = normalizar_unidade(unidade)
+    texto = f"{nome} {unidade_norm}".strip().lower()
     texto = re.sub(r'[áàãâä]', 'a', texto)
     texto = re.sub(r'[éèêë]', 'e', texto)
     texto = re.sub(r'[íìîï]', 'i', texto)
@@ -257,7 +273,8 @@ def salvar_produto_e_oferta(
     - Sempre cria uma nova oferta em /ofertas com TTL de 7 dias
     """
     db = firestore.client()
-    produto_id = normalizar_nome(nome, unidade)
+    unidade_norm = normalizar_unidade(unidade)
+    produto_id = normalizar_nome(nome, unidade_norm)
 
     # --- FILTRO DE CATEGORIAS E PALAVRAS PROIBIDAS ---
     
@@ -332,7 +349,7 @@ def salvar_produto_e_oferta(
         ref_produto.set({
             "nome": nome,
             "marca": marca,
-            "unidade": unidade,
+            "unidade": unidade_norm,
             "categoria": categoria,
             "imagem_url": imagem_url,
             "imagem_origem": origem_final,
@@ -419,7 +436,7 @@ def salvar_produto_e_oferta(
         "loja": loja,
         "preco": preco,
         "preco_antigo": preco_antigo,
-        "unidade": unidade,
+        "unidade": unidade_norm,
         "categoria": categoria,
         "metodo": metodo,
         "validade": validade,

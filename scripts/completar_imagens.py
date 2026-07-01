@@ -71,12 +71,13 @@ def curar_imagens():
     print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
     print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
     print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
+    print("  [5] PILOTO AUTOMÁTICO (Busca no Open Food Facts e salva em lote 100% silencioso)")
     
-    opcao_modo = input("\n👉 Digite a opção desejada [1-4] (ou Enter para a Padrão 1): ").strip()
+    opcao_modo = input("\n👉 Digite a opção desejada [1-5] (ou Enter para a Padrão 1): ").strip()
     if not opcao_modo:
         opcao_modo = "1"
         
-    if opcao_modo not in ("1", "2", "3", "4"):
+    if opcao_modo not in ("1", "2", "3", "4", "5"):
         print("❌ Opção inválida. Encerrando.")
         return
 
@@ -108,6 +109,9 @@ def curar_imagens():
         elif opcao_modo == "4":
             # Tudo
             incluir = (not url or origem in ("auto_crop", "auto_crop_aceito", "padrao", ""))
+        elif opcao_modo == "5":
+            # Piloto automático (sem imagem ou auto_crop)
+            incluir = (not url or origem == "auto_crop")
             
         if incluir:
             produtos_pendentes.append((doc.id, d))
@@ -158,33 +162,42 @@ def curar_imagens():
             
             if url_off:
                 print(f"   🤖 Achou no Open Food Facts: {url_off}")
-                opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
-                if opcao == "" or opcao == "y" or opcao == "yes":
+                if opcao_modo == "5":
                     url_selecionada = url_off
                     origem_selecionada = "open_food_facts"
-                elif opcao == "a" or opcao == "aceitar":
-                    if url_atual:
-                        print("   💾 Marcando recorte atual como aceito no Firestore...")
-                        ref_doc = produtos_ref.document(prod_id)
-                        ref_doc.update({
-                            "imagem_origem": "auto_crop_aceito",
-                            "atualizado_em": datetime.now()
-                        })
-                        print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
-                    else:
-                        print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
-                    pular_produto = True
-                elif opcao == "s" or opcao == "skip":
-                    print("   ⏭️ Produto pulado.")
-                    pular_produto = True
+                    print("   🤖 [AUTO-PILOTO] Selecionado automaticamente.")
+                else:
+                    opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
+                    if opcao == "" or opcao == "y" or opcao == "yes":
+                        url_selecionada = url_off
+                        origem_selecionada = "open_food_facts"
+                    elif opcao == "a" or opcao == "aceitar":
+                        if url_atual:
+                            print("   💾 Marcando recorte atual como aceito no Firestore...")
+                            ref_doc = produtos_ref.document(prod_id)
+                            ref_doc.update({
+                                "imagem_origem": "auto_crop_aceito",
+                                "atualizado_em": datetime.now()
+                            })
+                            print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                        else:
+                            print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
+                        pular_produto = True
+                    elif opcao == "s" or opcao == "skip":
+                        print("   ⏭️ Produto pulado.")
+                        pular_produto = True
             else:
                 print("   ❌ Não encontrado no Open Food Facts.")
+                if opcao_modo == "5":
+                    pular_produto = True
                 
             if pular_produto:
                 break
                 
             # Passo 2: Entrada manual caso não tenha selecionado a automática
             if not url_selecionada:
+                if opcao_modo == "5":
+                    break
                 opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
                 if opcao_manual.lower() == "a":
                     if url_atual:
@@ -232,6 +245,8 @@ def curar_imagens():
                 
             except Exception as e_proc:
                 print(f"   ❌ ERRO ao processar e salvar imagem: {e_proc}")
+                if opcao_modo == "5":
+                    break
                 opcao_erro = input("   👉 Deseja tentar novamente para este produto? [Y] Sim (Tentar outra URL) / [N] Não (Pular): ").strip().lower()
                 if opcao_erro == "n" or opcao_erro == "no" or opcao_erro == "":
                     print("   ⏭️ Produto pulado.")

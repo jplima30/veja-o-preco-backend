@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 01/07/2026 — Sessão 26: Refinamento do Script de Higienização e Status de Recortes Aceitos.*
+*Última atualização: 01/07/2026 — Sessão 27: Unificação de Unidades no Firestore e Mesclagem de Duplicados.*
 
 ---
 
@@ -335,3 +335,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Implementado um loop de retentativa guiada (`while True`) ao redor do fluxo de processamento de cada produto. Caso ocorra um erro de download ou processamento, o script exibe o erro e permite escolher entre retentar (digitar outra URL) ou pular, evitando pulos automáticos por falhas de link ou conexão.
 4. **Contexto de Supermercados:**
    * Adicionada a consulta sob demanda à coleção `/ofertas` para identificar e listar quais supermercados possuem ofertas ativas para o produto que está sendo analisado, exibindo a informação (ex: `🛒 Supermercado(s): Assaí Atacadista`) no painel de curadoria do terminal.
+
+---
+
+**Sessão 27 (Unificação de Unidades no Firestore e Mesclagem de Duplicados)**
+
+**Data:** 01 de Julho de 2026
+**Objetivo:** Implementar padronização automática de unidades de medida (como `un`/`cada` e `kg`/`quilo`) no backend para evitar novos produtos duplicados no Firestore. Criar e executar um script de migração em lote para mesclar os históricos de ofertas e deletar cadastros duplicados existentes. Adicionar a opção "Piloto Automático" de lote no script de curadoria.
+
+**Resultados:**
+1. **Unificação de Unidades no Backend (`normalizar_unidade`):**
+   * Implementada a função `normalizar_unidade` em [functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py#L47-L61) que unifica strings de medida: `cada`/`unidade`/`und`/`unid` viram `"un"`; `quilo`/`kilo` viram `"kg"`; `litro`/`litros` viram `"l"`; e `grama`/`gramas`/`gr` viram `"g"`.
+   * Integrada a normalização em `normalizar_nome` e `salvar_produto_e_oferta`, garantindo que novos anúncios de diferentes mercados mapeiem para o mesmo ID único e usem a mesma unidade padronizada no Firestore.
+2. **Script de Mesclagem em Lote (`scripts/mesclar_produtos.py`):**
+   * Desenvolvido e executado utilitário de migração no banco de dados. Ele identificou 219 produtos duplicados no Firestore.
+   * O script atualizou e redirecionou com sucesso 71 ofertas ativas ligadas aos IDs antigos para os IDs principais normalizados, e removeu 219 cadastros duplicados do banco. Também garantiu herança automática de imagens caso o cadastro secundário possuísse foto e o principal não.
+3. **Modo Piloto Automático (Opção 5):**
+   * Adicionada a opção `[5] Piloto Automático` ao menu inicial de [completar_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/completar_imagens.py).
+   * Este modo analisa em lote os produtos sem fotos ou com recortes e consulta o Open Food Facts de forma 100% automatizada e silenciosa. Se encontrar a foto, otimiza e faz o upload; se não encontrar, apenas avança instantaneamente para o próximo, eliminando interações repetitivas.
