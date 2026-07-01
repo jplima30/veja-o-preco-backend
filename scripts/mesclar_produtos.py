@@ -47,7 +47,10 @@ def mesclar_banco():
         
         # Código idêntico a normalizar_nome do main.py para consistência de ID
         import re
-        texto = f"{nome} {unidade_norm}".strip().lower()
+        n = nome.strip()
+        n = re.sub(r'\s*\b(kg|kilo|quilo|un|und|unid|unidade|cada|g|gr|gramas|ml|l|litro|litros)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+        
+        texto = f"{n} {unidade_norm}".strip().lower()
         texto = re.sub(r'[áàãâä]', 'a', texto)
         texto = re.sub(r'[éèêë]', 'e', texto)
         texto = re.sub(r'[íìîï]', 'i', texto)

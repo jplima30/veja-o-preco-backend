@@ -64,8 +64,12 @@ def normalizar_nome(nome: str, unidade: str = "") -> str:
     Gera um ID único e legível para um produto.
     Ex: "Arroz Agulhinha Tio Urbano", "5kg" → "arroz-agulhinha-tio-urbano-5kg"
     """
+    # Limpa sufixos redundantes de unidade do final do nome antes de normalizar
+    n = nome.strip()
+    n = re.sub(r'\s*\b(kg|kilo|quilo|un|und|unid|unidade|cada|g|gr|gramas|ml|l|litro|litros)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    
     unidade_norm = normalizar_unidade(unidade)
-    texto = f"{nome} {unidade_norm}".strip().lower()
+    texto = f"{n} {unidade_norm}".strip().lower()
     texto = re.sub(r'[áàãâä]', 'a', texto)
     texto = re.sub(r'[éèêë]', 'e', texto)
     texto = re.sub(r'[íìîï]', 'i', texto)
