@@ -353,3 +353,8 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Modo Piloto Automático (Opção 5):**
    * Adicionada a opção `[5] Piloto Automático` ao menu inicial de [completar_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/completar_imagens.py).
    * Este modo analisa em lote os produtos sem fotos ou com recortes e consulta o Open Food Facts de forma 100% automatizada e silenciosa. Se encontrar a foto, otimiza e faz o upload; se não encontrar, apenas avança instantaneamente para o próximo, eliminando interações repetitivas.
+4. **Integração com DuckDuckGo Images como Fallback:**
+   * Desenvolvida a função `buscar_duckduckgo_images` para pesquisar imagens de produtos via DuckDuckGo de forma gratuita, limpa e sem limite restritivo de taxa.
+   * O fluxo limpa termos extras do nome do produto (como `(un)`, `(kg)`) para aumentar a precisão da busca.
+   * Integrado no loop de curação: caso o Open Food Facts não encontre a imagem, o DuckDuckGo é consultado automaticamente.
+   * No modo interativo, o usuário pode aprovar com `[Y]` ou pular. No piloto automático (`Opção 5`), o script adota a imagem do DuckDuckGo de forma 100% automatizada caso o OFF falhe.
