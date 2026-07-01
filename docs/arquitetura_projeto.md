@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 01/07/2026 — Sessão 27: Unificação de Unidades no Firestore e Mesclagem de Duplicados.*
+*Última atualização: 01/07/2026 — Sessão 28: Busca Exclusiva via DuckDuckGo com Coleta e Download Resiliente de Multi-Links.*
 
 ---
 
@@ -358,3 +358,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * O fluxo limpa termos extras do nome do produto (como `(un)`, `(kg)`) para aumentar a precisão da busca.
    * Integrado no loop de curação: caso o Open Food Facts não encontre a imagem, o DuckDuckGo é consultado automaticamente.
    * No modo interativo, o usuário pode aprovar com `[Y]` ou pular. No piloto automático (`Opção 5`), o script adota a imagem do DuckDuckGo de forma 100% automatizada caso o OFF falhe.
+
+---
+
+**Sessão 28 (Busca Exclusiva via DuckDuckGo com Coleta e Download Resiliente de Multi-Links)**
+
+**Data:** 01 de Julho de 2026
+**Objetivo:** Remover a dependência do Open Food Facts devido a lentidões e limites de taxa de IP (erros 503). Tornar o DuckDuckGo Images o mecanismo de busca primário e único. Aumentar a resiliência de downloads contra bloqueios (HTTP 403) e links quebrados (HTTP 404) implementando tentativas sequenciais de múltiplos links.
+
+**Resultados:**
+1. **Remoção do Open Food Facts:**
+   * A função `buscar_open_food_facts` e todos os tempos de espera de 6 segundos associados foram removidos do script [completar_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/completar_imagens.py), tornando a varredura instantânea.
+2. **DuckDuckGo como Motor Exclusivo com Multi-Links:**
+   * A função `buscar_duckduckgo_images` foi reconfigurada para retornar uma lista com os **top 4 links** de imagens para cada produto.
+3. **Fluxo de Download Resiliente:**
+   * O loop principal do script agora testa sequencialmente cada uma das 4 URLs retornadas. Caso o primeiro link falhe com erro HTTP 403 (bloqueio do servidor de origem) ou HTTP 404 (link quebrado), o script avança automaticamente para o próximo link.
+   * O produto só é pulado ou encaminhado para a entrada manual se todas as 4 tentativas de download falharem, garantindo máxima automação no Piloto Automático (Opção 5).
