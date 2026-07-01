@@ -126,10 +126,23 @@ def curar_imagens():
         unidade = prod_data.get("unidade", "un")
         origem_atual = prod_data.get("imagem_origem", "desconhecida")
         url_atual = prod_data.get("imagem_url", "")
-        
+        # Busca supermercados associados na coleção de ofertas
+        lojas = set()
+        try:
+            query_lojas = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+            for doc_of in query_lojas:
+                data_of = doc_of.to_dict()
+                loja = data_of.get("loja", "")
+                if loja:
+                    lojas.add(loja)
+        except Exception as e_query:
+            pass
+
         while True:  # Loop de retentativa para o mesmo produto
             print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
             print(f"   ID: {prod_id}")
+            if lojas:
+                print(f"   🛒 Supermercado(s): {', '.join(sorted(lojas))}")
             print(f"   Status Atual: {origem_atual.upper()}")
             if url_atual:
                 print(f"   Imagem Atual: {url_atual}")

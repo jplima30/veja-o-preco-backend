@@ -333,3 +333,5 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Resiliência e Retentativa de Erros:**
    * Corrigido o bug de NameError (`name 'datetime' is not defined`) importando a classe `datetime` no cabeçalho do script.
    * Implementado um loop de retentativa guiada (`while True`) ao redor do fluxo de processamento de cada produto. Caso ocorra um erro de download ou processamento, o script exibe o erro e permite escolher entre retentar (digitar outra URL) ou pular, evitando pulos automáticos por falhas de link ou conexão.
+4. **Contexto de Supermercados:**
+   * Adicionada a consulta sob demanda à coleção `/ofertas` para identificar e listar quais supermercados possuem ofertas ativas para o produto que está sendo analisado, exibindo a informação (ex: `🛒 Supermercado(s): Assaí Atacadista`) no painel de curadoria do terminal.
