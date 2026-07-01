@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 30/06/2026 — Sessão 25: Rastreabilidade de Imagens e Curação de Catálogo via Script.*
+*Última atualização: 01/07/2026 — Sessão 26: Refinamento do Script de Higienização e Status de Recortes Aceitos.*
 
 ---
 
@@ -312,3 +312,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Criação de um script interativo que varre o Firestore em tempo real procurando produtos com imagem pendente ou classificados como `"auto_crop"`.
    * Realiza a consulta automatizada na API do Open Food Facts e, caso encontre uma imagem válida de estúdio, executa a carga no Storage e a atualização no Firestore.
    * Se a busca falhar, interrompe no terminal de forma guiada para que o desenvolvedor cole uma URL do Google Imagens, automatizando o restante do fluxo (download, ajuste de proporção sem distorção, upload no Storage e registro).
+
+---
+
+**Sessão 26 (Refinamento do Script de Higienização e Status de Recortes Aceitos)**
+
+**Data:** 01 de Julho de 2026
+**Objetivo:** Refinar o script utilitário `scripts/completar_imagens.py` para permitir curadoria seletiva por meio de menus interativos (focando em produtos sem imagem ou recortes específicos) e introduzir a marcação de recortes aceitos (`"auto_crop_aceito"`) para otimizar as tarefas de curadoria.
+
+**Resultados:**
+1. **Menu de Execução Seletiva (CLI):** Implementação de menu numérico com 4 opções na inicialização do script:
+   * **Opção 1:** Apenas produtos totalmente SEM IMAGEM (Crítico/Urgente).
+   * **Opção 2:** Apenas produtos com recortes RECENTES da IA (`auto_crop`).
+   * **Opção 3:** Apenas recortes da IA que já foram ACEITOS anteriormente (`auto_crop_aceito`).
+   * **Opção 4:** Tudo (Sem imagem + Recortes novos + Recortes aceitos).
+2. **Aprovação Manual de Recortes (`auto_crop_aceito`):**
+   * Adicionada a opção de tecla **`[A] Aceitar recorte atual`** no fluxo do script. 
+   * Caso o usuário decida manter o recorte automático da IA, o script altera a `imagem_origem` do produto para `"auto_crop_aceito"` no Firestore.
+   * Isso remove o produto das filas cotidianas (Opções 1 e 2) nas próximas execuções do script, preservando a rastreabilidade caso o desenvolvedor decida revisá-las no futuro (Opção 3).
