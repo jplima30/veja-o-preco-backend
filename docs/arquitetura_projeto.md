@@ -330,3 +330,6 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionada a opção de tecla **`[A] Aceitar recorte atual`** no fluxo do script. 
    * Caso o usuário decida manter o recorte automático da IA, o script altera a `imagem_origem` do produto para `"auto_crop_aceito"` no Firestore.
    * Isso remove o produto das filas cotidianas (Opções 1 e 2) nas próximas execuções do script, preservando a rastreabilidade caso o desenvolvedor decida revisá-las no futuro (Opção 3).
+3. **Resiliência e Retentativa de Erros:**
+   * Corrigido o bug de NameError (`name 'datetime' is not defined`) importando a classe `datetime` no cabeçalho do script.
+   * Implementado um loop de retentativa guiada (`while True`) ao redor do fluxo de processamento de cada produto. Caso ocorra um erro de download ou processamento, o script exibe o erro e permite escolher entre retentar (digitar outra URL) ou pular, evitando pulos automáticos por falhas de link ou conexão.

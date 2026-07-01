@@ -3,6 +3,7 @@ import os
 import requests
 import io
 import urllib.parse
+from datetime import datetime
 from PIL import Image, ImageOps
 
 # Adiciona as pastas corretas ao Path para importação do Firebase Admin
@@ -126,90 +127,102 @@ def curar_imagens():
         origem_atual = prod_data.get("imagem_origem", "desconhecida")
         url_atual = prod_data.get("imagem_url", "")
         
-        print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
-        print(f"   ID: {prod_id}")
-        print(f"   Status Atual: {origem_atual.upper()}")
-        if url_atual:
-            print(f"   Imagem Atual: {url_atual}")
-        
-        url_selecionada = ""
-        origem_selecionada = ""
-        
-        # Passo 1: Busca automática no Open Food Facts
-        print("   🔍 Buscando automaticamente no Open Food Facts...")
-        url_off = buscar_open_food_facts(nome)
-        
-        if url_off:
-            print(f"   🤖 Achou no Open Food Facts: {url_off}")
-            opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
-            if opcao == "" or opcao == "y" or opcao == "yes":
-                url_selecionada = url_off
-                origem_selecionada = "open_food_facts"
-            elif opcao == "a" or opcao == "aceitar":
-                if url_atual:
-                    print("   💾 Marcando recorte atual como aceito no Firestore...")
-                    ref_doc = produtos_ref.document(prod_id)
-                    ref_doc.update({
-                        "imagem_origem": "auto_crop_aceito",
-                        "atualizado_em": datetime.now()
-                    })
-                    print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
-                else:
-                    print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
-                continue
-            elif opcao == "s" or opcao == "skip":
-                print("   ⏭️ Produto pulado.")
-                continue
-        else:
-            print("   ❌ Não encontrado no Open Food Facts.")
+        while True:  # Loop de retentativa para o mesmo produto
+            print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
+            print(f"   ID: {prod_id}")
+            print(f"   Status Atual: {origem_atual.upper()}")
+            if url_atual:
+                print(f"   Imagem Atual: {url_atual}")
             
-        # Passo 2: Entrada manual caso não tenha selecionado a automática
-        if not url_selecionada:
-            opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
-            if opcao_manual.lower() == "a":
-                if url_atual:
-                    print("   💾 Marcando recorte atual como aceito no Firestore...")
-                    ref_doc = produtos_ref.document(prod_id)
-                    ref_doc.update({
-                        "imagem_origem": "auto_crop_aceito",
-                        "atualizado_em": datetime.now()
-                    })
-                    print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
-                else:
-                    print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
-                continue
-            if not opcao_manual:
-                print("   ⏭️ Produto pulado.")
-                continue
-            url_selecionada = opcao_manual
-            origem_selecionada = "manual"
+            url_selecionada = ""
+            origem_selecionada = ""
             
-        # Passo 3: Baixar, Processar e Fazer Upload
-        try:
-            print("   ⏳ Baixando e otimizando imagem...")
-            buffer_otimizado = processar_e_otimizar_imagem(url_selecionada)
+            # Passo 1: Busca automática no Open Food Facts
+            print("   🔍 Buscando automaticamente no Open Food Facts...")
+            url_off = buscar_open_food_facts(nome)
             
-            print("   ☁️ Fazendo upload para o Firebase Storage...")
-            blob_name = f"produtos/{prod_id}.jpg"
-            blob = bucket.blob(blob_name)
-            blob.upload_from_string(buffer_otimizado.getvalue(), content_type="image/jpeg")
-            blob.make_public()
-            public_url = blob.public_url
+            pular_produto = False
             
-            print("   💾 Salvando metadados no Firestore...")
-            ref_doc = produtos_ref.document(prod_id)
-            ref_doc.update({
-                "imagem_url": public_url,
-                "imagem_origem": origem_selecionada,
-                "atualizado_em": datetime.now()
-            })
-            
-            tamanho_kb = len(buffer_otimizado.getvalue()) / 1024.0
-            print(f"   ✅ SUCESSO! Imagem curada salva com sucesso ({tamanho_kb:.2f} KB)!")
-            total_atualizados += 1
-            
-        except Exception as e_proc:
-            print(f"   ❌ ERRO ao processar e salvar imagem: {e_proc}")
+            if url_off:
+                print(f"   🤖 Achou no Open Food Facts: {url_off}")
+                opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
+                if opcao == "" or opcao == "y" or opcao == "yes":
+                    url_selecionada = url_off
+                    origem_selecionada = "open_food_facts"
+                elif opcao == "a" or opcao == "aceitar":
+                    if url_atual:
+                        print("   💾 Marcando recorte atual como aceito no Firestore...")
+                        ref_doc = produtos_ref.document(prod_id)
+                        ref_doc.update({
+                            "imagem_origem": "auto_crop_aceito",
+                            "atualizado_em": datetime.now()
+                        })
+                        print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                    else:
+                        print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
+                    pular_produto = True
+                elif opcao == "s" or opcao == "skip":
+                    print("   ⏭️ Produto pulado.")
+                    pular_produto = True
+            else:
+                print("   ❌ Não encontrado no Open Food Facts.")
+                
+            if pular_produto:
+                break
+                
+            # Passo 2: Entrada manual caso não tenha selecionado a automática
+            if not url_selecionada:
+                opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
+                if opcao_manual.lower() == "a":
+                    if url_atual:
+                        print("   💾 Marcando recorte atual como aceito no Firestore...")
+                        ref_doc = produtos_ref.document(prod_id)
+                        ref_doc.update({
+                            "imagem_origem": "auto_crop_aceito",
+                            "atualizado_em": datetime.now()
+                        })
+                        print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                        break
+                    else:
+                        print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
+                        continue
+                if not opcao_manual:
+                    print("   ⏭️ Produto pulado.")
+                    break
+                url_selecionada = opcao_manual
+                origem_selecionada = "manual"
+                
+            # Passo 3: Baixar, Processar e Fazer Upload
+            try:
+                print("   ⏳ Baixando e otimizando imagem...")
+                buffer_otimizado = processar_e_otimizar_imagem(url_selecionada)
+                
+                print("   ☁️ Fazendo upload para o Firebase Storage...")
+                blob_name = f"produtos/{prod_id}.jpg"
+                blob = bucket.blob(blob_name)
+                blob.upload_from_string(buffer_otimizado.getvalue(), content_type="image/jpeg")
+                blob.make_public()
+                public_url = blob.public_url
+                
+                print("   💾 Salvando metadados no Firestore...")
+                ref_doc = produtos_ref.document(prod_id)
+                ref_doc.update({
+                    "imagem_url": public_url,
+                    "imagem_origem": origem_selecionada,
+                    "atualizado_em": datetime.now()
+                })
+                
+                tamanho_kb = len(buffer_otimizado.getvalue()) / 1024.0
+                print(f"   ✅ SUCESSO! Imagem curada salva com sucesso ({tamanho_kb:.2f} KB)!")
+                total_atualizados += 1
+                break  # Sucesso: avança para o próximo produto
+                
+            except Exception as e_proc:
+                print(f"   ❌ ERRO ao processar e salvar imagem: {e_proc}")
+                opcao_erro = input("   👉 Deseja tentar novamente para este produto? [Y] Sim (Tentar outra URL) / [N] Não (Pular): ").strip().lower()
+                if opcao_erro == "n" or opcao_erro == "no" or opcao_erro == "":
+                    print("   ⏭️ Produto pulado.")
+                    break
 
 if __name__ == "__main__":
     try:
