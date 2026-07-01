@@ -19,45 +19,9 @@ def inicializar_firebase():
         firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
     return firestore.client(), storage.bucket("veja-o-preco.firebasestorage.app")
 
-def buscar_open_food_facts(nome_produto: str) -> str:
+def buscar_duckduckgo_images(nome_produto: str) -> list:
     """
-    Busca a imagem do produto no Open Food Facts usando o nome.
-    Respeita os limites de taxa da API (10 buscas/minuto) e evita bloqueios (HTTP 403/503).
-    """
-    try:
-        query_safe = urllib.parse.quote(nome_produto)
-        url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={query_safe}&search_simple=1&action=process&json=1&page_size=1"
-        
-        headers = {
-            "User-Agent": "VejaOPrecoCuratorApp/1.0 (contact: jplima30@github.com)"
-        }
-        
-        # Garante intervalo mínimo de 1.2 segundos entre consultas para evitar o limite de 10/minuto
-        time.sleep(1.2)
-        
-        for tentativa in range(3):
-            resp = requests.get(url, headers=headers, timeout=5)
-            
-            if resp.status_code == 200:
-                dados = resp.json()
-                produtos = dados.get("products", [])
-                if produtos:
-                    imagem = produtos[0].get("image_front_url", "")
-                    if imagem:
-                        return imagem
-                return ""
-            elif resp.status_code in (503, 429):
-                print(f"   ⚠️ Rate limit / Bloqueio temporário (HTTP {resp.status_code}). Retentando em 6s...")
-                time.sleep(6.0)
-            else:
-                return ""
-    except Exception as e:
-        print(f"  ⚠️ Erro na busca do Open Food Facts: {e}")
-    return ""
-
-def buscar_duckduckgo_images(nome_produto: str) -> str:
-    """
-    Busca imagens no DuckDuckGo de forma gratuita e sem chaves de API.
+    Busca até 4 URLs de imagens no DuckDuckGo de forma gratuita e sem chaves de API.
     """
     import re
     
@@ -72,15 +36,16 @@ def buscar_duckduckgo_images(nome_produto: str) -> str:
     }
     url_token = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}&iax=images&ia=images"
     try:
-        time.sleep(1.0) # Respeita limite do DDG
+        # Intervalo curto de 0.5s para evitar ser bloqueado temporariamente pelo DuckDuckGo
+        time.sleep(0.5)
         res = requests.get(url_token, headers=headers, timeout=5)
         if res.status_code != 200:
-            return ""
+            return []
         match = re.search(r"vqd=([\d-]+)&", res.text)
         if not match:
             match = re.search(r'vqd\s*=\s*[\'"]([^\'"]+)[\'"]', res.text)
             if not match:
-                return ""
+                return []
         vqd = match.group(1)
         
         url_images = f"https://duckduckgo.com/i.js?l=wt-wt&o=json&q={urllib.parse.quote(query)}&vqd={vqd}&f=,,,&p=1"
@@ -88,13 +53,17 @@ def buscar_duckduckgo_images(nome_produto: str) -> str:
         if res_images.status_code == 200:
             dados = res_images.json()
             results = dados.get("results", [])
+            urls = []
             for r in results:
                 img_url = r.get("image", "")
-                if img_url and img_url.startswith("http"):
-                    return img_url
+                if img_url and img_url.startswith("http") and img_url not in urls:
+                    urls.append(img_url)
+                    if len(urls) >= 4:
+                        break
+            return urls
     except Exception:
         pass
-    return ""
+    return []
 
 def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
     """
@@ -212,60 +181,43 @@ def curar_imagens():
             
             url_selecionada = ""
             origem_selecionada = ""
-            
-            # Passo 1: Busca automática no Open Food Facts
-            print("   🔍 Buscando automaticamente no Open Food Facts...")
-            url_off = buscar_open_food_facts(nome)
-            
             pular_produto = False
+            buffer_otimizado = None
             
-            if url_off:
-                print(f"   🤖 Achou no Open Food Facts: {url_off}")
-                if opcao_modo == "5":
-                    url_selecionada = url_off
-                    origem_selecionada = "open_food_facts"
-                    print("   🤖 [AUTO-PILOTO] Selecionado Open Food Facts automaticamente.")
-                else:
-                    opcao = input("   👉 Usar essa imagem do Open Food Facts? [Y] Sim / [N] Não (Buscar no DuckDuckGo) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
-                    if opcao == "" or opcao == "y" or opcao == "yes":
-                        url_selecionada = url_off
-                        origem_selecionada = "open_food_facts"
-                    elif opcao == "a" or opcao == "aceitar":
-                        if url_atual:
-                            print("   💾 Marcando recorte atual como aceito no Firestore...")
-                            ref_doc = produtos_ref.document(prod_id)
-                            ref_doc.update({
-                                "imagem_origem": "auto_crop_aceito",
-                                "atualizado_em": datetime.now()
-                            })
-                            print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
-                        else:
-                            print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
-                        pular_produto = True
-                    elif opcao == "s" or opcao == "skip":
-                        print("   ⏭️ Produto pulado.")
-                        pular_produto = True
-            else:
-                print("   ❌ Não encontrado no Open Food Facts.")
+            # Passo 1: Busca automática de imagens no DuckDuckGo
+            print("   🔍 Buscando no DuckDuckGo Images...")
+            urls_ddg = buscar_duckduckgo_images(nome)
+            
+            if urls_ddg:
+                print(f"   🌐 Encontradas {len(urls_ddg)} imagens no DuckDuckGo.")
+                sucesso_download = False
                 
-            if pular_produto:
-                break
-                
-            # Passo 1.5: Busca automática no DuckDuckGo caso o OFF não tenha sido selecionado
-            if not url_selecionada and not pular_produto:
-                print("   🔍 Buscando no DuckDuckGo Images...")
-                url_ddg = buscar_duckduckgo_images(nome)
-                if url_ddg:
-                    print(f"   🌐 Achou no DuckDuckGo: {url_ddg}")
+                for idx, url_temp in enumerate(urls_ddg):
+                    print(f"     [Tentativa {idx+1}/{len(urls_ddg)}] Testando: {url_temp}")
+                    
                     if opcao_modo == "5":
-                        url_selecionada = url_ddg
-                        origem_selecionada = "manual"
-                        print("   🤖 [AUTO-PILOTO] Selecionado DuckDuckGo automaticamente.")
-                    else:
-                        opcao = input("   👉 Usar essa imagem do DuckDuckGo? [Y] Sim / [N] Não (Digitar URL manual) / [S] Pular / [A] Aceitar recorte atual: ").strip().lower()
-                        if opcao == "" or opcao == "y" or opcao == "yes":
-                            url_selecionada = url_ddg
+                        # Piloto Automático: tenta baixar silenciosamente
+                        try:
+                            buffer_otimizado = processar_e_otimizar_imagem(url_temp)
+                            url_selecionada = url_temp
                             origem_selecionada = "manual"
+                            sucesso_download = True
+                            print("     🤖 [AUTO-PILOTO] Imagem baixada e otimizada com sucesso.")
+                            break
+                        except Exception as e_proc:
+                            print(f"     ❌ Falha ao processar link {idx+1}: {e_proc}")
+                    else:
+                        # Modo Interativo: pergunta ao usuário
+                        opcao = input(f"     👉 Usar essa imagem {idx+1}? [Y] Sim (Enter) / [N] Tentar próxima / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
+                        if opcao == "" or opcao == "y" or opcao == "yes":
+                            try:
+                                buffer_otimizado = processar_e_otimizar_imagem(url_temp)
+                                url_selecionada = url_temp
+                                origem_selecionada = "manual"
+                                sucesso_download = True
+                                break
+                            except Exception as e_proc:
+                                print(f"     ❌ Erro ao baixar essa imagem: {e_proc}. Tente outra.")
                         elif opcao == "a" or opcao == "aceitar":
                             if url_atual:
                                 print("   💾 Marcando recorte atual como aceito no Firestore...")
@@ -276,18 +228,26 @@ def curar_imagens():
                                 })
                                 print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
                             else:
-                                print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
+                                print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
                             pular_produto = True
+                            break
                         elif opcao == "s" or opcao == "skip":
                             print("   ⏭️ Produto pulado.")
                             pular_produto = True
-                else:
-                    print("   ❌ Não encontrado no DuckDuckGo Images.")
-
+                            break
+                
+                if pular_produto:
+                    break
+                    
+                if not sucesso_download and not pular_produto:
+                    print("   ❌ Nenhuma das imagens do DuckDuckGo pôde ser baixada.")
+            else:
+                print("   ❌ Não encontrado no DuckDuckGo.")
+                
             if pular_produto:
                 break
                 
-            # Passo 2: Entrada manual caso nenhuma automática tenha sido encontrada/selecionada
+            # Passo 2: Entrada manual caso nenhuma automática tenha sido bem-sucedida
             if not url_selecionada:
                 if opcao_modo == "5":
                     break
@@ -308,14 +268,16 @@ def curar_imagens():
                 if not opcao_manual:
                     print("   ⏭️ Produto pulado.")
                     break
-                url_selecionada = opcao_manual
-                origem_selecionada = "manual"
-                
-            # Passo 3: Baixar, Processar e Fazer Upload
+                try:
+                    buffer_otimizado = processar_e_otimizar_imagem(opcao_manual)
+                    url_selecionada = opcao_manual
+                    origem_selecionada = "manual"
+                except Exception as e_proc:
+                    print(f"   ❌ ERRO ao processar URL manual: {e_proc}")
+                    continue
+                    
+            # Passo 3: Fazer Upload dos dados (o buffer_otimizado já está preenchido)
             try:
-                print("   ⏳ Baixando e otimizando imagem...")
-                buffer_otimizado = processar_e_otimizar_imagem(url_selecionada)
-                
                 print("   ☁️ Fazendo upload para o Firebase Storage...")
                 blob_name = f"produtos/{prod_id}.jpg"
                 blob = bucket.blob(blob_name)
@@ -334,16 +296,11 @@ def curar_imagens():
                 tamanho_kb = len(buffer_otimizado.getvalue()) / 1024.0
                 print(f"   ✅ SUCESSO! Imagem curada salva com sucesso ({tamanho_kb:.2f} KB)!")
                 total_atualizados += 1
-                break  # Sucesso: avança para o próximo produto
+                break
                 
-            except Exception as e_proc:
-                print(f"   ❌ ERRO ao processar e salvar imagem: {e_proc}")
-                if opcao_modo == "5":
-                    break
-                opcao_erro = input("   👉 Deseja tentar novamente para este produto? [Y] Sim (Tentar outra URL) / [N] Não (Pular): ").strip().lower()
-                if opcao_erro == "n" or opcao_erro == "no" or opcao_erro == "":
-                    print("   ⏭️ Produto pulado.")
-                    break
+            except Exception as e_up:
+                print(f"   ❌ ERRO ao fazer upload ou salvar Firestore: {e_up}")
+                break
 
 if __name__ == "__main__":
     try:
