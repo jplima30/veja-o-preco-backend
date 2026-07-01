@@ -64,31 +64,58 @@ def curar_imagens():
     print("🧹 INICIANDO HIGIENIZAÇÃO E CURAÇÃO DE IMAGENS DE PRODUTOS")
     print("=========================================================\n")
     
+    # Seleção de Modo
+    print("Selecione o modo de curação desejado:")
+    print("  [1] Apenas produtos totalmente SEM IMAGEM (Crítico) [Padrão]")
+    print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
+    print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
+    print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
+    
+    opcao_modo = input("\n👉 Digite a opção desejada [1-4] (ou Enter para a Padrão 1): ").strip()
+    if not opcao_modo:
+        opcao_modo = "1"
+        
+    if opcao_modo not in ("1", "2", "3", "4"):
+        print("❌ Opção inválida. Encerrando.")
+        return
+
     db, bucket = inicializar_firebase()
     
     # 1. Obter todos os produtos do Firestore
-    print("⏳ Carregando produtos do Firestore...")
+    print("\n⏳ Carregando produtos do Firestore...")
     produtos_ref = db.collection("produtos")
     docs = list(produtos_ref.stream())
     print(f"✅ {len(docs)} produtos carregados.\n")
     
-    # 2. Filtrar produtos que precisam de imagem ou que têm recorte de IA
+    # 2. Filtrar produtos de acordo com o modo selecionado
     produtos_pendentes = []
     for doc in docs:
         d = doc.to_dict()
         url = d.get("imagem_url", "")
         origem = d.get("imagem_origem", "")
         
-        # Pendente se: URL vazia, sem origem registrada, origem 'padrao' ou 'auto_crop' (recorte de IA)
-        if not url or origem == "auto_crop" or origem == "padrao" or not origem:
+        incluir = False
+        if opcao_modo == "1":
+            # Apenas sem imagem
+            incluir = (not url)
+        elif opcao_modo == "2":
+            # Apenas recortes recentes
+            incluir = (url and origem == "auto_crop")
+        elif opcao_modo == "3":
+            # Apenas recortes aceitos
+            incluir = (url and origem == "auto_crop_aceito")
+        elif opcao_modo == "4":
+            # Tudo
+            incluir = (not url or origem in ("auto_crop", "auto_crop_aceito", "padrao", ""))
+            
+        if incluir:
             produtos_pendentes.append((doc.id, d))
             
     if not produtos_pendentes:
-        print("🎉 Nenhuma imagem pendente de higienização ou atualização!")
-        print("Todos os produtos possuem imagens curadas de alta qualidade.\n")
+        print("🎉 Nenhum produto pendente de curação no modo selecionado!")
         return
         
-    print(f"📂 Encontrados {len(produtos_pendentes)} produtos pendentes de curação.")
+    print(f"📂 Encontrados {len(produtos_pendentes)} produtos correspondentes.")
     print("---------------------------------------------------------")
     
     total_atualizados = 0
@@ -97,10 +124,13 @@ def curar_imagens():
         nome = prod_data.get("nome", "Sem nome")
         unidade = prod_data.get("unidade", "un")
         origem_atual = prod_data.get("imagem_origem", "desconhecida")
+        url_atual = prod_data.get("imagem_url", "")
         
         print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
         print(f"   ID: {prod_id}")
         print(f"   Status Atual: {origem_atual.upper()}")
+        if url_atual:
+            print(f"   Imagem Atual: {url_atual}")
         
         url_selecionada = ""
         origem_selecionada = ""
@@ -111,10 +141,22 @@ def curar_imagens():
         
         if url_off:
             print(f"   🤖 Achou no Open Food Facts: {url_off}")
-            opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto: ").strip().lower()
+            opcao = input("   👉 Usar essa imagem? [Y] Sim / [N] Não (Buscar manual) / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
             if opcao == "" or opcao == "y" or opcao == "yes":
                 url_selecionada = url_off
                 origem_selecionada = "open_food_facts"
+            elif opcao == "a" or opcao == "aceitar":
+                if url_atual:
+                    print("   💾 Marcando recorte atual como aceito no Firestore...")
+                    ref_doc = produtos_ref.document(prod_id)
+                    ref_doc.update({
+                        "imagem_origem": "auto_crop_aceito",
+                        "atualizado_em": datetime.now()
+                    })
+                    print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                else:
+                    print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
+                continue
             elif opcao == "s" or opcao == "skip":
                 print("   ⏭️ Produto pulado.")
                 continue
@@ -123,7 +165,19 @@ def curar_imagens():
             
         # Passo 2: Entrada manual caso não tenha selecionado a automática
         if not url_selecionada:
-            opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR): ").strip()
+            opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
+            if opcao_manual.lower() == "a":
+                if url_atual:
+                    print("   💾 Marcando recorte atual como aceito no Firestore...")
+                    ref_doc = produtos_ref.document(prod_id)
+                    ref_doc.update({
+                        "imagem_origem": "auto_crop_aceito",
+                        "atualizado_em": datetime.now()
+                    })
+                    print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                else:
+                    print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
+                continue
             if not opcao_manual:
                 print("   ⏭️ Produto pulado.")
                 continue
@@ -156,11 +210,6 @@ def curar_imagens():
             
         except Exception as e_proc:
             print(f"   ❌ ERRO ao processar e salvar imagem: {e_proc}")
-            
-    print("\n=========================================================")
-    print("🏁 HIGIENIZAÇÃO DE IMAGENS CONCLUÍDA!")
-    print(f"📈 Total de produtos atualizados com imagem curada: {total_atualizados}")
-    print("=========================================================\n")
 
 if __name__ == "__main__":
     try:
