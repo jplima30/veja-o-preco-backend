@@ -343,8 +343,11 @@ def executar_curadoria(db, bucket, opcao_modo: str):
                             print(f"     ❌ Falha ao processar link {idx+1}: {e_proc}")
                     else:
                         # Modo Interativo: pergunta ao usuário
-                        opcao = input(f"     👉 Usar essa imagem {idx+1}? [Y] Sim (Enter) / [N] Tentar próxima / [S] Pular produto / [A] Aceitar recorte atual: ").strip().lower()
-                        if opcao == "" or opcao == "y" or opcao == "yes":
+                        opcao = input(f"     👉 Usar imagem {idx+1}? [Y] Sim (Enter) / [N] Tentar próxima / [S] Pular / [A] Aceitar recorte / [M] Voltar ao Menu: ").strip().lower()
+                        if opcao in ("m", "menu", "voltar"):
+                            print("   🔙 Operação cancelada. Voltando ao menu principal...")
+                            return
+                        elif opcao == "" or opcao == "y" or opcao == "yes":
                             try:
                                 buffer_otimizado = processar_e_otimizar_imagem(url_temp)
                                 url_selecionada = url_temp
@@ -386,8 +389,11 @@ def executar_curadoria(db, bucket, opcao_modo: str):
             if not url_selecionada:
                 if is_autopilot:
                     break
-                opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
-                if opcao_manual.lower() == "a":
+                opcao_manual = input("   🔗 Cole a URL da imagem (ou Enter para PULAR, 'A' para aceitar recorte, 'M' para voltar ao menu): ").strip()
+                if opcao_manual.lower() in ("m", "menu", "voltar"):
+                    print("   🔙 Operação cancelada. Voltando ao menu principal...")
+                    return
+                elif opcao_manual.lower() == "a":
                     if url_atual:
                         print("   💾 Marcando recorte atual como aceito no Firestore...")
                         ref_doc = produtos_ref.document(prod_id)
