@@ -449,3 +449,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Assistente Interativo no Painel de Controle (`gerenciador.py`):**
    * Adicionado o assistente interativo na Categoria 4 como opção `[4] Assistente de Duplicatas Inteligente (Fuzzy Matching)`.
    * Permite revisar os potenciais duplicados um por um na tela do terminal e efetuar a mesclagem imediata das ofertas e exclusão do duplicado secundário apenas apertando uma tecla (`1` ou `2`).
+4. **Mesclagem Automática por Ordem de Palavras (`--auto-merge-exact-words`):**
+   * Implementado o modo de mesclagem em lote e 100% automático para casos onde os produtos possuem **exatamente as mesmas palavras, mudando apenas a ordem**.
+   * O resolvedor escolhe automaticamente qual ID manter priorizando o documento que já tem imagem curada associada. Se ambos tiverem ou não, decide em ordem alfabética.
+   * Adicionada a opção `[5] Mesclar Duplicatas por Ordem de Palavras (Automático)` no menu de Curadoria do Painel de Controle.
