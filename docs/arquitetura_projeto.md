@@ -413,3 +413,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionado suporte a parâmetros `--de` e `--para` no script de mesclagem para viabilizar a consolidação cirúrgica de IDs arbitrários com erros de digitação (como `"INTTIMUS"` para `"INTIMUS"`).
 6. **Suporte a Imagens Locais (Drag-and-Drop) na Central:**
    * Adicionado suporte a arquivos locais em `processar_e_otimizar_imagem`. O usuário pode arrastar um arquivo direto do PC para o terminal (que insere o caminho local absoluto), o script lê a foto do disco, otimiza e faz o upload para o Firebase Storage perfeitamente.
+
+---
+
+**Sessão 31 (Painel de Controle Unificado)**
+
+**Data:** 02 de Julho de 2026
+**Objetivo:** Consolidar a operação local do backend desenvolvendo uma interface unificada que integre todos os 24 scripts utilitários do repositório em uma única entrada, facilitando a execução e automatizando a ativação dos ambientes virtuais correspondentes (venv).
+
+### Implementações:
+1. **Painel de Controle CLI (`scripts/gerenciador.py`):**
+   * Desenvolvido um script gerenciador interativo escrito em Python puro (sem dependências externas de pacotes adicionais para execução da interface).
+   * Organizados os scripts locais do repositório em 6 submenus categorizados por responsabilidade: Coleta & Scrapers, Triagem & OCR, Conectores de Lojas, Curação & Higienização, Diagnósticos & Relatórios e Testes.
+2. **Roteamento Inteligente de Ambientes Virtuais (Venvs):**
+   * O painel detecta automaticamente se o script pertence à camada de OCR/Triagem (`venv_triagem/bin/python3`) ou de nuvem/banco/Firebase (`functions/venv/bin/python3`).
+   * Elimina a necessidade de o operador ativar manualmente os ambientes via `source venv/.../activate` no Terminal.
+3. **Passagem de Parâmetros e Interatividade:**
+   * Scripts que exigem parâmetros (ex: mesclador de produtos manual) solicitam a digitação dos argumentos (como ID de origem e ID de destino) interativamente no próprio painel antes da chamada do subprocesso.
+   * Adicionada visualização rápida de logs (`ver_log(log_name)`) exibindo as últimas 50 linhas de relatórios do cron diretamente na tela de forma otimizada.

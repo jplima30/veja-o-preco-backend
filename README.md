@@ -78,9 +78,9 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 > [!TIP]
 > Para rodar os robôs ou validar os scrapers manualmente, consulte o **[Guia de Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local)**.
 
-**Validação rápida do banco de dados:**
+**Painel de Controle do Backend (Recomendado):**
 ```bash
-python3 scripts/ver_ofertas_banco.py
+python3 scripts/gerenciador.py
 ```
 
 **Deploy das Cloud Functions:**
