@@ -65,14 +65,43 @@ def buscar_duckduckgo_images(nome_produto: str) -> list:
         pass
     return []
 
+def extrair_url_real(url: str) -> str:
+    """
+    Se a URL contiver um parâmetro 'url=' interno (comum em otimizadores Next.js como o da Drogasil),
+    extrai e decodifica esse link para baixar direto do CDN e evitar bloqueios (HTTP 403).
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+        query_params = urllib.parse.parse_qs(parsed.query)
+        if "url" in query_params:
+            url_interna = query_params["url"][0]
+            if url_interna.startswith("http"):
+                return url_interna
+    except Exception:
+        pass
+    return url
+
 def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
     """
     Baixa uma imagem da internet, ajusta sua proporção com preenchimento branco (200x200) e comprime para JPEG 75%.
     """
+    # Extrai o link limpo se for um link de redirecionamento/otimizador
+    url_limpa = extrair_url_real(url_imagem)
+    
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "image",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Site": "cross-site"
     }
-    resp = requests.get(url_imagem, headers=headers, timeout=10)
+    resp = requests.get(url_limpa, headers=headers, timeout=10)
     resp.raise_for_status()
     
     img_bytes = io.BytesIO(resp.content)
