@@ -247,9 +247,77 @@ def rodar_assistente_interativo():
     print("\n👋 Assistente finalizado.")
     input("Pressione Enter para voltar ao menu...")
 
+def rodar_mesclagem_automatica_exata():
+    print("=========================================================")
+    print("🔄 INICIANDO MESCLAGEM AUTOMÁTICA DE PALAVRAS IDÊNTICAS")
+    print("=========================================================")
+    print("⏳ Carregando produtos e calculando similaridades...")
+    try:
+        duplicatas = buscar_duplicatas_potenciais()
+    except Exception as e:
+        print(f"❌ Erro ao ler produtos: {e}")
+        input("\nPressione Enter para continuar...")
+        return
+        
+    if not duplicatas:
+        print("\n✨ Nenhuma duplicata potencial encontrada no banco.")
+        input("\nPressione Enter para continuar...")
+        return
+        
+    total_mesclados = 0
+    ids_removidos = set()
+    
+    for id_a, data_a, id_b, data_b, score in duplicatas:
+        if id_a in ids_removidos or id_b in ids_removidos:
+            continue
+            
+        n1 = data_a.get("nome", "").lower().strip()
+        n2 = data_b.get("nome", "").lower().strip()
+        
+        w1 = sorted(n1.split())
+        w2 = sorted(n2.split())
+        
+        if w1 != w2:
+            continue
+            
+        has_img_a = bool(data_a.get("imagem_url"))
+        has_img_b = bool(data_b.get("imagem_url"))
+        
+        if has_img_a and not has_img_b:
+            id_manter = id_a
+            id_deletar = id_b
+        elif has_img_b and not has_img_a:
+            id_manter = id_b
+            id_deletar = id_a
+        else:
+            if id_a <= id_b:
+                id_manter = id_a
+                id_deletar = id_b
+            else:
+                id_manter = id_b
+                id_deletar = id_a
+                
+        print(f"🔀 Mesclando automaticamente: '{id_deletar}' ➡️ '{id_manter}'")
+        try:
+            if mesclar_produtos_firestore(id_deletar, id_manter):
+                ids_removidos.add(id_deletar)
+                total_mesclados += 1
+            else:
+                print(f"   ⚠️ Falha ao mesclar '{id_deletar}'")
+        except Exception as e:
+            print(f"   ❌ Erro ao mesclar '{id_deletar}': {e}")
+            
+    print("\n=========================================================")
+    print("🏁 MESCLAGEM AUTOMÁTICA CONCLUÍDA!")
+    print(f"📉 Total de duplicatas eliminadas: {total_mesclados}")
+    print("=========================================================\n")
+    input("Pressione Enter para continuar...")
+
 if __name__ == "__main__":
     import time
     if "--detect-only" in sys.argv:
         rodar_diagnostico_cron()
+    elif "--auto-merge-exact-words" in sys.argv:
+        rodar_mesclagem_automatica_exata()
     else:
         rodar_assistente_interativo()
