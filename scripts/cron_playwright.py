@@ -805,8 +805,21 @@ if __name__ == "__main__":
         print(f"  🧠 Rodando triagem [{janela_alvo}h] com: {venv_python}", flush=True)
         # Passa a janela como argumento para a triagem e o flag -u para unbuffered
         subprocess.run([venv_python, "-u", script_triagem, str(janela_alvo)], check=True)
+        
+        print("\n" + "="*60)
+        print("🖼️ [AUTO-CURAÇÃO] Iniciando Curador de Imagens...")
+        print("="*60)
+        script_curacao = os.path.join(os.path.dirname(__file__), "completar_imagens.py")
+        subprocess.run([sys.executable, script_curacao, "--autopilot"], check=True)
+        
+        print("\n" + "="*60)
+        print("🔄 [AUTO-SINCRONIZAÇÃO] Sincronizando imagens com ofertas...")
+        print("="*60)
+        script_sincronizacao = os.path.join(os.path.dirname(__file__), "sincronizar_imagens_ofertas.py")
+        subprocess.run([sys.executable, script_sincronizacao], check=True)
+        
     except Exception as e:
-        print(f"⚠️ Erro ao iniciar triagem automática: {e}")
+        print(f"⚠️ Erro ao iniciar triagem ou fluxos automáticos de imagem: {e}")
     
     print("\n=========================================================")
     print("🏁 CRON LOCAL FINALIZADO COM SUCESSO!")
