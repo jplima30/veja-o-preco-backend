@@ -273,6 +273,23 @@ def buscar_imagem(nome_produto: str, imagem_api: str = "") -> str:
     return ""
 
 
+def resolver_produto_id_com_sinonimo(db_conn, produto_id: str) -> str:
+    """
+    Verifica se o produto_id possui um redirecionamento cadastrado na coleção 'sinonimos'.
+    Retorna o id_correto se existir, ou o próprio produto_id original.
+    """
+    try:
+        ref_sinonimo = db_conn.collection("sinonimos").document(produto_id).get()
+        if ref_sinonimo.exists:
+            id_correto = ref_sinonimo.to_dict().get("id_correto")
+            if id_correto:
+                print(f"  🔄 Redirecionando produto_id '{produto_id}' para o sinônimo '{id_correto}'")
+                return id_correto
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar sinônimo para '{produto_id}': {e}")
+    return produto_id
+
+
 def salvar_produto_e_oferta(
     nome: str,
     preco: float,
@@ -298,6 +315,7 @@ def salvar_produto_e_oferta(
     nome = limpar_nome_promocional(nome)
     unidade_norm = normalizar_unidade(unidade)
     produto_id = normalizar_nome(nome, unidade_norm)
+    produto_id = resolver_produto_id_com_sinonimo(db, produto_id)
 
     # --- FILTRO DE CATEGORIAS E PALAVRAS PROIBIDAS ---
     
@@ -1341,6 +1359,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                     # 3. Preparar IDs
                     unidade = item.get("unidade", "un")
                     produto_id = normalizar_nome(nome, unidade)
+                    produto_id = resolver_produto_id_com_sinonimo(db_conn, produto_id)
                     
                     # --- OPERAÇÃO BATCH ---
                     ref_prod = db_conn.collection("produtos").document(produto_id)
