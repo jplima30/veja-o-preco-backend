@@ -809,7 +809,7 @@ if __name__ == "__main__":
         print("\n" + "="*60)
         print("🖼️ [AUTO-IMAGENS] Iniciando Curadoria e Sincronização Automática...")
         print("="*60)
-        script_imagens = os.path.join(os.path.dirname(__file__), "completar_imagens.py")
+        script_imagens = os.path.join(os.path.dirname(__file__), "central_imagens.py")
         venv_functions_python = os.path.join(os.path.dirname(__file__), "..", "functions", "venv", "bin", "python3")
         subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
         

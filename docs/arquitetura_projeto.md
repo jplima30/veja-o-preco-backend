@@ -308,7 +308,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Implementada retrocompatibilidade que promove imagens legadas salvas no Storage para o status `"manual"` por segurança, blindando-as contra sobrescritas automáticas nas rodadas do CRON diário.
 2. **Resolução de Distorções (`ImageOps.pad`):**
    * Refatorado o processamento de imagens do helper `upload_imagem_cortada` na Cloud Function para utilizar a função `ImageOps.pad` da biblioteca Pillow, redimensionando as imagens para exatamente `200x200` pixels preservando a proporção original do produto (aspect ratio) e preenchendo as laterais com fundo branco limpo.
-3. **Utilitário de Curação (`scripts/completar_imagens.py`):**
+3. **Utilitário de Curação (`scripts/central_imagens.py`):**
    * Criação de um script interativo que varre o Firestore em tempo real procurando produtos com imagem pendente ou classificados como `"auto_crop"`.
    * Realiza a consulta automatizada na API do Open Food Facts e, caso encontre uma imagem válida de estúdio, executa a carga no Storage e a atualização no Firestore.
    * Se a busca falhar, interrompe no terminal de forma guiada para que o desenvolvedor cole uma URL do Google Imagens, automatizando o restante do fluxo (download, ajuste de proporção sem distorção, upload no Storage e registro).
@@ -318,7 +318,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Sessão 26 (Refinamento do Script de Higienização e Status de Recortes Aceitos)**
 
 **Data:** 01 de Julho de 2026
-**Objetivo:** Refinar o script utilitário `scripts/completar_imagens.py` para permitir curadoria seletiva por meio de menus interativos (focando em produtos sem imagem ou recortes específicos) e introduzir a marcação de recortes aceitos (`"auto_crop_aceito"`) para otimizar as tarefas de curadoria.
+**Objetivo:** Refinar o script utilitário `scripts/central_imagens.py` para permitir curadoria seletiva por meio de menus interativos (focando em produtos sem imagem ou recortes específicos) e introduzir a marcação de recortes aceitos (`"auto_crop_aceito"`) para otimizar as tarefas de curadoria.
 
 **Resultados:**
 1. **Menu de Execução Seletiva (CLI):** Implementação de menu numérico com 4 opções na inicialização do script:
@@ -351,7 +351,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Desenvolvido e executado utilitário de migração no banco de dados. Ele identificou 219 produtos duplicados no Firestore.
    * O script atualizou e redirecionou com sucesso 71 ofertas ativas ligadas aos IDs antigos para os IDs principais normalizados, e removeu 219 cadastros duplicados do banco. Também garantiu herança automática de imagens caso o cadastro secundário possuísse foto e o principal não.
 3. **Modo Piloto Automático (Opção 5):**
-   * Adicionada a opção `[5] Piloto Automático` ao menu inicial de [completar_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/completar_imagens.py).
+   * Adicionada a opção `[5] Piloto Automático` ao menu inicial de [central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py).
    * Este modo analisa em lote os produtos sem fotos ou com recortes e consulta o Open Food Facts de forma 100% automatizada e silenciosa. Se encontrar a foto, otimiza e faz o upload; se não encontrar, apenas avança instantaneamente para o próximo, eliminando interações repetitivas.
 4. **Integração com DuckDuckGo Images como Fallback:**
    * Desenvolvida a função `buscar_duckduckgo_images` para pesquisar imagens de produtos via DuckDuckGo de forma gratuita, limpa e sem limite restritivo de taxa.
@@ -368,7 +368,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 
 **Resultados:**
 1. **Remoção do Open Food Facts:**
-   * A função `buscar_open_food_facts` e todos os tempos de espera de 6 segundos associados foram removidos do script [completar_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/completar_imagens.py), tornando a varredura instantânea.
+   * A função `buscar_open_food_facts` e todos os tempos de espera de 6 segundos associados foram removidos do script [central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py), tornando a varredura instantânea.
 2. **DuckDuckGo como Motor Exclusivo com Multi-Links:**
    * A função `buscar_duckduckgo_images` foi reconfigurada para retornar uma lista com os **top 4 links** de imagens para cada produto.
 3. **Fluxo de Download Resiliente:**
@@ -400,10 +400,10 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Automatizar por completo o fluxo de curadoria e sincronização de imagens, integrando-os diretamente ao final do fluxo do Cron do Playwright (rodando às 10h e 14h) para que novas ofertas sejam curadas e sincronizadas imediatamente sem intervenção manual. Criar o arquivo de workflow local `/fluxo`.
 
 **Resultados:**
-1. **Suporte a Argumento no Curador (`completar_imagens.py`):**
+1. **Suporte a Argumentos na Central (`central_imagens.py`):**
    * Adicionada a leitura do argumento de terminal `--autopilot` (ou `--piloto`) para que o script ignore o menu interativo e selecione automaticamente o modo `[5] PILOTO AUTOMÁTICO`.
 2. **Integração no Fluxo de Cron (`scripts/cron_playwright.py`):**
-   * Configurado o script principal do Cron do Playwright para disparar de forma sequencial o curador (`completar_imagens.py --autopilot`) e depois o sincronizador de ofertas (`sincronizar_imagens_ofertas.py`) assim que a triagem de ofertas e gravação no Firestore se completarem com sucesso.
+   * Configurado o script principal do Cron do Playwright para disparar a Central de Imagens (`central_imagens.py --cron-completo`) assim que a triagem de ofertas e gravação no Firestore se completarem com sucesso.
    * Corrigido o interpretador Python usado no Cron para apontar explicitamente para o ambiente de backend (`functions/venv/bin/python3`) em vez de `sys.executable`, eliminando erros de importação do Firebase Admin (`ModuleNotFoundError`).
 3. **Criação do Workflow de Desenvolvimento (`.agents/workflows/fluxo.md`):**
    * Desenvolvido e documentado o workflow local `/fluxo` mapeando os passos completos de gestão de projeto (GitHub Issues), Git Flow (`develop` ➡️ `main` com `--no-ff`), atualização de documentações e travas de segurança/permissão para o Deploy do Firebase.
