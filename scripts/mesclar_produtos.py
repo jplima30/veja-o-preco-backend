@@ -24,9 +24,25 @@ def normalizar_unidade(unidade: str) -> str:
         return "g"
     return u
 
+def limpar_nome_promocional(nome: str) -> str:
+    """
+    Remove do nome do produto termos e slogans promocionais como:
+    "Leve mais e pague menos", "Leve X pague Y", etc.
+    """
+    import re
+    n = nome.strip()
+    # 1. Remove "leve mais e pague menos" / "leve mais pague menos"
+    n = re.sub(r'\s*\b(leve\s+mais\s+(e\s+)?pague\s+menos)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    n = re.sub(r'\s*\b(leve\s+mais\s+(e\s+)?pague\s+menos)\b\.?\s*', '', n, flags=re.IGNORECASE)
+    # 2. Remove "leve X pague Y" (ex: leve 3 pague 2, leve 4 pague 3)
+    n = re.sub(r'\s*\b(leve\s+\d+\s+pague\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    # 3. Remove "pague X leve Y" (ex: pague 2 leve 3)
+    n = re.sub(r'\s*\b(pague\s+\d+\s+leve\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', n).strip()
+
 def mesclar_banco():
     print("=========================================================")
-    print("🔄 INICIANDO MESCLAGEM DE PRODUTOS DUPLICADOS NO FIRESTORE")
+    print("🔄 INICIANDO MESCLAGEM AUTOMÁTICA DE PRODUTOS NO FIRESTORE")
     print("=========================================================\n")
     
     print("⏳ Carregando produtos...")
@@ -47,7 +63,7 @@ def mesclar_banco():
         
         # Código idêntico a normalizar_nome do main.py para consistência de ID
         import re
-        n = nome.strip()
+        n = limpar_nome_promocional(nome)
         n = re.sub(r'\s*\b(kg|kilo|quilo|un|und|unid|unidade|cada|g|gr|gramas|ml|l|litro|litros)\b\.?\s*$', '', n, flags=re.IGNORECASE)
         
         texto = f"{n} {unidade_norm}".strip().lower()
@@ -74,11 +90,6 @@ def mesclar_banco():
         if len(duplicados) <= 1:
             continue
             
-        # Dentre os duplicados, vamos preferir como principal:
-        # A) Aquele cujo ID é exatamente igual a id_correto (ID padrão).
-        # B) Se nenhum for, aquele que possui imagem_url preenchida.
-        # C) Caso contrário, o primeiro.
-        
         doc_principal_id = None
         doc_principal_data = None
         
@@ -110,6 +121,7 @@ def mesclar_banco():
         # Garante que a unidade do principal seja normalizada no banco
         unidade_principal_norm = normalizar_unidade(doc_principal_data.get("unidade", "un"))
         produtos_ref.document(doc_principal_id).update({
+            "nome": limpar_nome_promocional(doc_principal_data.get("nome", "")),
             "unidade": unidade_principal_norm
         })
         
@@ -151,9 +163,81 @@ def mesclar_banco():
     print(f"🔄 Total de ofertas re-vinculadas: {total_mesclados}")
     print("=========================================================\n")
 
+def mesclar_manual(id_de: str, id_para: str):
+    print("=========================================================")
+    print("🔄 INICIANDO MESCLAGEM MANUAL DE PRODUTOS")
+    print(f"   👉 De (Duplicado): {id_de}")
+    print(f"   👉 Para (Correto): {id_para}")
+    print("=========================================================\n")
+    
+    produtos_ref = db.collection("produtos")
+    
+    # 1. Carrega os dois produtos
+    doc_de = produtos_ref.document(id_de).get()
+    doc_para = produtos_ref.document(id_para).get()
+    
+    if not doc_de.exists:
+        print(f"❌ Erro: O produto de origem '{id_de}' não existe no Firestore.")
+        return
+    if not doc_para.exists:
+        print(f"❌ Erro: O produto de destino '{id_para}' não existe no Firestore.")
+        return
+        
+    data_de = doc_de.to_dict()
+    data_para = doc_para.to_dict()
+    
+    # 2. Migrar as ofertas
+    print("⏳ Buscando ofertas associadas ao produto duplicado...")
+    ofertas_ref = db.collection("ofertas").where("produto_id", "==", id_de).stream()
+    ofertas_migradas = 0
+    
+    unidade_norm = normalizar_unidade(data_para.get("unidade", "un"))
+    
+    for of_doc in ofertas_ref:
+        of_doc.reference.update({
+            "produto_id": id_para,
+            "unidade": unidade_norm
+        })
+        ofertas_migradas += 1
+        
+    # 3. Herdar imagem se o de origem tiver e o destino não
+    if data_de.get("imagem_url") and not data_para.get("imagem_url"):
+        produtos_ref.document(id_para).update({
+            "imagem_url": data_de.get("imagem_url"),
+            "imagem_origem": data_de.get("imagem_origem", "manual"),
+            "atualizado_em": firestore.SERVER_TIMESTAMP
+        })
+        print("   🖼️ Herdada imagem do duplicado para o principal.")
+        
+    # 4. Deleta o produto duplicado
+    produtos_ref.document(id_de).delete()
+    
+    print("\n=========================================================")
+    print("🏁 CONCLUÍDO COM SUCESSO!")
+    print(f"📉 Produto duplicado '{id_de}' deletado.")
+    print(f"🔄 Total de ofertas re-vinculadas para '{id_para}': {ofertas_migradas}")
+    print("=========================================================\n")
+
 if __name__ == "__main__":
     try:
-        mesclar_banco()
+        if len(sys.argv) > 1:
+            if "--de" in sys.argv and "--para" in sys.argv:
+                try:
+                    idx_de = sys.argv.index("--de") + 1
+                    idx_para = sys.argv.index("--para") + 1
+                    id_de = sys.argv[idx_de]
+                    id_para = sys.argv[idx_para]
+                    mesclar_manual(id_de, id_para)
+                except IndexError:
+                    print("❌ Erro: Especifique os IDs após --de e --para.")
+                    print("Exemplo: python3 mesclar_produtos.py --de id-com-erro --para id-correto")
+            else:
+                print("❌ Argumentos inválidos.")
+                print("Uso:")
+                print("  Automático: python3 mesclar_produtos.py")
+                print("  Manual:     python3 mesclar_produtos.py --de ID_RUIM --para ID_BOM")
+        else:
+            mesclar_banco()
     except KeyboardInterrupt:
         print("\n\n👋 Operação cancelada pelo usuário.")
         sys.exit(0)

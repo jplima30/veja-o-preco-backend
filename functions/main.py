@@ -59,13 +59,31 @@ def normalizar_unidade(unidade: str) -> str:
         return "g"
     return u
 
+def limpar_nome_promocional(nome: str) -> str:
+    """
+    Remove do nome do produto termos e slogans promocionais como:
+    "Leve mais e pague menos", "Leve X pague Y", etc.
+    """
+    import re
+    n = nome.strip()
+    # 1. Remove "leve mais e pague menos" / "leve mais pague menos"
+    n = re.sub(r'\s*\b(leve\s+mais\s+(e\s+)?pague\s+menos)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    n = re.sub(r'\s*\b(leve\s+mais\s+(e\s+)?pague\s+menos)\b\.?\s*', '', n, flags=re.IGNORECASE)
+    # 2. Remove "leve X pague Y" (ex: leve 3 pague 2, leve 4 pague 3)
+    n = re.sub(r'\s*\b(leve\s+\d+\s+pague\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    # 3. Remove "pague X leve Y" (ex: pague 2 leve 3)
+    n = re.sub(r'\s*\b(pague\s+\d+\s+leve\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', n).strip()
+
 def normalizar_nome(nome: str, unidade: str = "") -> str:
     """
     Gera um ID único e legível para um produto.
     Ex: "Arroz Agulhinha Tio Urbano", "5kg" → "arroz-agulhinha-tio-urbano-5kg"
     """
+    # Remove slogans promocionais
+    n = limpar_nome_promocional(nome)
+    
     # Limpa sufixos redundantes de unidade do final do nome antes de normalizar
-    n = nome.strip()
     n = re.sub(r'\s*\b(kg|kilo|quilo|un|und|unid|unidade|cada|g|gr|gramas|ml|l|litro|litros)\b\.?\s*$', '', n, flags=re.IGNORECASE)
     
     unidade_norm = normalizar_unidade(unidade)
@@ -277,6 +295,7 @@ def salvar_produto_e_oferta(
     - Sempre cria uma nova oferta em /ofertas com TTL de 7 dias
     """
     db = firestore.client()
+    nome = limpar_nome_promocional(nome)
     unidade_norm = normalizar_unidade(unidade)
     produto_id = normalizar_nome(nome, unidade_norm)
 
