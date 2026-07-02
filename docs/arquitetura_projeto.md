@@ -403,6 +403,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 1. **Suporte a Argumento no Curador (`completar_imagens.py`):**
    * Adicionada a leitura do argumento de terminal `--autopilot` (ou `--piloto`) para que o script ignore o menu interativo e selecione automaticamente o modo `[5] PILOTO AUTOMÁTICO`.
 2. **Integração no Fluxo de Cron (`scripts/cron_playwright.py`):**
-   * Configurado o script principal do Cron do Playwright para disparar de forma sequencial o curador (`completar_imagens.py --autopilot`) e depois o sincronizador de ofertas (`sincronizar_imagens_ofertas.py`) usando `sys.executable` assim que a triagem de ofertas e gravação no Firestore se completarem com sucesso.
+   * Configurado o script principal do Cron do Playwright para disparar de forma sequencial o curador (`completar_imagens.py --autopilot`) e depois o sincronizador de ofertas (`sincronizar_imagens_ofertas.py`) assim que a triagem de ofertas e gravação no Firestore se completarem com sucesso.
+   * Corrigido o interpretador Python usado no Cron para apontar explicitamente para o ambiente de backend (`functions/venv/bin/python3`) em vez de `sys.executable`, eliminando erros de importação do Firebase Admin (`ModuleNotFoundError`).
 3. **Criação do Workflow de Desenvolvimento (`.agents/workflows/fluxo.md`):**
    * Desenvolvido e documentado o workflow local `/fluxo` mapeando os passos completos de gestão de projeto (GitHub Issues), Git Flow (`develop` ➡️ `main` com `--no-ff`), atualização de documentações e travas de segurança/permissão para o Deploy do Firebase.
