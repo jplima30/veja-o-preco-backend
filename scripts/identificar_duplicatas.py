@@ -129,6 +129,12 @@ def mesclar_produtos_firestore(id_de: str, id_para: str) -> bool:
         
     # 3. Deleta duplicado
     produtos_ref.document(id_de).delete()
+    
+    # 4. Registrar sinônimo para redirecionamento futuro
+    db.collection("sinonimos").document(id_de).set({
+        "id_correto": id_para,
+        "criado_em": firestore.SERVER_TIMESTAMP
+    })
     return True
 
 def rodar_diagnostico_cron():

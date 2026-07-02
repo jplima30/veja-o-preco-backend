@@ -153,6 +153,12 @@ def mesclar_banco():
             # Deletar o produto duplicado do Firestore
             produtos_ref.document(doc_id_velho).delete()
             
+            # Registrar sinônimo para redirecionamento futuro
+            db.collection("sinonimos").document(doc_id_velho).set({
+                "id_correto": doc_principal_id,
+                "criado_em": firestore.SERVER_TIMESTAMP
+            })
+            
             total_deletados += 1
             total_mesclados += ofertas_migradas
             print(f"     ✅ Migradas {ofertas_migradas} ofertas e deletado o produto secundário.")
@@ -211,6 +217,12 @@ def mesclar_manual(id_de: str, id_para: str):
         
     # 4. Deleta o produto duplicado
     produtos_ref.document(id_de).delete()
+    
+    # 5. Registrar sinônimo para redirecionamento futuro
+    db.collection("sinonimos").document(id_de).set({
+        "id_correto": id_para,
+        "criado_em": firestore.SERVER_TIMESTAMP
+    })
     
     print("\n=========================================================")
     print("🏁 CONCLUÍDO COM SUCESSO!")
