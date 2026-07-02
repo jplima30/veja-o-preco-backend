@@ -448,8 +448,10 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * O script analisa a base e imprime um bloco informativo com as top 10 potenciais duplicatas nos logs diários de forma 100% não-bloqueante (sem parar o script).
 3. **Assistente Interativo no Painel de Controle (`gerenciador.py`):**
    * Adicionado o assistente interativo na Categoria 4 como opção `[4] Assistente de Duplicatas Inteligente (Fuzzy Matching)`.
-   * Permite revisar os potenciais duplicados um por um na tela do terminal e efetuar a mesclagem imediata das ofertas e exclusão do duplicado secundário apenas apertando uma tecla (`1` ou `2`).
-4. **Mesclagem Automática por Ordem de Palavras (`--auto-merge-exact-words`):**
-   * Implementado o modo de mesclagem em lote e 100% automático para casos onde os produtos possuem **exatamente as mesmas palavras, mudando apenas a ordem**.
-   * O resolvedor escolhe automaticamente qual ID manter priorizando o documento que já tem imagem curada associada. Se ambos tiverem ou não, decide em ordem alfabética.
-   * Adicionada a opção `[5] Mesclar Duplicatas por Ordem de Palavras (Automático)` no menu de Curadoria do Painel de Controle.
+   * Permite revisar os potenciais duplicados um por um na tela do terminal exibindo links clickáveis das fotos e scores separados (Similaridade e Overlap).
+4. **Mesclagem Automática por Ordem de Palavras e Lote Total:**
+   * Implementada a opção `[4]` no assistente interativo para mesclagem automática em lote de palavras 100% idênticas (`w1 == w2`).
+   * Implementada a opção `[5]` no assistente interativo para mesclagem em lote total irrestrita dos ~1200 itens da fila (exigindo digitação de `"SIM"`). O script migra as ofertas para o ID com foto de estúdio e apaga as duplicatas.
+5. **Sistema Dinâmico de Sinônimos/Aliases (Firestore):**
+   * Criada a coleção `/sinonimos` no Firestore. Ao mesclar/deletar qualquer duplicata B em A, grava-se o redirecionamento `B ➡️ A`.
+   * O Cloud Functions (`functions/main.py`) intercepta todas as inserções/lotes e desvia o tráfego do ID duplicado para o ID correto em tempo real. O banco "aprende" e impede re-ingestão de duplicidades.
