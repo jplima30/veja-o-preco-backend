@@ -407,3 +407,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Corrigido o interpretador Python usado no Cron para apontar explicitamente para o ambiente de backend (`functions/venv/bin/python3`) em vez de `sys.executable`, eliminando erros de importação do Firebase Admin (`ModuleNotFoundError`).
 3. **Criação do Workflow de Desenvolvimento (`.agents/workflows/fluxo.md`):**
    * Desenvolvido e documentado o workflow local `/fluxo` mapeando os passos completos de gestão de projeto (GitHub Issues), Git Flow (`develop` ➡️ `main` com `--no-ff`), atualização de documentações e travas de segurança/permissão para o Deploy do Firebase.
+4. **Filtro de Slogans Promocionais (functions/main.py & scripts/mesclar_produtos.py):**
+   * Criada a função `limpar_nome_promocional` que limpa slogans do tipo `"Leve mais e pague menos"`, `"Leve X pague Y"`, etc. dos nomes dos produtos antes de salvar no Firestore, padronizando a nomenclatura e prevenindo duplicatas.
+5. **Modo Manual em `scripts/mesclar_produtos.py`:**
+   * Adicionado suporte a parâmetros `--de` e `--para` no script de mesclagem para viabilizar a consolidação cirúrgica de IDs arbitrários com erros de digitação (como `"INTTIMUS"` para `"INTIMUS"`).
