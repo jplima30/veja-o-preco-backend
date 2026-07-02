@@ -129,28 +129,45 @@ def extrair_url_real(url: str) -> str:
 
 def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
     """
-    Baixa uma imagem da internet, ajusta sua proporção com preenchimento branco (200x200) e comprime para JPEG 75%.
+    Baixa uma imagem da internet ou abre um arquivo local do disco,
+    ajusta sua proporção com preenchimento branco (200x200) e comprime para JPEG 75%.
     """
-    # Extrai o link limpo se for um link de redirecionamento/otimizador
-    url_limpa = extrair_url_real(url_imagem)
+    import os
+    import re
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"macOS"',
-        "Sec-Fetch-Dest": "image",
-        "Sec-Fetch-Mode": "no-cors",
-        "Sec-Fetch-Site": "cross-site"
-    }
-    resp = requests.get(url_limpa, headers=headers, timeout=10)
-    resp.raise_for_status()
+    # Limpa possíveis aspas e escapes de espaço que o terminal insere ao arrastar arquivo
+    caminho_limpo = url_imagem.strip().strip("'\"")
+    caminho_limpo = re.sub(r'\\(.)', r'\1', caminho_limpo)
+    caminho_limpo = os.path.expanduser(caminho_limpo)
     
-    img_bytes = io.BytesIO(resp.content)
+    if os.path.exists(caminho_limpo) and os.path.isfile(caminho_limpo):
+        print(f"   📂 Carregando arquivo local: {caminho_limpo}")
+        try:
+            with open(caminho_limpo, "rb") as f:
+                img_bytes = io.BytesIO(f.read())
+        except Exception as e:
+            raise Exception(f"Falha ao ler arquivo local: {e}")
+    else:
+        # Extrai o link limpo se for um link de redirecionamento/otimizador
+        url_limpa = extrair_url_real(url_imagem)
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"macOS"',
+            "Sec-Fetch-Dest": "image",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "cross-site"
+        }
+        resp = requests.get(url_limpa, headers=headers, timeout=10)
+        resp.raise_for_status()
+        img_bytes = io.BytesIO(resp.content)
+        
     with Image.open(img_bytes) as img:
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
@@ -471,7 +488,7 @@ def executar_curadoria(db, bucket, opcao_modo: str):
             if not url_selecionada:
                 if is_autopilot:
                     break
-                opcao_manual = input("   🔗 Cole a URL da imagem (ou Enter para PULAR, 'A' para aceitar recorte, 'M' para voltar ao menu): ").strip()
+                opcao_manual = input("   🔗 Cole a URL ou arraste um arquivo local (ou Enter para PULAR, 'A' para aceitar recorte, 'M' para voltar ao menu): ").strip()
                 if opcao_manual.lower() in ("m", "menu", "voltar"):
                     print("   🔙 Operação cancelada. Voltando ao menu principal...")
                     return
