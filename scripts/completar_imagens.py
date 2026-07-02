@@ -36,7 +36,7 @@ def buscar_duckduckgo_images(nome_produto: str) -> list:
     }
     url_token = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}&iax=images&ia=images"
     try:
-        # Intervalo curto de 0.5s para evitar ser bloqueado temporariamente pelo DuckDuckGo
+        # Intervalo preventivo rápido para o DuckDuckGo
         time.sleep(0.5)
         res = requests.get(url_token, headers=headers, timeout=5)
         if res.status_code != 200:
@@ -88,52 +88,181 @@ def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
         output.seek(0)
         return output
 
-def curar_imagens():
+def carregar_estatisticas_gerais(db) -> dict:
+    """
+    Carrega contagens gerais do catálogo de produtos e ofertas vigentes sem imagem.
+    """
+    stats = {
+        "total_produtos": 0,
+        "sem_imagem": 0,
+        "auto_crop": 0,
+        "auto_crop_aceito": 0,
+        "curadas": 0,
+        "total_ofertas_vigentes": 0,
+        "ofertas_vigentes_sem_imagem": 0
+    }
+    
+    try:
+        # Estatísticas de produtos no catálogo mestre
+        produtos_docs = db.collection("produtos").stream()
+        for doc in produtos_docs:
+            if doc.id.startswith("_"):
+                continue
+            stats["total_produtos"] += 1
+            d = doc.to_dict()
+            url = d.get("imagem_url", "")
+            origem = d.get("imagem_origem", "")
+            
+            if not url:
+                stats["sem_imagem"] += 1
+            elif origem == "auto_crop":
+                stats["auto_crop"] += 1
+            elif origem == "auto_crop_aceito":
+                stats["auto_crop_aceito"] += 1
+            else:
+                stats["curadas"] += 1
+                
+        # Estatísticas de ofertas vigentes no aplicativo
+        hoje = datetime.now()
+        ofertas_docs = db.collection("ofertas").where("expira_em", ">=", hoje).stream()
+        for doc in ofertas_docs:
+            stats["total_ofertas_vigentes"] += 1
+            d = doc.to_dict()
+            img = d.get("imagem_url", "").strip()
+            if not img:
+                stats["ofertas_vigentes_sem_imagem"] += 1
+                
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar estatísticas: {e}")
+        
+    return stats
+
+def exibir_dashboard(stats: dict):
     print("=========================================================")
-    print("🧹 INICIANDO HIGIENIZAÇÃO E CURAÇÃO DE IMAGENS DE PRODUTOS")
+    print("🖼️  GERENCIADOR CENTRAL DE IMAGENS DO VEJAOPRECO")
+    print("=========================================================")
+    print("📊 PAINEL DE COBERTURA DE IMAGENS:")
+    if stats["total_produtos"] > 0:
+        p_sem = (stats["sem_imagem"] / stats["total_produtos"]) * 100
+        p_crop = (stats["auto_crop"] / stats["total_produtos"]) * 100
+        p_aceito = (stats["auto_crop_aceito"] / stats["total_produtos"]) * 100
+        p_curadas = (stats["curadas"] / stats["total_produtos"]) * 100
+        print(f"   • Produtos no Catálogo: {stats['total_produtos']}")
+        print(f"     - Sem imagem:                  {stats['sem_imagem']} ({p_sem:.1f}%)")
+        print(f"     - Recorte provisório (IA):     {stats['auto_crop']} ({p_crop:.1f}%)")
+        print(f"     - Recorte aceito (IA):         {stats['auto_crop_aceito']} ({p_aceito:.1f}%)")
+        print(f"     - Imagens curadas de estúdio:  {stats['curadas']} ({p_curadas:.1f}%)")
+    else:
+        print("   • Nenhum produto cadastrado no catálogo.")
+        
+    print(f"   • Ofertas vigentes no aplicativo: {stats['total_ofertas_vigentes']}")
+    if stats['total_ofertas_vigentes'] > 0:
+        p_of_sem = (stats['ofertas_vigentes_sem_imagem'] / stats['total_ofertas_vigentes']) * 100
+        print(f"     - Ofertas sem imagem vinculada: {stats['ofertas_vigentes_sem_imagem']} ({p_of_sem:.1f}%)")
+    print("=========================================================\n")
+
+def executar_sincronizacao(db):
+    print("=========================================================")
+    print("🔄 INICIANDO SINCRONIZAÇÃO DE IMAGENS DO CATALOGO PARA AS OFERTAS")
     print("=========================================================\n")
     
-    # Seleção de Modo
-    if "--autopilot" in sys.argv or "--piloto" in sys.argv:
-        opcao_modo = "5"
-        print("🤖 [AUTOPILOT] Selecionado modo Piloto Automático automaticamente via argumento.")
-    else:
-        print("Selecione o modo de curação desejado:")
-        print("  [1] Apenas produtos totalmente SEM IMAGEM (Crítico) [Padrão]")
-        print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
-        print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
-        print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
-        print("  [5] PILOTO AUTOMÁTICO (Busca no DuckDuckGo Images em lote 100% silencioso)")
-        
-        opcao_modo = input("\n👉 Digite a opção desejada [1-5] (ou Enter para a Padrão 1): ").strip()
-        if not opcao_modo:
-            opcao_modo = "1"
-            
-        if opcao_modo not in ("1", "2", "3", "4", "5"):
-            print("❌ Opção inválida. Encerrando.")
-            return
-
-    db, bucket = inicializar_firebase()
-    
-    # 1. Obter todos os produtos do Firestore
-    print("\n⏳ Carregando produtos do Firestore...")
+    print("⏳ Carregando produtos...")
     produtos_ref = db.collection("produtos")
-    docs = list(produtos_ref.stream())
-    print(f"✅ {len(docs)} produtos carregados.\n")
+    produtos = {doc.id: doc.to_dict() for doc in produtos_ref.stream() if not doc.id.startswith("_")}
+    print(f"✅ {len(produtos)} produtos carregados.")
     
-    # 2. Filtrar produtos de acordo com o modo selecionado
+    print("⏳ Carregando ofertas...")
+    ofertas_ref = db.collection("ofertas")
+    ofertas = list(ofertas_ref.stream())
+    print(f"✅ {len(ofertas)} ofertas carregadas.")
+    
+    total_atualizadas = 0
+    for of_doc in ofertas:
+        of_data = of_doc.to_dict()
+        prod_id = of_data.get("produto_id")
+        of_img = of_data.get("imagem_url", "")
+        
+        if prod_id in produtos:
+            prod_data = produtos[prod_id]
+            prod_img = prod_data.get("imagem_url", "")
+            
+            # Se o produto tem imagem curada no Firestore e a oferta tem imagem diferente/vazia
+            if prod_img and of_img != prod_img:
+                print(f"🔄 Sincronizando oferta: '{of_data.get('produto_nome')}'")
+                print(f"   De: {of_img[:60]}...")
+                print(f"   Para: {prod_img[:60]}...")
+                
+                of_doc.reference.update({
+                    "imagem_url": prod_img
+                })
+                total_atualizadas += 1
+                
+    print("\n=========================================================")
+    print("🏁 SINCRONIZAÇÃO CONCLUÍDA!")
+    print(f"🔄 Total de ofertas sincronizadas: {total_atualizadas}")
+    print("=========================================================\n")
+
+def executar_diagnostico(db):
+    print("=========================================================")
+    print("🔎 BUSCANDO OFERTAS VIGENTES SEM IMAGEM NO FIRESTORE")
+    print("=========================================================\n")
+    
+    hoje = datetime.now()
+    ofertas_ref = db.collection("ofertas").where("expira_em", ">=", hoje)
+    docs = ofertas_ref.stream()
+    
+    sem_imagem = []
+    total_vigentes = 0
+    
+    for doc in docs:
+        total_vigentes += 1
+        d = doc.to_dict()
+        img = d.get("imagem_url", "").strip()
+        
+        if not img:
+            sem_imagem.append((doc.id, d))
+            
+    print(f"📊 Total de ofertas vigentes encontradas: {total_vigentes}")
+    print(f"❌ Total de ofertas vigentes SEM IMAGEM: {len(sem_imagem)}")
+    print("---------------------------------------------------------\n")
+    
+    if sem_imagem:
+        print("📋 Amostra das primeiras 30 ofertas sem imagem:")
+        for i, (doc_id, d) in enumerate(sem_imagem[:30]):
+            loja = d.get("loja", "Desconhecida")
+            nome = d.get("produto_nome", "Sem nome")
+            preco = d.get("preco", 0)
+            validade = d.get("validade", "Desconhecida")
+            print(f"  [{i+1}] 🛒 {nome} - R$ {preco:.2f} ({loja}) | Validade: {validade}")
+        
+        if len(sem_imagem) > 30:
+            print(f"\n... e mais {len(sem_imagem) - 30} ofertas sem imagem.")
+    else:
+        print("🎉 Excelente! Todas as ofertas vigentes possuem imagem!")
+    print()
+
+def executar_curadoria(db, bucket, opcao_modo: str):
+    """
+    Executa a curadoria de fotos baseada no modo selecionado.
+    """
+    produtos_ref = db.collection("produtos")
+    print("⏳ Carregando catálogo de produtos...")
+    docs = list(produtos_ref.stream())
+    
     produtos_pendentes = []
     for doc in docs:
+        if doc.id.startswith("_"):
+            continue
         d = doc.to_dict()
         url = d.get("imagem_url", "")
-        origem = d.get("imagem_origem", "")
+        origem = d.get("imagem_origem", "desconhecida")
         
         incluir = False
         if opcao_modo == "1":
             # Apenas sem imagem
             incluir = (not url)
         elif opcao_modo == "2":
-            # Apenas recortes recentes
+            # Apenas recortes IA
             incluir = (url and origem == "auto_crop")
         elif opcao_modo == "3":
             # Apenas recortes aceitos
@@ -145,7 +274,7 @@ def curar_imagens():
             # Piloto automático (sem imagem ou auto_crop)
             incluir = (not url or origem == "auto_crop")
             
-        if incluir and not doc.id.startswith("_"):
+        if incluir:
             produtos_pendentes.append((doc.id, d))
             
     if not produtos_pendentes:
@@ -156,13 +285,15 @@ def curar_imagens():
     print("---------------------------------------------------------")
     
     total_atualizados = 0
+    is_autopilot = (opcao_modo == "5")
     
     for i, (prod_id, prod_data) in enumerate(produtos_pendentes):
         nome = prod_data.get("nome", "Sem nome")
         unidade = prod_data.get("unidade", "un")
         origem_atual = prod_data.get("imagem_origem", "desconhecida")
         url_atual = prod_data.get("imagem_url", "")
-        # Busca supermercados associados na coleção de ofertas
+        
+        # Busca lojas com ofertas para esse produto
         lojas = set()
         try:
             query_lojas = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
@@ -171,7 +302,7 @@ def curar_imagens():
                 loja = data_of.get("loja", "")
                 if loja:
                     lojas.add(loja)
-        except Exception as e_query:
+        except Exception:
             pass
 
         while True:  # Loop de retentativa para o mesmo produto
@@ -199,7 +330,7 @@ def curar_imagens():
                 for idx, url_temp in enumerate(urls_ddg):
                     print(f"     [Tentativa {idx+1}/{len(urls_ddg)}] Testando: {url_temp}")
                     
-                    if opcao_modo == "5":
+                    if is_autopilot:
                         # Piloto Automático: tenta baixar silenciosamente
                         try:
                             buffer_otimizado = processar_e_otimizar_imagem(url_temp)
@@ -244,7 +375,7 @@ def curar_imagens():
                     break
                     
                 if not sucesso_download and not pular_produto:
-                    print("   ❌ Nenhuma das imagens do DuckDuckGo pôde ser baixada.")
+                    print("   ❌ Nenhuma das imagens do DuckDuckGo pós-download funcionou.")
             else:
                 print("   ❌ Não encontrado no DuckDuckGo.")
                 
@@ -253,7 +384,7 @@ def curar_imagens():
                 
             # Passo 2: Entrada manual caso nenhuma automática tenha sido bem-sucedida
             if not url_selecionada:
-                if opcao_modo == "5":
+                if is_autopilot:
                     break
                 opcao_manual = input("   🔗 Cole a URL da imagem da internet (ou aperte Enter para PULAR, ou digite 'A' para aceitar o recorte atual): ").strip()
                 if opcao_manual.lower() == "a":
@@ -306,9 +437,82 @@ def curar_imagens():
                 print(f"   ❌ ERRO ao fazer upload ou salvar Firestore: {e_up}")
                 break
 
+def main():
+    db, bucket = inicializar_firebase()
+    
+    # 1. Checagem de Argumentos de Automação (Cron ou Terminal)
+    if len(sys.argv) > 1:
+        arg = sys.argv[1].lower()
+        if arg in ("--autopilot", "--piloto"):
+            print("🤖 [AUTOPILOT] Iniciando Curador Automático...")
+            executar_curadoria(db, bucket, "5")
+        elif arg == "--sincronizar":
+            executar_sincronizacao(db)
+        elif arg == "--diagnostico":
+            executar_diagnostico(db)
+        elif arg == "--cron-completo":
+            print("🤖 [CRON-COMPLETO] Iniciando Curador Automático...")
+            executar_curadoria(db, bucket, "5")
+            print("\n🔄 [CRON-COMPLETO] Iniciando Sincronização de Ofertas...")
+            executar_sincronizacao(db)
+        else:
+            print(f"❌ Argumento inválido: {sys.argv[1]}")
+            print("Opções válidas: --autopilot, --sincronizar, --diagnostico, --cron-completo")
+        return
+
+    # 2. Modo Interativo (Dashboard + Menu Descritivo)
+    print("⏳ Carregando dados da central de imagens...")
+    stats = carregar_estatisticas_gerais(db)
+    
+    while True:
+        # Tenta limpar a tela para navegação limpa
+        os.system("clear" if os.name != "nt" else "cls")
+        exibir_dashboard(stats)
+        
+        print("SELECIONE A AÇÃO DESEJADA:")
+        print("  [1] CURADORIA INTERATIVA (Apenas produtos que não possuem NENHUMA imagem cadastrada)")
+        print("      👉 O script buscará no DuckDuckGo e perguntará antes de salvar cada foto de estúdio.")
+        print("  [2] CURADORIA INTERATIVA (Apenas produtos com recortes temporários da IA [auto_crop])")
+        print("      👉 Útil para substituir fotos de baixa qualidade ou cortadas por fotos de estúdio limpas.")
+        print("  [3] CURADORIA INTERATIVA (Apenas produtos com recortes da IA marcados como aceitos [auto_crop_aceito])")
+        print("      👉 Permite revisar e substituir imagens de recortes que foram aceitas anteriormente.")
+        print("  [4] CURADORIA INTERATIVA (Tudo: sem imagem + recortes temporários + recortes aceitos)")
+        print("      👉 Varredura manual interativa completa de todo o catálogo.")
+        print("  [5] PILOTO AUTOMÁTICO (Busca DuckDuckGo em lote - 100% silencioso e automatizado)")
+        print("      👉 Baixa, otimiza e salva fotos de forma silenciosa para itens sem imagem ou com auto_crop.")
+        print("  [6] SINCRONIZAR OFERTAS (Copiar imagens do catálogo para as ofertas vigentes)")
+        print("      👉 Copia as fotos de /produtos para /ofertas ativas no app iOS.")
+        print("  [7] DIAGNÓSTICO DO BANCO (Listar estatísticas gerais e ofertas vigentes sem foto)")
+        print("      👉 Mostra o status atual de cobertura do banco de dados e detalha as pendências.")
+        print("  [0] SAIR")
+        
+        opcao = input("\n👉 Digite a opção desejada [0-7]: ").strip()
+        
+        if opcao == "0":
+            print("\n👋 Saindo da Central de Imagens. Até logo!")
+            break
+        elif opcao in ("1", "2", "3", "4", "5"):
+            executar_curadoria(db, bucket, opcao)
+            # Recarrega estatísticas após as alterações da curadoria
+            print("\n⏳ Atualizando painel de estatísticas...")
+            stats = carregar_estatisticas_gerais(db)
+            input("\nPressione Enter para continuar...")
+        elif opcao == "6":
+            executar_sincronizacao(db)
+            # Recarrega estatísticas para atualizar o status do app no menu
+            print("\n⏳ Atualizando painel de estatísticas...")
+            stats = carregar_estatisticas_gerais(db)
+            input("\nPressione Enter para continuar...")
+        elif opcao == "7":
+            executar_diagnostico(db)
+            input("\nPressione Enter para continuar...")
+        else:
+            print("❌ Opção inválida!")
+            time.sleep(1.2)
+
 if __name__ == "__main__":
     try:
-        curar_imagens()
+        main()
     except KeyboardInterrupt:
         print("\n\n👋 Operação cancelada pelo usuário.")
         sys.exit(0)
