@@ -411,3 +411,5 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Criada a função `limpar_nome_promocional` que limpa slogans do tipo `"Leve mais e pague menos"`, `"Leve X pague Y"`, etc. dos nomes dos produtos antes de salvar no Firestore, padronizando a nomenclatura e prevenindo duplicatas.
 5. **Modo Manual em `scripts/mesclar_produtos.py`:**
    * Adicionado suporte a parâmetros `--de` e `--para` no script de mesclagem para viabilizar a consolidação cirúrgica de IDs arbitrários com erros de digitação (como `"INTTIMUS"` para `"INTIMUS"`).
+6. **Suporte a Imagens Locais (Drag-and-Drop) na Central:**
+   * Adicionado suporte a arquivos locais em `processar_e_otimizar_imagem`. O usuário pode arrastar um arquivo direto do PC para o terminal (que insere o caminho local absoluto), o script lê a foto do disco, otimiza e faz o upload para o Firebase Storage perfeitamente.
