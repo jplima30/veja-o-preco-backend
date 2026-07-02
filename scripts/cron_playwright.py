@@ -807,20 +807,14 @@ if __name__ == "__main__":
         subprocess.run([venv_python, "-u", script_triagem, str(janela_alvo)], check=True)
         
         print("\n" + "="*60)
-        print("🖼️ [AUTO-CURAÇÃO] Iniciando Curador de Imagens...")
+        print("🖼️ [AUTO-IMAGENS] Iniciando Curadoria e Sincronização Automática...")
         print("="*60)
-        script_curacao = os.path.join(os.path.dirname(__file__), "completar_imagens.py")
+        script_imagens = os.path.join(os.path.dirname(__file__), "completar_imagens.py")
         venv_functions_python = os.path.join(os.path.dirname(__file__), "..", "functions", "venv", "bin", "python3")
-        subprocess.run([venv_functions_python, script_curacao, "--autopilot"], check=True)
-        
-        print("\n" + "="*60)
-        print("🔄 [AUTO-SINCRONIZAÇÃO] Sincronizando imagens com ofertas...")
-        print("="*60)
-        script_sincronizacao = os.path.join(os.path.dirname(__file__), "sincronizar_imagens_ofertas.py")
-        subprocess.run([venv_functions_python, script_sincronizacao], check=True)
+        subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
         
     except Exception as e:
-        print(f"⚠️ Erro ao iniciar triagem ou fluxos automáticos de imagem: {e}")
+        print(f"⚠️ Erro ao iniciar triagem ou automação de imagens: {e}")
     
     print("\n=========================================================")
     print("🏁 CRON LOCAL FINALIZADO COM SUCESSO!")
