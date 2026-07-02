@@ -65,6 +65,52 @@ def buscar_duckduckgo_images(nome_produto: str) -> list:
         pass
     return []
 
+def buscar_bing_images(nome_produto: str) -> list[str]:
+    """
+    Busca imagens no Bing como fallback gratuito caso o DuckDuckGo falhe ou bloqueie a requisição.
+    """
+    import re
+    import urllib.parse
+    import requests
+    import json
+    import html
+    
+    n = nome_produto
+    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote)\)\s*$', '', n, flags=re.IGNORECASE)
+    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote)\s*$', '', n, flags=re.IGNORECASE)
+    query = n.strip()
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.bing.com/"
+    }
+    
+    url = f"https://www.bing.com/images/search?q={urllib.parse.quote(query)}"
+    try:
+        time.sleep(0.5)
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code != 200:
+            return []
+            
+        matches = re.findall(r'class=\"iusc\"[^>]*\s+m=\"([^\"]+)\"', res.text)
+        urls = []
+        for m in matches:
+            try:
+                obj = json.loads(html.unescape(m))
+                img_url = obj.get("murl")
+                if img_url and img_url.startswith("http") and img_url not in urls:
+                    urls.append(img_url)
+                    if len(urls) >= 4:
+                        break
+            except Exception:
+                continue
+        return urls
+    except Exception:
+        pass
+    return []
+
 def extrair_url_real(url: str) -> str:
     """
     Se a URL contiver um parâmetro 'url=' interno (comum em otimizadores Next.js como o da Drogasil),
@@ -348,16 +394,22 @@ def executar_curadoria(db, bucket, opcao_modo: str):
             pular_produto = False
             buffer_otimizado = None
             
-            # Passo 1: Busca automática de imagens no DuckDuckGo
+            # Passo 1: Busca automática de imagens no DuckDuckGo (com Fallback para Bing)
             print("   🔍 Buscando no DuckDuckGo Images...")
-            urls_ddg = buscar_duckduckgo_images(nome)
+            urls_auto = buscar_duckduckgo_images(nome)
+            fonte_busca = "DuckDuckGo"
             
-            if urls_ddg:
-                print(f"   🌐 Encontradas {len(urls_ddg)} imagens no DuckDuckGo.")
+            if not urls_auto:
+                print("   ⚠️ Sem resultados ou bloqueio no DuckDuckGo. Tentando Bing Images...")
+                urls_auto = buscar_bing_images(nome)
+                fonte_busca = "Bing"
+            
+            if urls_auto:
+                print(f"   🌐 Encontradas {len(urls_auto)} imagens no {fonte_busca}.")
                 sucesso_download = False
                 
-                for idx, url_temp in enumerate(urls_ddg):
-                    print(f"     [Tentativa {idx+1}/{len(urls_ddg)}] Testando: {url_temp}")
+                for idx, url_temp in enumerate(urls_auto):
+                    print(f"     [Tentativa {idx+1}/{len(urls_auto)}] Testando: {url_temp}")
                     
                     if is_autopilot:
                         # Piloto Automático: tenta baixar silenciosamente
@@ -381,6 +433,7 @@ def executar_curadoria(db, bucket, opcao_modo: str):
                                 buffer_otimizado = processar_e_otimizar_imagem(url_temp)
                                 url_selecionada = url_temp
                                 origem_selecionada = "manual"
+                                successes_download = True
                                 sucesso_download = True
                                 break
                             except Exception as e_proc:
@@ -407,9 +460,9 @@ def executar_curadoria(db, bucket, opcao_modo: str):
                     break
                     
                 if not sucesso_download and not pular_produto:
-                    print("   ❌ Nenhuma das imagens do DuckDuckGo pós-download funcionou.")
+                    print(f"   ❌ Nenhuma das imagens do {fonte_busca} pós-download funcionou.")
             else:
-                print("   ❌ Não encontrado no DuckDuckGo.")
+                print("   ❌ Não encontrado no DuckDuckGo nem no Bing.")
                 
             if pular_produto:
                 break
