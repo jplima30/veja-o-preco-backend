@@ -431,3 +431,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Passagem de Parâmetros e Interatividade:**
    * Scripts que exigem parâmetros (ex: mesclador de produtos manual) solicitam a digitação dos argumentos (como ID de origem e ID de destino) interativamente no próprio painel antes da chamada do subprocesso.
    * Adicionada visualização rápida de logs (`ver_log(log_name)`) exibindo as últimas 50 linhas de relatórios do cron diretamente na tela de forma otimizada.
+
+---
+
+**Sessão 32 (Fuzzy Matching e Diagnóstico de Duplicatas no Cron)**
+
+**Data:** 02 de Julho de 2026
+**Objetivo:** Implementar um mecanismo inteligente de busca por similaridade de texto no Firestore para detectar e relatar possíveis duplicatas causadas por erros ortográficos de leitura (OCR/IA) ou diferença na ordem de palavras, alertando o operador de forma silenciosa na execução do Cron e disponibilizando um assistente interativo para mesclagens direcionadas.
+
+### Implementações:
+1. **Script Fuzzy de Duplicatas (`scripts/identificar_duplicatas.py`):**
+   * Desenvolvido algoritmo de correspondência usando a biblioteca nativa `difflib`. Combina similaridade direta (erros de escrita), similaridade por token sort (inversão na ordem de palavras) e análise de overlap de termos.
+   * Otimizado o processamento com precomputação de dados e heurística de correspondência numérica, reduzindo a complexidade de loops e o volume de falsos positivos em nomes curtos (ex: impede casamento incorreto de "Alho" e "Alho Roxo").
+2. **Integração Silenciosa no Final do Cron (`cron_playwright.py`):**
+   * Configurado o cron para disparar `identificar_duplicatas.py --detect-only` logo após as rotinas de curadoria automática de imagens.
+   * O script analisa a base e imprime um bloco informativo com as top 10 potenciais duplicatas nos logs diários de forma 100% não-bloqueante (sem parar o script).
+3. **Assistente Interativo no Painel de Controle (`gerenciador.py`):**
+   * Adicionado o assistente interativo na Categoria 4 como opção `[4] Assistente de Duplicatas Inteligente (Fuzzy Matching)`.
+   * Permite revisar os potenciais duplicados um por um na tela do terminal e efetuar a mesclagem imediata das ofertas e exclusão do duplicado secundário apenas apertando uma tecla (`1` ou `2`).
