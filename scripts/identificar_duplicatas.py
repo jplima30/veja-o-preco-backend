@@ -195,21 +195,37 @@ def rodar_assistente_interativo():
         data_a = doc_a.to_dict()
         data_b = doc_b.to_dict()
         
+        n1 = data_a.get("nome", "").lower().strip()
+        n2 = data_b.get("nome", "").lower().strip()
+        w1 = set(n1.split())
+        w2 = set(n2.split())
+        
+        import difflib
+        raz_direta = difflib.SequenceMatcher(None, n1, n2).ratio()
+        t1 = " ".join(sorted(n1.split()))
+        t2 = " ".join(sorted(n2.split()))
+        raz_token = difflib.SequenceMatcher(None, t1, t2).ratio()
+        
+        intersec = w1.intersection(w2)
+        min_words = len(w1) if len(w1) < len(w2) else len(w2)
+        overlap = len(intersec) / min_words if min_words > 0 else 0
+        
         os.system("clear")
         print(f"=========================================================")
-        print(f"⚠️  POTENCIAL DUPLICATA ({atual + 1}/{total}) - SCORE: {score*100:.1f}%")
+        print(f"⚠️  POTENCIAL DUPLICATA ({atual + 1}/{total})")
+        print(f"   Similaridade: {max(raz_direta, raz_token)*100:.1f}% | Overlap: {overlap*100:.1f}%")
         print(f"=========================================================")
         
-        has_img_a = "✅ Sim" if data_a.get("imagem_url") else "❌ Não"
-        has_img_b = "✅ Sim" if data_b.get("imagem_url") else "❌ Não"
+        img_url_a = data_a.get("imagem_url", "")
+        img_url_b = data_b.get("imagem_url", "")
         
         print(f" [A] ID: {id_a}")
         print(f"     Nome:   {data_a.get('nome')} ({data_a.get('unidade')})")
-        print(f"     Imagem: [{has_img_a}]")
+        print(f"     Foto:   {img_url_a if img_url_a else '❌ Sem imagem'}")
         print("-" * 57)
         print(f" [B] ID: {id_b}")
         print(f"     Nome:   {data_b.get('nome')} ({data_b.get('unidade')})")
-        print(f"     Imagem: [{has_img_b}]")
+        print(f"     Foto:   {img_url_b if img_url_b else '❌ Sem imagem'}")
         print("=========================================================")
         print(" O que deseja fazer?")
         print("   [1] Sim, mesclar B para A (Mantém o item [A])")
