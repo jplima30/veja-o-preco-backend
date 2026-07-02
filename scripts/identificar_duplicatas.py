@@ -215,10 +215,11 @@ def rodar_assistente_interativo():
         print("   [1] Sim, mesclar B para A (Mantém o item [A])")
         print("   [2] Sim, mesclar A para B (Mantém o item [B])")
         print("   [3] Ignorar este par e ir para o próximo")
+        print("   [4] ⚡ Executar mesclagem automática para todas as palavras idênticas")
         print("   [0] Sair do assistente")
         print("=========================================================")
         
-        opcao = input("👉 Escolha uma opção [0-3]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-4]: ").strip()
         
         if opcao == "0":
             break
@@ -240,6 +241,69 @@ def rodar_assistente_interativo():
             atual += 1
         elif opcao == "3":
             atual += 1
+        elif opcao == "4":
+            print("\n=========================================================")
+            print("🔄 INICIANDO MESCLAGEM AUTOMÁTICA EM LOTE...")
+            print("=========================================================")
+            total_mesclados = 0
+            ids_removidos = set()
+            
+            for idx_check in range(atual, total):
+                id_a_ch, data_a_ch, id_b_ch, data_b_ch, score_ch = duplicatas[idx_check]
+                if id_a_ch in ids_removidos or id_b_ch in ids_removidos:
+                    continue
+                    
+                n1 = data_a_ch.get("nome", "").lower().strip()
+                n2 = data_b_ch.get("nome", "").lower().strip()
+                
+                w1 = sorted(n1.split())
+                w2 = sorted(n2.split())
+                
+                if w1 != w2:
+                    continue
+                    
+                has_img_a = bool(data_a_ch.get("imagem_url"))
+                has_img_b = bool(data_b_ch.get("imagem_url"))
+                
+                if has_img_a and not has_img_b:
+                    id_manter = id_a_ch
+                    id_deletar = id_b_ch
+                elif has_img_b and not has_img_a:
+                    id_manter = id_b_ch
+                    id_deletar = id_a_ch
+                else:
+                    if id_a_ch <= id_b_ch:
+                        id_manter = id_a_ch
+                        id_deletar = id_b_ch
+                    else:
+                        id_manter = id_b_ch
+                        id_deletar = id_a_ch
+                        
+                print(f"🔀 Auto-mesclando: '{id_deletar}' ➡️ '{id_manter}'")
+                try:
+                    if mesclar_produtos_firestore(id_deletar, id_manter):
+                        ids_removidos.add(id_deletar)
+                        total_mesclados += 1
+                except Exception as e:
+                    print(f"   ❌ Erro: {e}")
+            
+            print(f"\n✨ Concluído! {total_mesclados} duplicatas exatas resolvidas.")
+            print("⏳ Recarregando lista de duplicatas do Firestore...")
+            time.sleep(2)
+            
+            try:
+                duplicatas = buscar_duplicatas_potenciais()
+                total = len(duplicatas)
+                atual = 0
+            except Exception as e:
+                print(f"❌ Erro ao recarregar: {e}")
+                input("Pressione Enter para continuar...")
+                break
+                
+            if not duplicatas:
+                print("\n✨ Nenhuma duplicata restante encontrada!")
+                input("Pressione Enter para continuar...")
+                break
         else:
             print("⚠️ Opção inválida.")
             time.sleep(1)

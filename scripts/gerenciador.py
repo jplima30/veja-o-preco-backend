@@ -150,11 +150,10 @@ def menu_curadoria():
         print("  [2] 🔄 Mesclagem Automática de Produtos (Lote completo)")
         print("  [3] ✂️  Mesclagem Manual de Produtos (União Cirúrgica)")
         print("  [4] 🧠 Assistente de Duplicatas Inteligente (Fuzzy Matching)")
-        print("  [5] 🔀 Mesclar Duplicatas por Ordem de Palavras (Automático)")
-        print("  [6] 🔞 Limpar Bebidas Alcoólicas / Proibidas (limpar_bebidas.py)")
+        print("  [5] 🔞 Limpar Bebidas Alcoólicas / Proibidas (limpar_bebidas.py)")
         print("  [0] 🔙 Voltar ao Menu Principal")
         print("=========================================================")
-        opcao = input("👉 Escolha uma opção [0-6]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-5]: ").strip()
         
         if opcao == "0":
             break
@@ -173,8 +172,6 @@ def menu_curadoria():
         elif opcao == "4":
             executar_script(VENV_FUNCTIONS, "identificar_duplicatas.py")
         elif opcao == "5":
-            executar_script(VENV_FUNCTIONS, "identificar_duplicatas.py", ["--auto-merge-exact-words"])
-        elif opcao == "6":
             executar_script(VENV_FUNCTIONS, "limpar_bebidas.py")
 
 def menu_relatorios():
