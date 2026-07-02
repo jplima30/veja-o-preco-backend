@@ -813,8 +813,14 @@ if __name__ == "__main__":
         venv_functions_python = os.path.join(os.path.dirname(__file__), "..", "functions", "venv", "bin", "python3")
         subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
         
+        print("\n" + "="*60)
+        print("🔍 [DIAGNÓSTICO] Verificando duplicatas potenciais no Firestore...")
+        print("="*60)
+        script_duplicatas = os.path.join(os.path.dirname(__file__), "identificar_duplicatas.py")
+        subprocess.run([venv_functions_python, script_duplicatas, "--detect-only"], check=True)
+        
     except Exception as e:
-        print(f"⚠️ Erro ao iniciar triagem ou automação de imagens: {e}")
+        print(f"⚠️ Erro ao iniciar triagem, automação de imagens ou diagnóstico: {e}")
     
     print("\n=========================================================")
     print("🏁 CRON LOCAL FINALIZADO COM SUCESSO!")
