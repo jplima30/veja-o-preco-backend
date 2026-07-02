@@ -149,10 +149,11 @@ def menu_curadoria():
         print("  [1] 🖼️  Abrir Central de Imagens Interativa (central_imagens.py)")
         print("  [2] 🔄 Mesclagem Automática de Produtos (Lote completo)")
         print("  [3] ✂️  Mesclagem Manual de Produtos (União Cirúrgica)")
-        print("  [4] 🔞 Limpar Bebidas Alcoólicas / Proibidas (limpar_bebidas.py)")
+        print("  [4] 🧠 Assistente de Duplicatas Inteligente (Fuzzy Matching)")
+        print("  [5] 🔞 Limpar Bebidas Alcoólicas / Proibidas (limpar_bebidas.py)")
         print("  [0] 🔙 Voltar ao Menu Principal")
         print("=========================================================")
-        opcao = input("👉 Escolha uma opção [0-4]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-5]: ").strip()
         
         if opcao == "0":
             break
@@ -169,6 +170,8 @@ def menu_curadoria():
                 print("⚠️ Erro: Ambos os IDs são necessários para a mesclagem.")
                 input("\nPressione Enter para continuar...")
         elif opcao == "4":
+            executar_script(VENV_FUNCTIONS, "identificar_duplicatas.py")
+        elif opcao == "5":
             executar_script(VENV_FUNCTIONS, "limpar_bebidas.py")
 
 def menu_relatorios():
