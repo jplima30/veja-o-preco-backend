@@ -94,20 +94,24 @@ def curar_imagens():
     print("=========================================================\n")
     
     # Seleção de Modo
-    print("Selecione o modo de curação desejado:")
-    print("  [1] Apenas produtos totalmente SEM IMAGEM (Crítico) [Padrão]")
-    print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
-    print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
-    print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
-    print("  [5] PILOTO AUTOMÁTICO (Busca no DuckDuckGo Images em lote 100% silencioso)")
-    
-    opcao_modo = input("\n👉 Digite a opção desejada [1-5] (ou Enter para a Padrão 1): ").strip()
-    if not opcao_modo:
-        opcao_modo = "1"
+    if "--autopilot" in sys.argv or "--piloto" in sys.argv:
+        opcao_modo = "5"
+        print("🤖 [AUTOPILOT] Selecionado modo Piloto Automático automaticamente via argumento.")
+    else:
+        print("Selecione o modo de curação desejado:")
+        print("  [1] Apenas produtos totalmente SEM IMAGEM (Crítico) [Padrão]")
+        print("  [2] Apenas produtos com recortes RECENTES da IA (auto_crop)")
+        print("  [3] Apenas recortes da IA que já foram ACEITOS anteriormente (auto_crop_aceito)")
+        print("  [4] Tudo (Sem imagem + Recortes recentes + Recortes aceitos)")
+        print("  [5] PILOTO AUTOMÁTICO (Busca no DuckDuckGo Images em lote 100% silencioso)")
         
-    if opcao_modo not in ("1", "2", "3", "4", "5"):
-        print("❌ Opção inválida. Encerrando.")
-        return
+        opcao_modo = input("\n👉 Digite a opção desejada [1-5] (ou Enter para a Padrão 1): ").strip()
+        if not opcao_modo:
+            opcao_modo = "1"
+            
+        if opcao_modo not in ("1", "2", "3", "4", "5"):
+            print("❌ Opção inválida. Encerrando.")
+            return
 
     db, bucket = inicializar_firebase()
     
