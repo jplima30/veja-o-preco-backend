@@ -469,3 +469,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Configurada a opção `[3] Ignorar` no assistente interativo para salvar o par de produtos ignorados na coleção `/duplicatas_ignoradas` em tempo real.
 3. **Integração no Escaneador Geral:**
    * Atualizada a função `buscar_duplicatas_potenciais()` para carregar todas as chaves ignoradas no início do processo e filtrá-las do loop de similaridades. Isso impede que os falsos positivos apareçam tanto no painel interativo quanto nos alertas silenciosos do Cron diário.
+
+---
+
+**Sessão 34 (Controle de Popups do Instagram no Playwright)**
+
+**Data:** 03 de Julho de 2026
+**Objetivo:** Resolver erros de captura de frames de vídeo (Timeouts de screenshots) causados por overlays/popups de geolocalização e notificações que o Instagram exibe durante as navegações automáticas do Cron.
+
+### Implementações:
+1. **Auto-concessão de Permissões no Playwright:**
+   * Injetado o parâmetro `permissions=["geolocation", "notifications"]` na inicialização do navegador persistente (`launch_persistent_context`) e na criação de contexto temporário fallback (`new_context`). Isso faz com que o Chromium conceda automaticamente essas permissões no nível de sistema operacional sem levantar popups visuais.
+2. **Helper de Modais Web (`tratar_popups_instagram`):**
+   * Desenvolvida a função `tratar_popups_instagram(page)` no script `cron_playwright.py` para fechar modais HTML e overlays que aparecem durante o aquecimento da home do Instagram e após abrir perfis de lojas. Ela detecta e clica em botões de dispersão/fechamento (ex: `"Agora não"`, `"Cancelar"`, `"Não permitir"`, `"Permitir"`, `"Not now"`).
+3. **Resiliência do Crawler:**
+   * Com os popups contidos e fechados de forma proativa, os elementos de vídeo e posts ficam totalmente desimpedidos na tela, eliminando as falhas de timeouts nas capturas de tela dos frames para triagem OCR.
