@@ -59,6 +59,96 @@ def normalizar_unidade(unidade: str) -> str:
         return "g"
     return u
 
+
+def normalizar_categoria(categoria: str) -> str:
+    """
+    Padroniza categorias de produtos para evitar duplicações de cadastro e alinhar com o App.
+    Mapeia variações ortográficas e setores correlatos (como rotisseria -> PADARIA).
+    """
+    if not categoria:
+        return "ALIMENTOS"
+    
+    c = categoria.strip().lower()
+    
+    # 1. Higiene / Limpeza baseados na categoria original do banco
+    if any(x in c for x in ["limpeza", "detergente", "sabão", "sabao"]):
+        return "LIMPEZA"
+    if any(x in c for x in ["higiene", "perfumaria", "cosmético", "cosmetico", "shampoo", "sabonete"]):
+        return "HIGIENE"
+
+    # Exclusões de produtos industrializados/mercearia para evitar falsos positivos
+    if any(term in c for term in ["farofa", "extrato", "molho", "sachê", "sache", "tempero", "caldo", "conserva", "ração", "racao"]):
+        return "ALIMENTOS"
+
+    # 2. BEBIDAS (Avaliar antes de Hortifruti para evitar que suco de uva vire Hortifruti)
+    termos_bebidas = [
+        "refrigerante", "coca-cola", "coca cola", "fanta", "guaraná", "guarana", "suco", 
+        "del valle", "ades", "red bull", "monster", "bebida láctea", "bebida lactea", "gatorade", 
+        "água mineral", "agua mineral", "h2oh", "tônica", "tonica"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_bebidas):
+        if "lámen" in c or "lamen" in c or "miojo" in c:
+            return "ALIMENTOS"
+        return "BEBIDAS"
+
+    # 3. CARNES
+    termos_carnes = [
+        "carne", "picanha", "alcatra", "músculo", "musculo", "peito de frango", "sobrecoxa", 
+        "asa", "coração", "coracao", "linguiça", "linguica", "salsicha", "tambaqui", "peixe", 
+        "filé", "file", "bovino", "suíno", "suino", "frango", "bacalhau", "salame", "mortadela",
+        "presunto", "costelinha", "chouriço", "chourico", "pernil", "paleta"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_carnes):
+        if "ração" in c or "racao" in c:
+            return "ALIMENTOS"
+        return "CARNES"
+        
+    # 4. HORTIFRUTI
+    termos_horti = [
+        "limão", "limao", "banana", "maçã", "maca", "uva", "abacaxi", "mamão", "mamao", 
+        "laranja", "cebola", "alho", "tomate", "batata", "cenoura", "ovos", "ovo", "cheiro verde", 
+        "coentro", "pimentão", "pimentao", "abóbora", "abobora", "morango", "melancia", 
+        "alface", "repolho", "coentro", "cheiro-verde", "cebolinha"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_horti):
+        return "HORTIFRUTI"
+        
+    # 5. PADARIA
+    termos_padaria = [
+        "pão", "pao", "bisnaguinha", "bolo", "torta", "torrada", "croissant", 
+        "pão de queijo", "pao de queijo", "brioche", "cookie", "donuts"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_padaria):
+        if "bolota" in c:
+            return "ALIMENTOS"
+        return "PADARIA"
+        
+    if re.search(r'\bsalgado\b', c):
+        if not any(x in c for x in ["amendoim", "camarão", "camarao", "peixe", "castanha"]):
+            return "PADARIA"
+            
+    # 6. HIGIENE
+    termos_higiene = [
+        "shampoo", "sabonete", "creme dental", "pasta de dente", "colgate", "sensodyne", 
+        "fio dental", "desodorante", "rexona", "nivea", "dove", "absorvente", "fralda", 
+        "condicionador", "hidratante", "protetor solar", "óleo capilar", "oleo capilar", 
+        "tintura", "maxton", "aparelho de barbear", "gillette", "listerine", "colônia", "colonia", "esmalte"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_higiene):
+        return "HIGIENE"
+
+    # 7. LIMPEZA
+    termos_limpeza = [
+        "detergente", "sabão", "sabao", "amaciante", "desinfetante", "lava-louças", "lavaloucas", 
+        "clorox", "veja", "ypê", "ype", "omo", "brilhante", "tixan", "downy", "comfort", 
+        "papel higiênico", "papel higienico", "esponja", "lã de aço", "la de aco", "bombril"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_limpeza):
+        return "LIMPEZA"
+
+    return "ALIMENTOS"
+
+
 def limpar_nome_promocional(nome: str) -> str:
     """
     Remove do nome do produto termos e slogans promocionais como:
@@ -328,6 +418,8 @@ def salvar_produto_e_oferta(
     if categoria.upper() in categorias_proibidas:
         print(f"  🚫 Oferta bloqueada por CATEGORIA PROIBIDA: {categoria} - {nome}")
         return {"produto_id": produto_id, "salvo": False, "motivo": "categoria_proibida"}
+
+    categoria = normalizar_categoria(categoria)
 
     # 2. Lista de Palavras Proibidas (Safety Net)
     palavras_proibidas = [
@@ -1258,7 +1350,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
             
             FOCO PRINCIPAL: 
-            Todos os itens de supermercado devem ser extraídos (Alimentação, Mercearia, Hortifruti, Carnes, Higiene, Limpeza, etc.).
+            Todos os itens de supermercado devem ser extraídos e classificados entre: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA.
             
             REGRAS DE OURO:
             1. Extraia o máximo de itens possível.
@@ -1274,7 +1366,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME COMPLETO DO PRODUTO (Ex: Arroz Tio Urbano 5kg)",
                         "preco": 0.0,
                         "unidade": "un/kg/pacote",
-                        "categoria": "Alimentos/Higiene/Limpeza/Hortifruti/Carnes",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA",
                         "imagem": "URL se houver no PDF ou deixe vazio",
                         "validade": "Data de validade da oferta se encontrada"
                     }
@@ -1560,7 +1652,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             Analise a imagem(ns) ou os quadros de vídeo do encarte em anexo.
             
             FOCO TOTAL (Whitelist):
-            Extraia APENAS itens de supermercado das categorias: ALIMENTAÇÃO, HIGIENE e LIMPEZA.
+            Extraia APENAS itens de supermercado das categorias: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA.
             
             BLOQUEIO ABSOLUTO (Ignore Completamente):
             1. Bebidas Alcoólicas (Cerveja, Vinho, Whisky, etc.).
@@ -1583,7 +1675,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME",
                         "preco": 0.0,
                         "unidade": "un",
-                        "categoria": "CATEGORIA",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA",
                         "validade": "DATA SE HOUVER",
                         "box_2d": [ymin, xmin, ymax, xmax],
                         "quadro_index": 0

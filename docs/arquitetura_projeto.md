@@ -484,3 +484,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Desenvolvida a função `tratar_popups_instagram(page)` no script `cron_playwright.py` para fechar modais HTML e overlays que aparecem durante o aquecimento da home do Instagram e após abrir perfis de lojas. Ela detecta e clica em botões de dispersão/fechamento (ex: `"Agora não"`, `"Cancelar"`, `"Não permitir"`, `"Permitir"`, `"Not now"`).
 3. **Resiliência do Crawler:**
    * Com os popups contidos e fechados de forma proativa, os elementos de vídeo e posts ficam totalmente desimpedidos na tela, eliminando as falhas de timeouts nas capturas de tela dos frames para triagem OCR.
+
+---
+
+**Sessão 35 (Refatoração de Categorias e Migração de Catálogo)**
+
+**Data:** 03 de Julho de 2026
+**Objetivo:** Implementar normalização de categorias no backend (unificando e mapeando nomenclaturas proprietárias e produtos de rotisseria/lanchonete) e realizar a migração em lote de todos os produtos (1.645) e ofertas ativas (520) no Firestore para as novas categorias do app.
+
+### Implementações:
+1. **Normalizador de Categorias (`normalizar_categoria`):**
+   * Desenvolvida a função `normalizar_categoria(categoria)` no [functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py) com lógica de casamento de palavras inteiras (regex `\b`) e exclusões para produtos industrializados/processados (como farofa e extrato).
+   * Mapeadas as novas categorias do app: `ALIMENTOS`, `CARNES`, `HORTIFRUTI`, `PADARIA`, `BEBIDAS`, `HIGIENE`, `LIMPEZA` (direcionando lanchonete/rotisseria para `PADARIA`).
+2. **Atualização de Prompts do Gemini:**
+   * Atualizados os prompts de extração de PDF (Mateus/Assaí) e Visão (Instagram) no `main.py` para classificar os produtos diretamente nas 7 novas categorias.
+3. **Script de Migração do Firestore (`scripts/reclassificar_categorias.py`):**
+   * Criado utilitário de migração em lote com `WriteBatch` do Firestore. O script processou e atualizou 1.645 produtos e as ofertas ativas no banco de dados com 100% de sucesso.
