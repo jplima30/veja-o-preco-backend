@@ -454,3 +454,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 5. **Sistema Dinâmico de Sinônimos/Aliases (Firestore):**
    * Criada a coleção `/sinonimos` no Firestore. Ao mesclar/deletar qualquer duplicata B em A, grava-se o redirecionamento `B ➡️ A`.
    * O Cloud Functions (`functions/main.py`) intercepta todas as inserções/lotes e desvia o tráfego do ID duplicado para o ID correto em tempo real. O banco "aprende" e impede re-ingestão de duplicidades.
+
+---
+
+**Sessão 33 (Filtro Permanente de Falsos Positivos de Duplicatas)**
+
+**Data:** 03 de Julho de 2026
+**Objetivo:** Implementar um mecanismo para que decisões de "Ignorar" (Opção 3) no assistente interativo de duplicatas sejam persistidas permanentemente no Firestore, evitando que produtos parecidos mas legítimos fiquem reaparecendo nas próximas varreduras do assistente ou nos relatórios diários do Cron.
+
+### Implementações:
+1. **Coleção de Blacklist no Firestore (`duplicatas_ignoradas`):**
+   * Criada a coleção `/duplicatas_ignoradas` no Firestore para armazenar chaves exclusivas de pares de IDs de produtos legítimos desconsiderados (chave formada por `id_menor_vs_id_maior`).
+2. **Atualização do Assistente CLI (`scripts/identificar_duplicatas.py`):**
+   * Configurada a opção `[3] Ignorar` no assistente interativo para salvar o par de produtos ignorados na coleção `/duplicatas_ignoradas` em tempo real.
+3. **Integração no Escaneador Geral:**
+   * Atualizada a função `buscar_duplicatas_potenciais()` para carregar todas as chaves ignoradas no início do processo e filtrá-las do loop de similaridades. Isso impede que os falsos positivos apareçam tanto no painel interativo quanto nos alertas silenciosos do Cron diário.

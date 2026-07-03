@@ -44,6 +44,11 @@ def buscar_duplicatas_potenciais() -> list:
     Varre o Firestore, aplica a heurística e retorna lista de tuplas de duplicatas:
     [(prod_a_id, prod_a_data, prod_b_id, prod_b_data, razao_max)]
     """
+    # Carrega duplicatas ignoradas para filtrar do escaneamento
+    ignorados_ref = db.collection("duplicatas_ignoradas")
+    ignorados_docs = list(ignorados_ref.stream())
+    pares_ignorados = {doc.id for doc in ignorados_docs}
+
     produtos_ref = db.collection("produtos")
     docs = list(produtos_ref.stream())
     
@@ -67,6 +72,11 @@ def buscar_duplicatas_potenciais() -> list:
         for j in range(i + 1, total):
             id_b, data_b, name_b, nums_b, words_b = produtos[j]
             
+            # Filtro de ignorados (ordena alfabeticamente para a chave única)
+            chave_ignorado = f"{id_a}_vs_{id_b}" if id_a < id_b else f"{id_b}_vs_{id_a}"
+            if chave_ignorado in pares_ignorados:
+                continue
+
             # Heurística rápida 1: Se os números forem diferentes (ex: 200g vs 395g), pula
             if nums_a != nums_b:
                 continue
@@ -262,6 +272,17 @@ def rodar_assistente_interativo():
             time.sleep(1)
             atual += 1
         elif opcao == "3":
+            print(f"\n⏳ Registrando este par como falso positivo ignorado...")
+            chave_ignorado = f"{id_a}_vs_{id_b}" if id_a < id_b else f"{id_b}_vs_{id_a}"
+            try:
+                db.collection("duplicatas_ignoradas").document(chave_ignorado).set({
+                    "ignorado": True,
+                    "atualizado_em": firestore.SERVER_TIMESTAMP
+                })
+                print("✅ Par ignorado permanentemente!")
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar ignorados: {e}")
+            time.sleep(1)
             atual += 1
         elif opcao == "4":
             print("\n=========================================================")
