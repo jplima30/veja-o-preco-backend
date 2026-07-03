@@ -151,9 +151,10 @@ def menu_curadoria():
         print("  [3] ✂️  Mesclagem Manual de Produtos (União Cirúrgica)")
         print("  [4] 🧠 Assistente de Duplicatas Inteligente (Fuzzy Matching)")
         print("  [5] 🔞 Limpar Bebidas Alcoólicas / Proibidas (limpar_bebidas.py)")
+        print("  [6] 🧹 Assistente de Auditoria de Categorias (auditar_categorias.py)")
         print("  [0] 🔙 Voltar ao Menu Principal")
         print("=========================================================")
-        opcao = input("👉 Escolha uma opção [0-5]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-6]: ").strip()
         
         if opcao == "0":
             break
@@ -173,6 +174,8 @@ def menu_curadoria():
             executar_script(VENV_FUNCTIONS, "identificar_duplicatas.py")
         elif opcao == "5":
             executar_script(VENV_FUNCTIONS, "limpar_bebidas.py")
+        elif opcao == "6":
+            executar_script(VENV_FUNCTIONS, "auditar_categorias.py")
 
 def menu_relatorios():
     while True:

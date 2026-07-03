@@ -857,6 +857,12 @@ if __name__ == "__main__":
         script_duplicatas = os.path.join(os.path.dirname(__file__), "identificar_duplicatas.py")
         subprocess.run([venv_functions_python, script_duplicatas, "--detect-only"], check=True)
         
+        print("\n" + "="*60)
+        print("🧹 [AUDITORIA] Verificando suspeitas de categorias incorretas...")
+        print("="*60)
+        script_auditoria = os.path.join(os.path.dirname(__file__), "auditar_categorias.py")
+        subprocess.run([venv_functions_python, script_auditoria, "--detect-only"], check=True)
+        
     except Exception as e:
         print(f"⚠️ Erro ao iniciar triagem, automação de imagens ou diagnóstico: {e}")
     
