@@ -500,3 +500,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Atualizados os prompts de extração de PDF (Mateus/Assaí) e Visão (Instagram) no `main.py` para classificar os produtos diretamente nas 7 novas categorias.
 3. **Script de Migração do Firestore (`scripts/reclassificar_categorias.py`):**
    * Criado utilitário de migração em lote com `WriteBatch` do Firestore. O script processou e atualizou 1.645 produtos e as ofertas ativas no banco de dados com 100% de sucesso.
+
+---
+
+**Sessão 36 (Assistente de Auditoria de Categorias e Integração no Cron)**
+
+**Data:** 03 de Julho de 2026
+**Objetivo:** Desenvolver uma ferramenta de auditoria semântica de categorias ("pente fino") utilizando inteligência artificial em lote (Gemini 3.1 Flash Lite) para revisar produtos que caíram no fallback de `ALIMENTOS`, integrar a verificação de forma silenciosa no final da execução diária do Cron, e adicionar a interface interativa no painel gerenciador.
+
+### Implementações:
+1. **Script de Auditoria Inteligente (`scripts/auditar_categorias.py`):**
+   * Desenvolvido script que consome lotes de até 100 produtos da categoria `ALIMENTOS` e os envia para o Gemini 3.1 Flash Lite revisar se pertencem semanticamente a categorias mais específicas (`CARNES`, `HORTIFRUTI`, `BEBIDAS`, `PADARIA`, `HIGIENE`, `LIMPEZA`).
+   * Adicionado suporte a chaves dinâmicas recuperadas diretamente do GCP Secret Manager via CLI `gcloud secrets` caso a chave local não esteja no ambiente.
+   * Modos: Interativo (correção com escolhas no console) e `--detect-only` (silencioso para logs).
+2. **Integração no Cron Diário (`scripts/cron_playwright.py`):**
+   * Configurada a execução de `auditar_categorias.py --detect-only` no bloco final do Cron de captação de ofertas. Isso gera alertas automáticos de suspeitas de categorização nos logs diários.
+3. **Integração no Gerenciador (`scripts/gerenciador.py`):**
+   * Adicionada a opção `[6] Assistente de Auditoria de Categorias` no submenu de Curadoria e Higienização, permitindo a limpeza interativa manual das suspeitas geradas pelo Cron.
