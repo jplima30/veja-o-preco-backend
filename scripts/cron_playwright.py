@@ -484,11 +484,43 @@ def processar_mateus_site(page, historico, force=False):
     except Exception as e:
         print(f"  ❌ Erro crítico ao processar site do Mateus: {e}")
 
+def tratar_popups_instagram(page) -> bool:
+    """
+    Tenta fechar popups/modais indesejados (ex: localização, notificações, cookies)
+    que bloqueiam a tela do Instagram.
+    """
+    try:
+        selectors = [
+            "button:has-text('Agora não')",
+            "button:has-text('Not now')",
+            "button:has-text('Cancelar')",
+            "button:has-text('Cancel')",
+            "button:has-text('Não permitir')",
+            "button:has-text('Ativar')",
+            "button:has-text('Allow')",
+            "button:has-text('Permitir')"
+        ]
+        for sel in selectors:
+            loc = page.locator(sel)
+            if loc.count() > 0:
+                for i in range(loc.count()):
+                    el = loc.nth(i)
+                    if el.is_visible():
+                        print(f"  💡 Detectado popup do Instagram. Fechando clicando em: '{sel}'")
+                        el.click(timeout=3000)
+                        time.sleep(1.0)
+                        return True
+    except Exception as e:
+        pass
+    return False
+
+
 def processar_instagram(page, historico, force=False):
     print("\n🌡️ [AQUECIMENTO] Acessando a página inicial do Instagram primeiro para gerar cookies/sessão naturais...")
     try:
         page.goto("https://www.instagram.com/", timeout=60000)
         time.sleep(random.uniform(3.0, 5.0))
+        tratar_popups_instagram(page)
         page.mouse.move(random.randint(100, 500), random.randint(100, 500))
         page.mouse.wheel(0, random.randint(300, 800))
         time.sleep(random.uniform(2.0, 4.0))
@@ -515,6 +547,10 @@ def processar_instagram(page, historico, force=False):
             time.sleep(random.uniform(1.5, 3.5))
             page.goto(f"https://www.instagram.com/{alvo['username']}/", timeout=60000)
             print(f"  ⏳ Aguardando carregamento da grade de posts (Modo Humano)...")
+            
+            # Limpa popups de localização/notificações no carregamento do perfil
+            time.sleep(2.0)
+            tratar_popups_instagram(page)
             
             # Movimento errático de mouse antes de esperar
             page.mouse.move(random.randint(100, 500), random.randint(100, 500))
@@ -749,7 +785,8 @@ if __name__ == "__main__":
                 user_agent=modern_user_agent,
                 locale="pt-BR",
                 timezone_id="America/Sao_Paulo",
-                no_viewport=False # Importante para manter o estado da janela
+                no_viewport=False, # Importante para manter o estado da janela
+                permissions=["geolocation", "notifications"]
             )
         except Exception as e:
             print("\n" + "!"*60)
@@ -770,7 +807,8 @@ if __name__ == "__main__":
                 viewport={"width": 1920, "height": 1080},
                 user_agent=modern_user_agent,
                 locale="pt-BR",
-                timezone_id="America/Sao_Paulo"
+                timezone_id="America/Sao_Paulo",
+                permissions=["geolocation", "notifications"]
             )
 
         if len(browser.pages) > 0:
