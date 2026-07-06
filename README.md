@@ -75,25 +75,50 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 
 ## 🛠️ Operação e Testes
 
-> [!TIP]
-> Para rodar os robôs ou validar os scrapers manualmente, consulte o **[Guia de Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local)**.
+Para simplificar a rotina de execução e testes, o projeto disponibiliza um painel central interativo que gerencia os ambientes virtuais automaticamente.
 
-**Painel de Controle do Backend (Recomendado):**
-O painel centraliza todas as operações diárias, curadorias de imagens, auditorias e testes:
+> [!TIP]
+> Para mais detalhes operacionais e comandos manuais alternativos, consulte o **[Guia de Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local)** na Wiki.
+
+### ⚡ Painel de Controle do Backend (Recomendado)
+Centraliza todas as rotinas operacionais cotidianas de captura, triagem, curadoria e auditoria:
 ```bash
 python3 scripts/gerenciador.py
 ```
 
-### 🧹 Higienização e Qualidade de Dados (CLI)
-Dentro da **Categoria 4** do gerenciador, você encontra ferramentas inteligentes para curadoria:
-* **Fuzzy Matching (`identificar_duplicatas.py`)** — Encontra produtos similares duplicados no Firestore e permite ignorar (adicionando à blacklist persistente `/duplicatas_ignoradas`) ou mesclar.
-* **Mesclagem Cirúrgica (`mesclar_produtos.py`)** — Une dois produtos, transfere o histórico de ofertas, herda imagens de forma inteligente e registra a substituição na tabela de `/sinonimos`.
-* **Auditor de Categorias (`auditar_categorias.py`)** — Analisa semântica em lote via IA (Gemini 3.1 Flash Lite) para identificar e propor correções de itens que caíram incorretamente em `ALIMENTOS`. Roda também de forma silenciosa no final do Cron diário.
+O menu é estruturado nas seguintes abas:
+1. **🤖 Categoria 1: Coleta & Crawlers** — Disparo manual do robô Playwright (`cron_playwright.py`), renovação e salvamento de login do Instagram e leitura direta de logs de captura.
+2. **🔍 Categoria 2: Triagem & OCR** — Filtragem por OCR local (`triagem_automatizada.py`) para evitar envio de imagens sem ofertas e validação/teste da API do Gemini Vision.
+3. **🛒 Categoria 3: Conectores de Lojas** — Execução manual de validadores de rotinas e scrapers de redes específicas (Mix Mateus, Atacadão, Econômico, Guerreirão).
+4. **🧹 Categoria 4: Higienização & Curadoria** — Central interativa de imagens (`central_imagens.py`), mesclagem automática ou cirúrgica de produtos, fuzzy matching para identificação de duplicatas e o auditor automático de categorias.
+5. **📊 Categoria 5: Monitoramento & Relatórios** — Dashboard de cobertura das lojas e geração do resumo do volume de ofertas inseridas no dia.
+6. **🧪 Categoria 6: Testes & Ambiente** — Scripts para popular o banco local (`seed_firestore.py`), rodar testes de integração e validar o funcionamento do driver de navegadores.
 
-**Deploy das Cloud Functions:**
-```bash
-firebase deploy --only functions
-```
+---
+
+## 🚀 Deploy na Nuvem (Firebase Cloud Functions)
+
+Quando realizar alterações no código do backend localizados na pasta `functions/`, execute o deploy no Firebase:
+
+> [!IMPORTANT]
+> **Validação prévia:** Sempre verifique a sintaxe do arquivo de funções antes do deploy:
+> ```bash
+> python3 -m py_compile functions/main.py
+> ```
+
+*   **Deploy Geral (Todas as 11 Functions):**
+    ```bash
+    firebase deploy --only functions
+    ```
+
+*   **Deploy Cirúrgico (Individual por função):**
+    Útil para subir correções isoladas de forma muito mais rápida:
+    ```bash
+    firebase deploy --only functions:get_ofertas_do_dia
+    firebase deploy --only functions:buscar_encarte_assai
+    firebase deploy --only functions:extrair_dados_imagem
+    ```
+
 
 ---
 
