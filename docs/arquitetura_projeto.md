@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 06/07/2026 — Sessão 39: Criação da Categoria PET e Migração do Banco.*
+*Última atualização: 06/07/2026 — Sessão 40: Automatização e Trava de Segurança da Auditoria de Categorias.*
 
 ---
 
@@ -573,3 +573,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Desenvolvido e executado o script de migração no Firestore, resultando na reclassificação de **43 produtos** e **15 ofertas ativas** para a categoria `PET`.
 4. **Contrato de Dados:**
    * Atualizado o contrato de dados local ([CONTRATO_DADOS_PADRAO.md](file:///Users/jplima/Documents/veja-o-preco-backend/docs/CONTRATO_DADOS_PADRAO.md)) e na wiki ([Contrato-de-Dados.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Contrato-de-Dados.md)) para constar os 9 grupos oficiais.
+
+---
+
+**Sessão 40 (Automatização e Trava de Segurança da Auditoria de Categorias)**
+
+**Data:** 06 de Julho de 2026
+**Objetivo:** Automatizar a curadoria e correção semântica de categorias no Cron diário, implementando travas rígidas de validação de categorias, filtros de coerência (evitando desvios de doces para bebidas) e um coletor de lixo inteligente (`EXCLUIR`) para remover itens inválidos do Firestore, protegendo também as Cestas Básicas.
+
+### Implementações:
+1. **Auditoria Automática (`--auto-apply`):**
+   * Adicionado o modo `--auto-apply` no script [auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) para reclassificar ou excluir produtos e ofertas de forma automática e silenciosa.
+   * Modificado o script de Cron [cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py) para disparar o script de auditoria com `--auto-apply` ao término das capturas diárias.
+2. **Travas de Validação e Segurança (Python):**
+   * **Validação de Whitelist:** Descarte imediato de qualquer sugestão fora das 8 categorias oficiais do App, impedindo salvamento de tags inexistentes como `OUTROS`.
+   * **Bloqueio de Coerência de Doces:** Travas em código que impedem a reclassificação de caixas de bombom, chocolates e biscoitos para `BEBIDAS` ou `CARNES`.
+   * **Proteção de Cesta Básica:** Travas de segurança baseadas em palavras-chaves que proíbem que produtos contendo "cesta básica" ou "cesta basica" sejam deletados ou movidos. Elas permanecem em `ALIMENTOS`.
+3. **Coletor de Lixo Inteligente (`EXCLUIR`):**
+   * Instruído o Gemini a sugerir o termo `EXCLUIR` para itens de bazar (móveis, roupas, eletrônicos, etc.) que vazaram no scanner. Quando identificado, o script realiza a deleção do produto e de suas ofertas vinculadas no Firestore.
