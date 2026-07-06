@@ -79,9 +79,16 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 > Para rodar os robôs ou validar os scrapers manualmente, consulte o **[Guia de Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local)**.
 
 **Painel de Controle do Backend (Recomendado):**
+O painel centraliza todas as operações diárias, curadorias de imagens, auditorias e testes:
 ```bash
 python3 scripts/gerenciador.py
 ```
+
+### 🧹 Higienização e Qualidade de Dados (CLI)
+Dentro da **Categoria 4** do gerenciador, você encontra ferramentas inteligentes para curadoria:
+* **Fuzzy Matching (`identificar_duplicatas.py`)** — Encontra produtos similares duplicados no Firestore e permite ignorar (adicionando à blacklist persistente `/duplicatas_ignoradas`) ou mesclar.
+* **Mesclagem Cirúrgica (`mesclar_produtos.py`)** — Une dois produtos, transfere o histórico de ofertas, herda imagens de forma inteligente e registra a substituição na tabela de `/sinonimos`.
+* **Auditor de Categorias (`auditar_categorias.py`)** — Analisa semântica em lote via IA (Gemini 3.1 Flash Lite) para identificar e propor correções de itens que caíram incorretamente em `ALIMENTOS`. Roda também de forma silenciosa no final do Cron diário.
 
 **Deploy das Cloud Functions:**
 ```bash
