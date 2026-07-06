@@ -33,6 +33,8 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
 db = firestore.client()
 
+CATEGORIAS_VALIDAS = ["CARNES", "HORTIFRUTI", "PADARIA", "BEBIDAS", "HIGIENE", "LIMPEZA", "FRIOS_LATICINIOS", "PET"]
+
 def obter_sugestoes_gemini(produtos):
     key = obter_api_key()
     if not key:
@@ -47,6 +49,7 @@ def obter_sugestoes_gemini(produtos):
     prompt = f"""
     Você é um auditor de dados de supermercado de elite.
     Analise a lista de produtos abaixo (atualmente todos estão classificados como ALIMENTOS / Mercearia geral).
+    
     Identifique se algum deles pertence de forma mais adequada a uma das seguintes categorias específicas:
     - CARNES (Açougue, peixaria, frangos, embutidos)
     - HORTIFRUTI (Frutas, verduras, legumes, ovos frescos)
@@ -56,22 +59,29 @@ def obter_sugestoes_gemini(produtos):
     - LIMPEZA (Detergente, sabão em pó, desinfetantes, amaciantes, etc.)
     - FRIOS_LATICINIOS (Leite, queijos, presunto, mortadela, iogurtes, requeijão, manteiga, margarina, etc.)
     - PET (Rações, sachês úmidos pet, petiscos pet, tapetes higiênicos, coleiras, shampoos e sabonetes pet, etc.)
-
+    
+    AÇÃO DE EXCLUSÃO (Muito Importante):
+    - Se um produto NÃO for um item de supermercado core (como móveis/bazar, mesa/cadeiras, eletrônicos, TVs, eletrodomésticos pesados, roupas/vestuário, brinquedos, ou bebidas alcoólicas que vazaram no scanner), sugira a palavra especial EXCLUIR para a categoria sugerida.
+    
+    REGRAS SEMÂNTICAS OBRIGATÓRIAS:
+    - Doces, biscoitos, achocolatados, chocolates e sobremesas DEVEM permanecer em ALIMENTOS. NÃO sugira BEBIDAS, CARNES ou qualquer outra categoria para eles. Se analisar um chocolate, ignore-o (não o coloque na lista de sugestões).
+    - Não sugira NENHUMA categoria fora da lista acima + a palavra EXCLUIR. Não invente categorias como "OUTROS", "MÓVEIS", "BAZAR", etc.
+    
     Produtos a analisar:
     {lista_texto}
 
     Regras de Retorno:
     - Retorne APENAS um JSON no seguinte formato:
-    {{
+    {
         "sugestoes": [
-            {{
+            {
                 "id": "ID_DO_PRODUTO",
                 "nome": "NOME_DO_PRODUTO",
-                "categoria_sugerida": "CATEGORIA_SUGERIDA",
+                "categoria_sugerida": "CATEGORIA_SUGERIDA_OU_EXCLUIR",
                 "justificativa": "Breve justificativa"
-            }}
+            }
         ]
-    }}
+    }
     - Se todos os produtos estiverem classificados corretamente em ALIMENTOS, retorne "sugestoes" como uma lista vazia.
     - Não inclua comentários, Markdown ou tags no retorno, apenas o JSON puro.
     """
@@ -128,7 +138,28 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         sugestoes_totais.extend(sugestoes)
         time.sleep(1) # Intervalo preventivo de taxa
         
-    print(f"\n🎯 A IA identificou {len(sugestoes_totais)} suspeitas de categorias incorretas.", flush=True)
+    # 1.1 Filtragem rígida de segurança antes de processar
+    sugestoes_filtradas = []
+    for sug in sugestoes_totais:
+        prod_id = sug.get("id")
+        nome = sug.get("nome", "")
+        cat_sugerida = sug.get("categoria_sugerida", "").strip().upper()
+        
+        # Whitelist de categorias válidas + termo especial EXCLUIR
+        if cat_sugerida not in CATEGORIAS_VALIDAS and cat_sugerida != "EXCLUIR":
+            continue
+            
+        # Impede que doces e bombons sejam reclassificados incorretamente para Bebidas ou Carnes
+        nome_lower = nome.lower()
+        if any(x in nome_lower for x in ["bombom", "chocolate", "biscoito", "wafer", "doce", "achocolatado"]):
+            if cat_sugerida in ["BEBIDAS", "CARNES"]:
+                continue
+                
+        sugestoes_filtradas.append(sug)
+        
+    sugestoes_totais = sugestoes_filtradas
+        
+    print(f"\n🎯 A IA identificou {len(sugestoes_totais)} suspeitas válidas de categorias incorretas/exclusões.", flush=True)
     
     if not sugestoes_totais:
         print("✨ Nenhuma suspeita de classificação incorreta encontrada!", flush=True)
@@ -147,7 +178,7 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         for idx, sug in enumerate(sugestoes_totais):
             prod_id = sug.get("id")
             nome = sug.get("nome")
-            cat_sugerida = sug.get("categoria_sugerida")
+            cat_sugerida = sug.get("categoria_sugerida").strip().upper()
             justificativa = sug.get("justificativa")
             
             # Recarrega o produto para garantir estado atual
@@ -155,19 +186,35 @@ def auditar_categorias(detect_only=False, auto_apply=False):
             if not doc_prod.exists:
                 continue
                 
-            print(f"🤖 [{idx+1}/{len(sugestoes_totais)}] Atualizando {prod_id} para {cat_sugerida}...", flush=True)
-            print(f"   * Nome: {nome}")
-            print(f"   * Justificativa: {justificativa}")
-            
-            # Atualiza produto
-            db.collection("produtos").document(prod_id).update({"categoria": cat_sugerida})
-            # Atualiza ofertas ativas
-            ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
-            of_count = 0
-            for of_doc in ofertas_ref:
-                of_doc.reference.update({"categoria": cat_sugerida})
-                of_count += 1
-            print(f"   ✅ Atualizado! ({of_count} ofertas vinculadas).", flush=True)
+            if cat_sugerida == "EXCLUIR":
+                print(f"🤖 [{idx+1}/{len(sugestoes_totais)}] [AUTO-DELETE] Removendo {prod_id} do banco (Bazar/Alcoólico)...", flush=True)
+                print(f"   * Nome: {nome}")
+                print(f"   * Justificativa: {justificativa}")
+                
+                # Deleta produto
+                db.collection("produtos").document(prod_id).delete()
+                # Deleta ofertas ativas
+                ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+                of_count = 0
+                for of_doc in ofertas_ref:
+                    of_doc.reference.delete()
+                    of_count += 1
+                print(f"   ✅ Removido com sucesso! ({of_count} ofertas deletadas).", flush=True)
+            else:
+                print(f"🤖 [{idx+1}/{len(sugestoes_totais)}] [AUTO-UPDATE] Atualizando {prod_id} para {cat_sugerida}...", flush=True)
+                print(f"   * Nome: {nome}")
+                print(f"   * Justificativa: {justificativa}")
+                
+                # Atualiza produto
+                db.collection("produtos").document(prod_id).update({"categoria": cat_sugerida})
+                # Atualiza ofertas ativas
+                ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+                of_count = 0
+                for of_doc in ofertas_ref:
+                    of_doc.reference.update({"categoria": cat_sugerida})
+                    of_count += 1
+                print(f"   ✅ Atualizado! ({of_count} ofertas vinculadas).", flush=True)
+                
             total_reclassificados += 1
             time.sleep(0.3)
             
@@ -184,7 +231,7 @@ def auditar_categorias(detect_only=False, auto_apply=False):
     for idx, sug in enumerate(sugestoes_totais):
         prod_id = sug.get("id")
         nome = sug.get("nome")
-        cat_sugerida = sug.get("categoria_sugerida")
+        cat_sugerida = sug.get("categoria_sugerida").strip().upper()
         justificativa = sug.get("justificativa")
         
         # Recarrega o produto para garantir estado atual
@@ -192,17 +239,25 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         if not doc_prod.exists:
             continue
             
+        is_delete = (cat_sugerida == "EXCLUIR")
+            
         os.system("clear")
         print(f"Revisando suspeita [{idx+1}/{len(sugestoes_totais)}]:")
         print(f"---------------------------------------------------------")
         print(f"👉 Produto:    {nome}")
         print(f"🆔 ID:         {prod_id}")
         print(f"📦 Atual:      ALIMENTOS")
-        print(f"💡 Sugerida:   \033[92m{cat_sugerida}\033[0m")
+        if is_delete:
+            print(f"💡 Sugerida:   \033[91m{cat_sugerida} (EXCLUIR PRODUTO DO BANCO)\033[0m")
+        else:
+            print(f"💡 Sugerida:   \033[92m{cat_sugerida}\033[0m")
         print(f"📝 Justificativa: {justificativa}")
         print(f"---------------------------------------------------------")
         print("Escolha uma opção:")
-        print(f"  [1] \033[92mAceitar sugestão (Mover para {cat_sugerida})\033[0m")
+        if is_delete:
+            print("  [1] \033[91mConfirmar Exclusão (Deletar produto e ofertas do banco)\033[0m")
+        else:
+            print(f"  [1] \033[92mAceitar sugestão (Mover para {cat_sugerida})\033[0m")
         print("  [2] Rejeitar sugestão (Manter em ALIMENTOS)")
         print("  [3] Definir categoria manualmente")
         print("  [0] Parar auditoria e sair")
@@ -212,16 +267,24 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         if opcao == "0":
             break
         elif opcao == "1":
-            print(f"⏳ Atualizando {prod_id} para {cat_sugerida}...")
-            # Atualiza produto
-            db.collection("produtos").document(prod_id).update({"categoria": cat_sugerida})
-            # Atualiza ofertas ativas
-            ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
-            of_count = 0
-            for of_doc in ofertas_ref:
-                of_doc.reference.update({"categoria": cat_sugerida})
-                of_count += 1
-            print(f"✅ Atualizado! ({of_count} ofertas vinculadas atualizadas).")
+            if is_delete:
+                print(f"⏳ Deletando produto {prod_id} e suas ofertas...")
+                db.collection("produtos").document(prod_id).delete()
+                ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+                of_count = 0
+                for of_doc in ofertas_ref:
+                    of_doc.reference.delete()
+                    of_count += 1
+                print(f"✅ Deletado com sucesso! ({of_count} ofertas removidas).")
+            else:
+                print(f"⏳ Atualizando {prod_id} para {cat_sugerida}...")
+                db.collection("produtos").document(prod_id).update({"categoria": cat_sugerida})
+                ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+                of_count = 0
+                for of_doc in ofertas_ref:
+                    of_doc.reference.update({"categoria": cat_sugerida})
+                    of_count += 1
+                print(f"✅ Atualizado! ({of_count} ofertas vinculadas atualizadas).")
             total_reclassificados += 1
             time.sleep(1)
         elif opcao == "2":
@@ -242,7 +305,7 @@ def auditar_categorias(detect_only=False, auto_apply=False):
                 print("❌ Categoria inválida! Operação cancelada.")
             time.sleep(1.5)
             
-    print(f"\n🏁 Auditoria concluída. Total de produtos reclassificados: {total_reclassificados}")
+    print(f"\n🏁 Auditoria concluída. Total de produtos reclassificados/removidos: {total_reclassificados}")
 
 if __name__ == "__main__":
     import time
