@@ -55,6 +55,7 @@ def obter_sugestoes_gemini(produtos):
     - HIGIENE (Shampoo, sabonetes, desodorantes, fraldas, etc.)
     - LIMPEZA (Detergente, sabão em pó, desinfetantes, amaciantes, etc.)
     - FRIOS_LATICINIOS (Leite, queijos, presunto, mortadela, iogurtes, requeijão, manteiga, margarina, etc.)
+    - PET (Rações, sachês úmidos pet, petiscos pet, tapetes higiênicos, coleiras, shampoos e sabonetes pet, etc.)
 
     Produtos a analisar:
     {lista_texto}
@@ -194,9 +195,9 @@ def auditar_categorias(detect_only=False):
             print("⏭️ Sugestão ignorada. Produto mantido em ALIMENTOS.")
             time.sleep(1)
         elif opcao == "3":
-            print("\nCategorias disponíveis: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS")
+            print("\nCategorias disponíveis: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS, PET")
             nova_cat = input("👉 Digite a nova categoria: ").strip().upper()
-            if nova_cat in ["ALIMENTOS", "CARNES", "HORTIFRUTI", "PADARIA", "BEBIDAS", "HIGIENE", "LIMPEZA", "FRIOS_LATICINIOS"]:
+            if nova_cat in ["ALIMENTOS", "CARNES", "HORTIFRUTI", "PADARIA", "BEBIDAS", "HIGIENE", "LIMPEZA", "FRIOS_LATICINIOS", "PET"]:
                 print(f"⏳ Atualizando {prod_id} para {nova_cat}...")
                 db.collection("produtos").document(prod_id).update({"categoria": nova_cat})
                 ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()

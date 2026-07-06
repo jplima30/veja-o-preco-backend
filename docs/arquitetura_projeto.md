@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 06/07/2026 — Sessão 38: Criação da Categoria Frios e Laticínios e Migração do Banco.*
+*Última atualização: 06/07/2026 — Sessão 39: Criação da Categoria PET e Migração do Banco.*
 
 ---
 
@@ -554,3 +554,22 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Desenvolvido script de migração do banco Firestore. O script processou e atualizou em lote **204 produtos** e **94 ofertas ativas** vinculadas.
 4. **Contrato de Dados:**
    * Atualizado o contrato de dados local ([CONTRATO_DADOS_PADRAO.md](file:///Users/jplima/Documents/veja-o-preco-backend/docs/CONTRATO_DADOS_PADRAO.md)) e na wiki ([Contrato-de-Dados.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Contrato-de-Dados.md)) registrando os 8 grupos.
+
+---
+
+**Sessão 39 (Criação da Categoria PET e Migração do Banco)**
+
+**Data:** 06 de Julho de 2026
+**Objetivo:** Adicionar a 9ª categoria oficial do ecossistema, `PET` (Produtos para Animais de Estimação), para isolar de forma correta rações, petiscos e itens de higiene/limpeza veterinária, eliminando falsos positivos nas seções de `ALIMENTOS`, `CARNES` e `HIGIENE` humana.
+
+### Implementações:
+1. **Normalização no Backend ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   * Adicionado o bloco de checagem da categoria `PET` no início de `normalizar_categoria` com limite de palavras seguras.
+   * Removidas as palavras-chaves de ração da lista de exclusão genérica que forçava desvio para `ALIMENTOS`.
+   * Atualizados os prompts de visão e extração de PDF no Gemini para aceitar e extrair itens sob a categoria `PET`.
+2. **Auditoria de Categorias ([auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py)):**
+   * Incluído suporte para classificar itens manualmente e propor sugestões para `PET`.
+3. **Script de Migração em Lote ([reclassificar_pets.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/reclassificar_pets.py)):**
+   * Desenvolvido e executado o script de migração no Firestore, resultando na reclassificação de **43 produtos** e **15 ofertas ativas** para a categoria `PET`.
+4. **Contrato de Dados:**
+   * Atualizado o contrato de dados local ([CONTRATO_DADOS_PADRAO.md](file:///Users/jplima/Documents/veja-o-preco-backend/docs/CONTRATO_DADOS_PADRAO.md)) e na wiki ([Contrato-de-Dados.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Contrato-de-Dados.md)) para constar os 9 grupos oficiais.

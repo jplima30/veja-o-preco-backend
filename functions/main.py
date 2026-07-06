@@ -67,8 +67,20 @@ def normalizar_categoria(categoria: str) -> str:
     """
     if not categoria:
         return "ALIMENTOS"
-    
     c = categoria.strip().lower()
+    
+    # 0. PET (Avaliar primeiro para evitar desvios para Higiene, Limpeza, Carnes, etc.)
+    termos_pet = [
+        "ração", "racao", "dog chow", "cat chow", "pedigree", "whiskas", "friskies", 
+        "procão", "procao", "purina", "monello", "birbo", "granplus", "golden", "bomguy", 
+        "nino dog", "chum", "adestrador", "tapete higiênico", "tapete higienico", "pet care", 
+        "gato", "gatos", "cachorro", "cachorros", "filhote", "filhotes", "cão", "caes", "cao",
+        "veterinário", "veterinario", "kdog"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_pet):
+        # Evitar falsos positivos como corações de carne
+        if not any(x in c for x in ["coração", "coracao"]):
+            return "PET"
     
     # 1. Higiene / Limpeza baseados na categoria original do banco
     if any(x in c for x in ["limpeza", "detergente", "sabão", "sabao"]):
@@ -77,7 +89,7 @@ def normalizar_categoria(categoria: str) -> str:
         return "HIGIENE"
 
     # Exclusões de produtos industrializados/mercearia para evitar falsos positivos
-    if any(term in c for term in ["farofa", "extrato", "molho", "sachê", "sache", "tempero", "caldo", "conserva", "ração", "racao"]):
+    if any(term in c for term in ["farofa", "extrato", "molho", "sachê", "sache", "tempero", "caldo", "conserva"]):
         return "ALIMENTOS"
 
     # 2. BEBIDAS (Avaliar antes de Hortifruti para evitar que suco de uva vire Hortifruti)
@@ -1370,7 +1382,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
             
             FOCO PRINCIPAL: 
-            Todos os itens de supermercado devem ser extraídos e classificados entre: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS.
+            Todos os itens de supermercado devem ser extraídos e classificados entre: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS, PET.
             
             REGRAS DE OURO:
             1. Extraia o máximo de itens possível.
@@ -1386,7 +1398,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME COMPLETO DO PRODUTO (Ex: Arroz Tio Urbano 5kg)",
                         "preco": 0.0,
                         "unidade": "un/kg/pacote",
-                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS/PET",
                         "imagem": "URL se houver no PDF ou deixe vazio",
                         "validade": "Data de validade da oferta se encontrada"
                     }
@@ -1672,7 +1684,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             Analise a imagem(ns) ou os quadros de vídeo do encarte em anexo.
             
             FOCO TOTAL (Whitelist):
-            Extraia APENAS itens de supermercado das categorias: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS.
+            Extraia APENAS itens de supermercado das categorias: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS, PET.
             
             BLOQUEIO ABSOLUTO (Ignore Completamente):
             1. Bebidas Alcoólicas (Cerveja, Vinho, Whisky, etc.).
@@ -1695,7 +1707,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME",
                         "preco": 0.0,
                         "unidade": "un",
-                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS/PET",
                         "validade": "DATA SE HOUVER",
                         "box_2d": [ymin, xmin, ymax, xmax],
                         "quadro_index": 0
