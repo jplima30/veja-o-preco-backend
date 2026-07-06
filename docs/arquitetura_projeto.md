@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 06/07/2026 — Sessão 37: Enriquecimento da Documentação Operacional e Comandos de Deploy.*
+*Última atualização: 06/07/2026 — Sessão 38: Criação da Categoria Frios e Laticínios e Migração do Banco.*
 
 ---
 
@@ -534,3 +534,23 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionado o guia de deploy cirúrgico de Cloud Functions na nuvem.
 3. **Página Inicial ([Home.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Home.md)):**
    * Ajuste das seções de início rápido para recomendar o uso primário de `gerenciador.py`.
+
+---
+
+**Sessão 38 (Criação da Categoria Frios e Laticínios e Migração do Banco)**
+
+**Data:** 06 de Julho de 2026
+**Objetivo:** Introduzir a nova categoria `FRIOS_LATICINIOS` no ecossistema (backend e banco de dados) para reclassificar de forma precisa leite, queijos, presuntos, manteigas, margarinas e iogurtes, eliminando falsos positivos nas seções de `HORTIFRUTI` e `CARNES`.
+
+### Implementações:
+1. **Normalização no Backend ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   * Adicionada a regra de detecção e normalização para `FRIOS_LATICINIOS` na função `normalizar_categoria` antes de carnes/hortifruti.
+   * Implementadas travas de segurança contra falsos positivos (ex: impede que chocolates e biscoitos "ao leite" virem laticínios).
+   * Removidos termos redundantes como `presunto`, `mortadela` e `salame` de `termos_carnes`.
+   * Atualizados os prompts de visão e PDF do Gemini para classificar itens entre as 8 categorias oficiais.
+2. **Auditoria de Categorias ([auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py)):**
+   * Adicionado suporte para sugerir e aceitar a categoria `FRIOS_LATICINIOS`.
+3. **Script de Migração em Lote ([reclassificar_frios_laticinios.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/reclassificar_frios_laticinios.py)):**
+   * Desenvolvido script de migração do banco Firestore. O script processou e atualizou em lote **204 produtos** e **94 ofertas ativas** vinculadas.
+4. **Contrato de Dados:**
+   * Atualizado o contrato de dados local ([CONTRATO_DADOS_PADRAO.md](file:///Users/jplima/Documents/veja-o-preco-backend/docs/CONTRATO_DADOS_PADRAO.md)) e na wiki ([Contrato-de-Dados.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Contrato-de-Dados.md)) registrando os 8 grupos.

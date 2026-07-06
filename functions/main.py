@@ -91,12 +91,32 @@ def normalizar_categoria(categoria: str) -> str:
             return "ALIMENTOS"
         return "BEBIDAS"
 
-    # 3. CARNES
+    # 3. FRIOS e LATICÍNIOS (Avaliar antes de Carnes/Hortifruti)
+    termos_laticinios = [
+        "leite", "queijo", "mussarela", "mucarela", "requeijão", "requeijao", 
+        "iogurte", "yogurte", "manteiga", "margarina", "danone", "danoninho", 
+        "refrigerado", "frios", "presunto", "apresuntado", "mortadela", "salame", 
+        "peito de peru", "blanquet", "coalho", "ricota", "provolone", "parmesão", 
+        "parmesao", "bebida láctea", "bebida lactea", "yakult", "chamyto", 
+        "cream cheese", "creme de leite", "leite condensado", "leite fermentado"
+    ]
+    if any(re.search(rf'\b{term}\b', c) for term in termos_laticinios):
+        # Evitar falsos positivos comuns
+        if any(x in c for x in [
+            "chocolate", "biscoito", "bolacha", "pão", "pao", "doce", 
+            "rosas", "colônia", "colonia", "magnésia", "magnesia", "sabonete",
+            "shampoo", "condicionador", "hidratante"
+        ]):
+            pass
+        else:
+            return "FRIOS_LATICINIOS"
+
+    # 4. CARNES
     termos_carnes = [
         "carne", "picanha", "alcatra", "músculo", "musculo", "peito de frango", "sobrecoxa", 
         "asa", "coração", "coracao", "linguiça", "linguica", "salsicha", "tambaqui", "peixe", 
-        "filé", "file", "bovino", "suíno", "suino", "frango", "bacalhau", "salame", "mortadela",
-        "presunto", "costelinha", "chouriço", "chourico", "pernil", "paleta"
+        "filé", "file", "bovino", "suíno", "suino", "frango", "bacalhau", "costelinha", 
+        "chouriço", "chourico", "pernil", "paleta"
     ]
     if any(re.search(rf'\b{term}\b', c) for term in termos_carnes):
         if "ração" in c or "racao" in c:
@@ -1350,7 +1370,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
             
             FOCO PRINCIPAL: 
-            Todos os itens de supermercado devem ser extraídos e classificados entre: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA.
+            Todos os itens de supermercado devem ser extraídos e classificados entre: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS.
             
             REGRAS DE OURO:
             1. Extraia o máximo de itens possível.
@@ -1366,7 +1386,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME COMPLETO DO PRODUTO (Ex: Arroz Tio Urbano 5kg)",
                         "preco": 0.0,
                         "unidade": "un/kg/pacote",
-                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS",
                         "imagem": "URL se houver no PDF ou deixe vazio",
                         "validade": "Data de validade da oferta se encontrada"
                     }
@@ -1652,7 +1672,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             Analise a imagem(ns) ou os quadros de vídeo do encarte em anexo.
             
             FOCO TOTAL (Whitelist):
-            Extraia APENAS itens de supermercado das categorias: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA.
+            Extraia APENAS itens de supermercado das categorias: ALIMENTOS, CARNES, HORTIFRUTI, PADARIA, BEBIDAS, HIGIENE, LIMPEZA, FRIOS_LATICINIOS.
             
             BLOQUEIO ABSOLUTO (Ignore Completamente):
             1. Bebidas Alcoólicas (Cerveja, Vinho, Whisky, etc.).
@@ -1675,7 +1695,7 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                         "produto": "NOME",
                         "preco": 0.0,
                         "unidade": "un",
-                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA",
+                        "categoria": "ALIMENTOS/CARNES/HORTIFRUTI/PADARIA/BEBIDAS/HIGIENE/LIMPEZA/FRIOS_LATICINIOS",
                         "validade": "DATA SE HOUVER",
                         "box_2d": [ymin, xmin, ymax, xmax],
                         "quadro_index": 0

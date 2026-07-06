@@ -21,7 +21,7 @@ Toda função de busca de encarte deve retornar um objeto JSON com a seguinte es
 | `produto` | String | Nome completo + marca (Ex: "Arroz Agulhinha Tio Urbano"). |
 | `preco` | Number | Preço de venda em formato numérico (Ex: 24.90). |
 | `unidade` | String | Unidade de medida (Ex: "kg", "un", "500g", "l"). |
-| `categoria` | String | Categoria do produto (Ex: "Mercearia", "Hortifruti"). |
+| `categoria` | String | Um dos 8 grupos padronizados: `ALIMENTOS`, `CARNES`, `HORTIFRUTI`, `PADARIA`, `BEBIDAS`, `HIGIENE`, `LIMPEZA`, `FRIOS_LATICINIOS`. |
 | `imagem` | String | URL completa da imagem do produto. |
 | `validade` | String | Data até quando a oferta é válida. |
 
