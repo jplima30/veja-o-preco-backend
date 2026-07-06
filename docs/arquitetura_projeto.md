@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 02/07/2026 — Sessão 30: Automação da Curadoria e Sincronização de Imagens no Cron.*
+*Última atualização: 06/07/2026 — Sessão 37: Enriquecimento da Documentação Operacional e Comandos de Deploy.*
 
 ---
 
@@ -517,3 +517,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Configurada a execução de `auditar_categorias.py --detect-only` no bloco final do Cron de captação de ofertas. Isso gera alertas automáticos de suspeitas de categorização nos logs diários.
 3. **Integração no Gerenciador (`scripts/gerenciador.py`):**
    * Adicionada a opção `[6] Assistente de Auditoria de Categorias` no submenu de Curadoria e Higienização, permitindo a limpeza interativa manual das suspeitas geradas pelo Cron.
+
+---
+
+**Sessão 37 (Enriquecimento da Documentação Operacional e Comandos de Deploy)**
+
+**Data:** 06 de Julho de 2026
+**Objetivo:** Ampliar a documentação do projeto detalhando a estrutura das 6 categorias do painel de controle CLI (`gerenciador.py`) e adicionando instruções claras de deploy para as Cloud Functions na nuvem, tanto completas quanto cirúrgicas (individuais).
+
+### Implementações:
+1. **Manual da Wiki ([Operacao-Local.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Operacao-Local.md)):**
+   * Detalhamento de todas as abas e funções do gerenciador CLI.
+   * Criação da seção 7 dedicada ao deploy via Firebase CLI com comandos rápidos e boas práticas.
+2. **README do Projeto ([README.md](file:///Users/jplima/Documents/veja-o-preco-backend/README.md)):**
+   * Reorganização da seção "Operação e Testes" para evidenciar a estrutura das 6 abas do gerenciador.
+   * Adicionado o guia de deploy cirúrgico de Cloud Functions na nuvem.
+3. **Página Inicial ([Home.md](file:///Users/jplima/Documents/veja-o-preco-backend/wiki-repo/Home.md)):**
+   * Ajuste das seções de início rápido para recomendar o uso primário de `gerenciador.py`.
