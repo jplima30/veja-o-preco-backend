@@ -92,7 +92,7 @@ def obter_sugestoes_gemini(produtos):
         print(f"⚠️ Erro ao chamar o Gemini: {e}", flush=True)
         return []
 
-def auditar_categorias(detect_only=False):
+def auditar_categorias(detect_only=False, auto_apply=False):
     print("=========================================================", flush=True)
     print("🧹 ASSISTENTE DE AUDITORIA DE CATEGORIAS (PENTE FINO)", flush=True)
     print("=========================================================\n", flush=True)
@@ -139,6 +139,39 @@ def auditar_categorias(detect_only=False):
         for sug in sugestoes_totais:
             print(f"  ⚠️ [SUSPEITA] {sug.get('id')} | '{sug.get('nome')[:40]}' -> Mudar para {sug.get('categoria_sugerida')} (Motivo: {sug.get('justificativa')})", flush=True)
         print("\nFim do relatório de auditoria.", flush=True)
+        return
+        
+    if auto_apply:
+        print("\n--- 🤖 APLICAÇÃO AUTOMÁTICA DE SUGESTÕES (AUTO-APPLY) ---", flush=True)
+        total_reclassificados = 0
+        for idx, sug in enumerate(sugestoes_totais):
+            prod_id = sug.get("id")
+            nome = sug.get("nome")
+            cat_sugerida = sug.get("categoria_sugerida")
+            justificativa = sug.get("justificativa")
+            
+            # Recarrega o produto para garantir estado atual
+            doc_prod = db.collection("produtos").document(prod_id).get()
+            if not doc_prod.exists:
+                continue
+                
+            print(f"🤖 [{idx+1}/{len(sugestoes_totais)}] Atualizando {prod_id} para {cat_sugerida}...", flush=True)
+            print(f"   * Nome: {nome}")
+            print(f"   * Justificativa: {justificativa}")
+            
+            # Atualiza produto
+            db.collection("produtos").document(prod_id).update({"categoria": cat_sugerida})
+            # Atualiza ofertas ativas
+            ofertas_ref = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+            of_count = 0
+            for of_doc in ofertas_ref:
+                of_doc.reference.update({"categoria": cat_sugerida})
+                of_count += 1
+            print(f"   ✅ Atualizado! ({of_count} ofertas vinculadas).", flush=True)
+            total_reclassificados += 1
+            time.sleep(0.3)
+            
+        print(f"\n🏁 Auditoria automática concluída. Total de produtos reclassificados: {total_reclassificados}", flush=True)
         return
         
     # Modo Interativo
@@ -214,8 +247,9 @@ def auditar_categorias(detect_only=False):
 if __name__ == "__main__":
     import time
     detect = "--detect-only" in sys.argv
+    auto = "--auto-apply" in sys.argv
     try:
-        auditar_categorias(detect_only=detect)
+        auditar_categorias(detect_only=detect, auto_apply=auto)
     except KeyboardInterrupt:
         print("\n\n👋 Auditoria interrompida pelo usuário.")
         sys.exit(0)

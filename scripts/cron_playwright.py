@@ -861,7 +861,7 @@ if __name__ == "__main__":
         print("🧹 [AUDITORIA] Verificando suspeitas de categorias incorretas...")
         print("="*60)
         script_auditoria = os.path.join(os.path.dirname(__file__), "auditar_categorias.py")
-        subprocess.run([venv_functions_python, script_auditoria, "--detect-only"], check=True)
+        subprocess.run([venv_functions_python, script_auditoria, "--auto-apply"], check=True)
         
     except Exception as e:
         print(f"⚠️ Erro ao iniciar triagem, automação de imagens ou diagnóstico: {e}")
