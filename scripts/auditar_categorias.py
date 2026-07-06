@@ -150,10 +150,10 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         if cat_sugerida not in CATEGORIAS_VALIDAS and cat_sugerida != "EXCLUIR":
             continue
             
-        # Impede que doces e bombons sejam reclassificados incorretamente para Bebidas ou Carnes
+        # Impede que doces, guloseimas, chicletes e bombons sejam reclassificados ou excluídos
         nome_lower = nome.lower()
-        if any(x in nome_lower for x in ["bombom", "chocolate", "biscoito", "wafer", "doce", "achocolatado"]):
-            if cat_sugerida in ["BEBIDAS", "CARNES"]:
+        if any(x in nome_lower for x in ["bombom", "chocolate", "biscoito", "wafer", "doce", "achocolatado", "mentos", "trident", "halls", "bala", "chiclete", "goma"]):
+            if cat_sugerida in ["BEBIDAS", "CARNES", "EXCLUIR"]:
                 continue
                 
         # Impede que cestas básicas sejam reclassificadas ou excluídas
