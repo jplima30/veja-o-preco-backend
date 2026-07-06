@@ -65,6 +65,7 @@ def obter_sugestoes_gemini(produtos):
     
     REGRAS SEMÂNTICAS OBRIGATÓRIAS:
     - Doces, biscoitos, achocolatados, chocolates e sobremesas DEVEM permanecer em ALIMENTOS. NÃO sugira BEBIDAS, CARNES ou qualquer outra categoria para eles. Se analisar um chocolate, ignore-o (não o coloque na lista de sugestões).
+    - Cestas Básicas (ou cestas de alimentos) são itens de consumo válidos e procurados pelos usuários. Mantenha em ALIMENTOS e nunca sugira a exclusão delas.
     - Não sugira NENHUMA categoria fora da lista acima + a palavra EXCLUIR. Não invente categorias como "OUTROS", "MÓVEIS", "BAZAR", etc.
     
     Produtos a analisar:
@@ -72,16 +73,16 @@ def obter_sugestoes_gemini(produtos):
 
     Regras de Retorno:
     - Retorne APENAS um JSON no seguinte formato:
-    {
+    {{
         "sugestoes": [
-            {
+            {{
                 "id": "ID_DO_PRODUTO",
                 "nome": "NOME_DO_PRODUTO",
                 "categoria_sugerida": "CATEGORIA_SUGERIDA_OU_EXCLUIR",
                 "justificativa": "Breve justificativa"
-            }
+            }}
         ]
-    }
+    }}
     - Se todos os produtos estiverem classificados corretamente em ALIMENTOS, retorne "sugestoes" como uma lista vazia.
     - Não inclua comentários, Markdown ou tags no retorno, apenas o JSON puro.
     """
@@ -154,6 +155,10 @@ def auditar_categorias(detect_only=False, auto_apply=False):
         if any(x in nome_lower for x in ["bombom", "chocolate", "biscoito", "wafer", "doce", "achocolatado"]):
             if cat_sugerida in ["BEBIDAS", "CARNES"]:
                 continue
+                
+        # Impede que cestas básicas sejam reclassificadas ou excluídas
+        if any(x in nome_lower for x in ["cesta básica", "cesta basica"]):
+            continue
                 
         sugestoes_filtradas.append(sug)
         
