@@ -73,9 +73,9 @@ Toda função de busca de encarte deve retornar um objeto JSON com a seguinte es
 1. **Sem placeholders**: Se a imagem não existir, retorne string vazia `""`.
 2. **Nomes Limpos**: Remova excesso de espaços ou caracteres especiais dos nomes.
 3. **Preços Reais**: Nunca retorne o preço como String (ex: "R$ 10"). Deve ser sempre `Number`.
-4. **Categorização**: Se a API original não der a categoria, o robô deve tentar inferir ou usar "Geral".
+4. **Categorização**: Se a API original não fornecer a categoria, utilize a função `normalizar_categoria()` no fluxo de upsert para mapear para um dos 9 grupos padronizados.
 5. **Telemetria**: Sempre inclua `uso_tokens` em funções que utilizam modelos Generativos.
 6. **Estratégia de Modelos**: 
    - **Gemini 3.1 Flash Image**: Usado para Vision (fotos/vídeos) onde o Q.I. visual é crítico (Ex: Instagram/Assaí).
    - **Gemini 3.1 Flash Lite**: Usado para PDFs e tarefas de alto volume para otimização de custo (Ex: Mix Mateus).
-7. **Filtro de Conteúdo (Global)**: O backend deve extrair APENAS produtos alimentícios. Bebidas alcoólicas, bazar e eletrônicos devem ser filtrados na fonte pela I.A.
+7. **Filtro de Conteúdo (Global)**: O backend deve extrair produtos alimentícios e as seções centrais de **Higiene Pessoal**, **Limpeza Doméstica** e **Pets**. Seções como Bebidas Alcoólicas, Bazar, Eletrônicos, Brinquedos e Roupas são expressamente proibidas e devem ser filtradas na fonte pela I.A. ou descartadas pelo validador.
