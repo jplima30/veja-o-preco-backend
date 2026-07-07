@@ -289,9 +289,31 @@ def executar_sincronizacao(db):
                 })
                 total_atualizadas += 1
                 
+    # Varredura pós-sincronização para detectar ofertas vigentes com imagens de APIs externas
+    total_externas = 0
+    hoje_limite = datetime.now().replace(tzinfo=None)
+    for of_doc in ofertas:
+        of_data = of_doc.to_dict()
+        expira_em = of_data.get("expira_em")
+        if expira_em:
+            expira_naive = expira_em.replace(tzinfo=None) if hasattr(expira_em, "tzinfo") and expira_em.tzinfo else expira_em
+            if expira_naive >= hoje_limite:
+                prod_id = of_data.get("produto_id")
+                final_img = of_data.get("imagem_url", "")
+                if prod_id in produtos:
+                    prod_img = produtos[prod_id].get("imagem_url", "")
+                    if prod_img:
+                        final_img = prod_img
+                
+                if final_img and "googleapis.com" not in final_img:
+                    total_externas += 1
+                    
     print("\n=========================================================")
     print("🏁 SINCRONIZAÇÃO CONCLUÍDA!")
     print(f"🔄 Total de ofertas sincronizadas: {total_atualizadas}")
+    if total_externas > 0:
+        print(f"⚠️  ALERTA: Existem {total_externas} ofertas ativas usando imagens externas (API Lojas)!")
+        print("   Dica: execute a Opção 7 (Diagnóstico) no menu para listá-las.")
     print("=========================================================\n")
 
 def executar_diagnostico(db):
