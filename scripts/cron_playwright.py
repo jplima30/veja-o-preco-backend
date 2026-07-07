@@ -844,11 +844,18 @@ if __name__ == "__main__":
         # Passa a janela como argumento para a triagem e o flag -u para unbuffered
         subprocess.run([venv_python, "-u", script_triagem, str(janela_alvo)], check=True)
         
+        venv_functions_python = os.path.join(os.path.dirname(__file__), "..", "functions", "venv", "bin", "python3")
+        
+        print("\n" + "="*60)
+        print("🧹 [AUDITORIA] Verificando suspeitas de categorias incorretas...")
+        print("="*60)
+        script_auditoria = os.path.join(os.path.dirname(__file__), "auditar_categorias.py")
+        subprocess.run([venv_functions_python, script_auditoria, "--auto-apply"], check=True)
+        
         print("\n" + "="*60)
         print("🖼️ [AUTO-IMAGENS] Iniciando Curadoria e Sincronização Automática...")
         print("="*60)
         script_imagens = os.path.join(os.path.dirname(__file__), "central_imagens.py")
-        venv_functions_python = os.path.join(os.path.dirname(__file__), "..", "functions", "venv", "bin", "python3")
         subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
         
         print("\n" + "="*60)
@@ -856,12 +863,6 @@ if __name__ == "__main__":
         print("="*60)
         script_duplicatas = os.path.join(os.path.dirname(__file__), "identificar_duplicatas.py")
         subprocess.run([venv_functions_python, script_duplicatas, "--detect-only"], check=True)
-        
-        print("\n" + "="*60)
-        print("🧹 [AUDITORIA] Verificando suspeitas de categorias incorretas...")
-        print("="*60)
-        script_auditoria = os.path.join(os.path.dirname(__file__), "auditar_categorias.py")
-        subprocess.run([venv_functions_python, script_auditoria, "--auto-apply"], check=True)
         
     except Exception as e:
         print(f"⚠️ Erro ao iniciar triagem, automação de imagens ou diagnóstico: {e}")
