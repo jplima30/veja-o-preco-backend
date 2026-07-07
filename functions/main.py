@@ -140,7 +140,10 @@ def normalizar_categoria(categoria: str) -> str:
         "limão", "limao", "banana", "maçã", "maca", "uva", "abacaxi", "mamão", "mamao", 
         "laranja", "cebola", "alho", "tomate", "batata", "cenoura", "ovos", "ovo", "cheiro verde", 
         "coentro", "pimentão", "pimentao", "abóbora", "abobora", "morango", "melancia", 
-        "alface", "repolho", "coentro", "cheiro-verde", "cebolinha"
+        "alface", "repolho", "coentro", "cheiro-verde", "cebolinha",
+        
+        # Regionais (Pará/Norte)
+        "maniva", "jambu", "mandioca", "macaxeira"
     ]
     if any(re.search(rf'\b{term}\b', c) for term in termos_horti):
         return "HORTIFRUTI"
