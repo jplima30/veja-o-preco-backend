@@ -296,7 +296,7 @@ def executar_sincronizacao(db):
 
 def executar_diagnostico(db):
     print("=========================================================")
-    print("🔎 BUSCANDO OFERTAS VIGENTES SEM IMAGEM NO FIRESTORE")
+    print("🔎 DIAGNÓSTICO DE IMAGENS DAS OFERTAS VIGENTES NO FIRESTORE")
     print("=========================================================\n")
     
     hoje = datetime.now()
@@ -304,6 +304,7 @@ def executar_diagnostico(db):
     docs = ofertas_ref.stream()
     
     sem_imagem = []
+    imagem_externa = []
     total_vigentes = 0
     
     for doc in docs:
@@ -313,9 +314,12 @@ def executar_diagnostico(db):
         
         if not img:
             sem_imagem.append((doc.id, d))
+        elif "googleapis.com" not in img:
+            imagem_externa.append((doc.id, d, img))
             
     print(f"📊 Total de ofertas vigentes encontradas: {total_vigentes}")
     print(f"❌ Total de ofertas vigentes SEM IMAGEM: {len(sem_imagem)}")
+    print(f"⚠️  Total de ofertas vigentes COM IMAGEM EXTERNA (API Lojas): {len(imagem_externa)}")
     print("---------------------------------------------------------\n")
     
     if sem_imagem:
@@ -329,8 +333,22 @@ def executar_diagnostico(db):
         
         if len(sem_imagem) > 30:
             print(f"\n... e mais {len(sem_imagem) - 30} ofertas sem imagem.")
-    else:
-        print("🎉 Excelente! Todas as ofertas vigentes possuem imagem!")
+        print()
+            
+    if imagem_externa:
+        print("📋 Amostra das primeiras 30 ofertas com imagem externa (API Lojas):")
+        for i, (doc_id, d, img_url) in enumerate(imagem_externa[:30]):
+            loja = d.get("loja", "Desconhecida")
+            nome = d.get("produto_nome", "Sem nome")
+            preco = d.get("preco", 0)
+            print(f"  [{i+1}] 🛒 {nome} - R$ {preco:.2f} ({loja})")
+            print(f"      🔗 URL: {img_url}")
+            
+        if len(imagem_externa) > 30:
+            print(f"\n... e mais {len(imagem_externa) - 30} ofertas com imagem externa.")
+    
+    if not sem_imagem and not imagem_externa:
+        print("🎉 Excelente! Todas as ofertas vigentes possuem imagem interna hospedada no Storage!")
     print()
 
 def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
