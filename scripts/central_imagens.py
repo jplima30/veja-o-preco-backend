@@ -209,7 +209,7 @@ def carregar_estatisticas_gerais(db) -> dict:
                 stats["sem_imagem"] += 1
             elif origem == "auto_crop":
                 stats["auto_crop"] += 1
-            elif origem == "auto_crop_aceito":
+            elif origem == "auto_crop_aceito" or (origem == "api_loja" and "googleapis.com" not in url):
                 stats["auto_crop_aceito"] += 1
             else:
                 stats["curadas"] += 1
@@ -242,7 +242,7 @@ def exibir_dashboard(stats: dict):
         print(f"   • Produtos no Catálogo: {stats['total_produtos']}")
         print(f"     - Sem imagem:                  {stats['sem_imagem']} ({p_sem:.1f}%)")
         print(f"     - Recorte provisório (IA):     {stats['auto_crop']} ({p_crop:.1f}%)")
-        print(f"     - Recorte aceito (IA):         {stats['auto_crop_aceito']} ({p_aceito:.1f}%)")
+        print(f"     - Recorte aceito / APIs Ext.:  {stats['auto_crop_aceito']} ({p_aceito:.1f}%)")
         print(f"     - Imagens curadas de estúdio:  {stats['curadas']} ({p_curadas:.1f}%)")
     else:
         print("   • Nenhum produto cadastrado no catálogo.")
@@ -333,7 +333,7 @@ def executar_diagnostico(db):
         print("🎉 Excelente! Todas as ofertas vigentes possuem imagem!")
     print()
 
-def executar_curadoria(db, bucket, opcao_modo: str):
+def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
     """
     Executa a curadoria de fotos baseada no modo selecionado.
     """
@@ -357,14 +357,19 @@ def executar_curadoria(db, bucket, opcao_modo: str):
             # Apenas recortes IA
             incluir = (url and origem == "auto_crop")
         elif opcao_modo == "3":
-            # Apenas recortes aceitos
-            incluir = (url and origem == "auto_crop_aceito")
+            # Recortes aceitos e imagens externas de APIs de Lojas
+            is_external_api = (origem == "api_loja" and url and "googleapis.com" not in url)
+            incluir = (url and (origem == "auto_crop_aceito" or is_external_api))
         elif opcao_modo == "4":
             # Tudo
-            incluir = (not url or origem in ("auto_crop", "auto_crop_aceito", "padrao", ""))
+            is_external_api = (origem == "api_loja" and url and "googleapis.com" not in url)
+            incluir = (not url or origem in ("auto_crop", "auto_crop_aceito", "padrao", "") or is_external_api)
         elif opcao_modo == "5":
             # Piloto automático (sem imagem ou auto_crop)
             incluir = (not url or origem == "auto_crop")
+        elif opcao_modo == "8":
+            # ID específico
+            incluir = (doc.id == target_prod_id)
             
         if incluir:
             produtos_pendentes.append((doc.id, d))
@@ -378,6 +383,16 @@ def executar_curadoria(db, bucket, opcao_modo: str):
     
     total_atualizados = 0
     is_autopilot = (opcao_modo == "5")
+    
+    if opcao_modo == "3":
+        print("\n📋 Grupo selecionado: Recortes aceitos da IA e Imagens externas de APIs de Lojas.")
+        print("Como deseja prosseguir com a curadoria desse grupo?")
+        print("  [1] Curar interativamente (1 por 1, escolhendo a imagem)")
+        print("  [2] Rodar piloto automático (Baixar e otimizar primeira imagem encontrada automaticamente)")
+        modo_exec = input("👉 Escolha a opção [1-2]: ").strip()
+        if modo_exec == "2":
+            is_autopilot = True
+            print("\n🤖 Iniciando Piloto Automático para o Grupo 3...")
     
     for i, (prod_id, prod_data) in enumerate(produtos_pendentes):
         nome = prod_data.get("nome", "Sem nome")
@@ -579,8 +594,8 @@ def main():
         print("      👉 Pesquisa no DuckDuckGo e pergunta antes de salvar fotos de estúdio.\n")
         print("  [2] ✂️  Curar recortes provisórios da IA [auto_crop] (Interativo)")
         print("      👉 Substitui imagens de encartes recortadas por fotos de estúdio limpas.\n")
-        print("  [3] 📌 Curar recortes aceitos da IA [auto_crop_aceito] (Interativo)")
-        print("      👉 Permite revisar e trocar recortes de imagens que foram aceitos anteriormente.\n")
+        print("  [3] 📌 Curar recortes aceitos [auto_crop_aceito] e APIs de Lojas externas [api_loja] (Híbrido)")
+        print("      👉 Permite revisar e trocar recortes aceitos ou links externos de APIs por fotos de estúdio.\n")
         print("  [4] 🔍 Varredura completa do catálogo (Interativo)")
         print("      👉 Curadoria em lote de todos os produtos (sem imagem + recortes IA).\n")
         print("  [5] 🤖 Rodar Piloto Automático (Silencioso)")
@@ -589,15 +604,24 @@ def main():
         print("      👉 Propaga as fotos do catálogo para as ofertas vigentes no iOS App.\n")
         print("  [7] 🔎 Diagnóstico de imagens no banco de dados")
         print("      👉 Exibe estatísticas de cobertura e lista ofertas ativas sem imagem.\n")
+        print("  [8] 🆔 Curar produto específico por ID")
+        print("      👉 Permite digitar o ID do produto para pesquisar e atualizar a imagem dele manualmente.\n")
         print("  [0] 🚪 Sair")
         
-        opcao = input("\n👉 Digite a opção desejada [0-7]: ").strip()
+        opcao = input("\n👉 Digite a opção desejada [0-8]: ").strip()
         
         if opcao == "0":
             print("\n👋 Saindo da Central de Imagens. Até logo!")
             break
-        elif opcao in ("1", "2", "3", "4", "5"):
-            executar_curadoria(db, bucket, opcao)
+        elif opcao in ("1", "2", "3", "4", "5", "8"):
+            target_prod_id = None
+            if opcao == "8":
+                target_prod_id = input("\n👉 Digite o ID do produto que deseja curar: ").strip()
+                if not target_prod_id:
+                    print("❌ ID inválido! Operação cancelada.")
+                    time.sleep(1)
+                    continue
+            executar_curadoria(db, bucket, opcao, target_prod_id)
             # Recarrega estatísticas após as alterações da curadoria
             print("\n⏳ Atualizando painel de estatísticas...")
             stats = carregar_estatisticas_gerais(db)
