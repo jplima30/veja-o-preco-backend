@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 06/07/2026 — Sessão 40: Automatização e Trava de Segurança da Auditoria de Categorias.*
+*Última atualização: 07/07/2026 — Sessão 41: Ingredientes Regionais e Central de Imagens Híbrida.*
 
 ---
 
@@ -591,3 +591,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * **Proteção de Cesta Básica:** Travas de segurança baseadas em palavras-chaves que proíbem que produtos contendo "cesta básica" ou "cesta basica" sejam deletados ou movidos. Elas permanecem em `ALIMENTOS`.
 3. **Coletor de Lixo Inteligente (`EXCLUIR`):**
    * Instruído o Gemini a sugerir o termo `EXCLUIR` para itens de bazar (móveis, roupas, eletrônicos, etc.) que vazaram no scanner. Quando identificado, o script realiza a deleção do produto e de suas ofertas vinculadas no Firestore.
+
+---
+
+**Sessão 41 (Ingredientes Regionais e Central de Imagens Híbrida)**
+
+**Data:** 07 de Julho de 2026
+**Objetivo:** Adicionar inteligência nativa para ingredientes regionais do Norte (jambu, maniva, mandioca e macaxeira) na categorização estática das Cloud Functions e aprimorar a Central de Imagens para resolver links externos de imagem quebrados (VIP Commerce) com curadoria híbrida (interativa/piloto automático) e curadoria individual por ID do produto.
+
+### Implementações:
+1. **Regras Regionais de Hortifrúti ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   * Adicionadas as palavras-chaves `"maniva"`, `"jambu"`, `"mandioca"` e `"macaxeira"` na lista de termos estáticos de `HORTIFRUTI` da função `normalizar_categoria`.
+   * Realizado o deploy atualizado de todas as Cloud Functions.
+2. **Central de Imagens Híbrida ([central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py)):**
+   * **Expansão da Opção 3:** Renomeada para cobrir tanto recortes aceitos (`auto_crop_aceito`) quanto imagens externas de APIs de Lojas (`api_loja` com links externos da VIP Commerce), permitindo limpar links quebrados da base.
+   * **Modo Híbrido por Lote:** Ao iniciar a Opção 3, o script permite escolher entre curar interativamente (1 por 1) ou disparar o piloto automático silencioso específico para este grupo de imagens.
+   * **Mapeamento de Estatísticas:** Ajustado o cálculo do painel para incluir as imagens externas de APIs no grupo de recortes/pendências a revisar.
+   * **Opção 8 (Curar por ID específico):** Adicionado suporte para curar um único produto específico digitando seu ID de documento, forçando o fluxo de busca de estúdio e upload para o Storage independente de sua categoria ou imagem atual.
