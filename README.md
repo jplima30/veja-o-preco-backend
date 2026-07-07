@@ -57,6 +57,7 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 2. **Triagem** — O EasyOCR filtra apenas imagens que contêm preços reais, economizando chamadas de API.
 3. **Extração** — O Gemini processa os encartes e extrai dados estruturados em JSON.
 4. **Persistência** — Dados são normalizados e salvos no Firestore seguindo o **[Contrato de Dados](https://github.com/jplima30/veja-o-preco-backend/wiki/Contrato-de-Dados)** do projeto.
+5. **Auditoria & Curadoria** — Auditoria automática limpa bazar/lixo e corrige as categorias no Firestore, e então a central de imagens automática (piloto) busca imagens limpas de estúdio, salva no Storage e propaga para as ofertas.
 
 ---
 
