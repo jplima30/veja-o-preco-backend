@@ -367,24 +367,24 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
         url = d.get("imagem_url", "")
         origem = d.get("imagem_origem", "desconhecida")
         
+        is_external_api = (origem == "api_loja" and url and "googleapis.com" not in url)
+        
         incluir = False
         if opcao_modo == "1":
-            # Apenas sem imagem
-            incluir = (not url)
+            # Sem imagem ou link externo de API
+            incluir = (not url or is_external_api)
         elif opcao_modo == "2":
             # Apenas recortes IA
             incluir = (url and origem == "auto_crop")
         elif opcao_modo == "3":
             # Recortes aceitos e imagens externas de APIs de Lojas
-            is_external_api = (origem == "api_loja" and url and "googleapis.com" not in url)
             incluir = (url and (origem == "auto_crop_aceito" or is_external_api))
         elif opcao_modo == "4":
             # Tudo
-            is_external_api = (origem == "api_loja" and url and "googleapis.com" not in url)
             incluir = (not url or origem in ("auto_crop", "auto_crop_aceito", "padrao", "") or is_external_api)
         elif opcao_modo == "5":
-            # Piloto automático (sem imagem ou auto_crop)
-            incluir = (not url or origem == "auto_crop")
+            # Piloto automático (sem imagem, auto_crop ou link externo)
+            incluir = (not url or origem == "auto_crop" or is_external_api)
         elif opcao_modo == "8":
             # ID específico
             incluir = (doc.id == target_prod_id)
