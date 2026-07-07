@@ -608,3 +608,7 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * **Modo Híbrido por Lote:** Ao iniciar a Opção 3, o script permite escolher entre curar interativamente (1 por 1) ou disparar o piloto automático silencioso específico para este grupo de imagens.
    * **Mapeamento de Estatísticas:** Ajustado o cálculo do painel para incluir as imagens externas de APIs no grupo de recortes/pendências a revisar.
    * **Opção 8 (Curar por ID específico):** Adicionado suporte para curar um único produto específico digitando seu ID de documento, forçando o fluxo de busca de estúdio e upload para o Storage independente de sua categoria ou imagem atual.
+   * **Unificação de Imagens Externas:** Atualizadas as opções **1 (Sem Foto)** e **5 (Piloto Automático)** para detectar e curar nativamente qualquer produto que use uma URL de imagem externa que não esteja hospedada no Storage do Firebase.
+3. **Otimização de Sequência do Cron ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   * Reordenada a fila de scripts de pós-triagem para rodar o auditor de categorias (`auditar_categorias.py --auto-apply`) **antes** da central de imagens (`central_imagens.py --cron-completo`).
+   * Isso evita o processamento de curadoria automática (busca DuckDuckGo e download) para produtos inválidos (bazar/lixo) que seriam deletados em seguida pela auditoria.
