@@ -377,6 +377,20 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
     """
     Executa a curadoria de fotos baseada no modo selecionado.
     """
+    if opcao_modo == "8" and target_prod_id:
+        # Tenta buscar na coleção de ofertas primeiro caso o ID seja de uma oferta
+        try:
+            offer_doc = db.collection("ofertas").document(target_prod_id).get()
+            if offer_doc.exists:
+                offer_data = offer_doc.to_dict()
+                resolved_prod_id = offer_data.get("produto_id")
+                if resolved_prod_id:
+                    print(f"\n📌 ID digitado corresponde à oferta: '{offer_data.get('produto_nome')}'")
+                    print(f"   👉 Resolvido para o ID do produto correspondente: '{resolved_prod_id}'\n")
+                    target_prod_id = resolved_prod_id
+        except Exception as e_res:
+            print(f"⚠️ Erro ao verificar se ID é de oferta: {e_res}")
+            
     produtos_ref = db.collection("produtos")
     print("⏳ Carregando catálogo de produtos...")
     docs = list(produtos_ref.stream())
