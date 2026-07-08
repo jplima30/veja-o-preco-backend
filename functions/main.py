@@ -521,6 +521,7 @@ def salvar_produto_e_oferta(
             "categoria": categoria,
             "imagem_url": imagem_url,
             "imagem_origem": origem_final,
+            "supermercado_origem": supermercado_id,
             "criado_em": datetime.now(),
             "atualizado_em": datetime.now()
         })
