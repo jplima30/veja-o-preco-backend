@@ -13,6 +13,17 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
 db = firestore.client()
 
+MAP_SUPERMERCADOS = {
+    "assai": "Assaí",
+    "lider": "Líder",
+    "formosa": "Formosa",
+    "guerreirao": "Guerreirão",
+    "mateus": "Mix Mateus",
+    "atacadao": "Atacadão",
+    "economico": "Seja Econômico"
+}
+
+
 def extrair_numeros(nome: str) -> list:
     import re
     # Encontra sequências de números no nome (ex: 200g -> ['200'])
@@ -227,37 +238,91 @@ def rodar_assistente_interativo():
         min_words = len(w1) if len(w1) < len(w2) else len(w2)
         overlap = len(intersec) / min_words if min_words > 0 else 0
         
-        # Busca lojas das ofertas vigentes para A
-        lojas_a = []
+        # Busca lojas das ofertas (vigentes e histórico) para A
+        lojas_a_ativas = []
+        lojas_a_historico = []
         try:
             ofs_a = db.collection("ofertas").where("produto_id", "==", id_a).stream()
             hoje = datetime.now()
             for of in ofs_a:
                 o_data = of.to_dict()
+                
+                # Resolução inteligente do nome da loja caso venha genérico como "Extração via Visão (IA)"
+                loja_nome = o_data.get("loja", "Desconhecida")
+                if "visão" in loja_nome.lower() or "visao" in loja_nome.lower() or not loja_nome:
+                    super_id = o_data.get("supermercado_id", "")
+                    loja_nome = MAP_SUPERMERCADOS.get(super_id, super_id.upper() or "Desconhecida")
+                
                 expira_em = o_data.get("expira_em")
                 if expira_em:
                     expira_naive = expira_em.replace(tzinfo=None) if hasattr(expira_em, "tzinfo") and expira_em.tzinfo else expira_em
                     if expira_naive >= hoje:
-                        lojas_a.append(o_data.get("loja", "Desconhecida"))
-            lojas_a = sorted(list(set(lojas_a)))
+                        lojas_a_ativas.append(loja_nome)
+                    else:
+                        lojas_a_historico.append(f"{loja_nome} (Histórico)")
+                else:
+                    lojas_a_historico.append(f"{loja_nome} (Histórico)")
+            lojas_a_ativas = sorted(list(set(lojas_a_ativas)))
+            lojas_a_historico = sorted(list(set(lojas_a_historico)))
         except Exception:
             pass
             
-        # Busca lojas das ofertas vigentes para B
-        lojas_b = []
+        # Determina o display para A
+        if lojas_a_ativas:
+            lojas_a_str = ", ".join(lojas_a_ativas)
+        elif lojas_a_historico:
+            lojas_a_str = ", ".join(lojas_a_historico)
+        else:
+            # Tenta ler o campo de origem definitiva do produto
+            origem_id = data_a.get("supermercado_origem", "")
+            if origem_id:
+                origem_nome = MAP_SUPERMERCADOS.get(origem_id, origem_id.upper())
+                lojas_a_str = f"[Sem ofertas] (Origem: {origem_nome})"
+            else:
+                lojas_a_str = "[Sem ofertas]"
+            
+        # Busca lojas das ofertas (vigentes e histórico) para B
+        lojas_b_ativas = []
+        lojas_b_historico = []
         try:
             ofs_b = db.collection("ofertas").where("produto_id", "==", id_b).stream()
             hoje = datetime.now()
             for of in ofs_b:
                 o_data = of.to_dict()
+                
+                # Resolução inteligente do nome da loja caso venha genérico como "Extração via Visão (IA)"
+                loja_nome = o_data.get("loja", "Desconhecida")
+                if "visão" in loja_nome.lower() or "visao" in loja_nome.lower() or not loja_nome:
+                    super_id = o_data.get("supermercado_id", "")
+                    loja_nome = MAP_SUPERMERCADOS.get(super_id, super_id.upper() or "Desconhecida")
+                
                 expira_em = o_data.get("expira_em")
                 if expira_em:
                     expira_naive = expira_em.replace(tzinfo=None) if hasattr(expira_em, "tzinfo") and expira_em.tzinfo else expira_em
                     if expira_naive >= hoje:
-                        lojas_b.append(o_data.get("loja", "Desconhecida"))
-            lojas_b = sorted(list(set(lojas_b)))
+                        lojas_b_ativas.append(loja_nome)
+                    else:
+                        lojas_b_historico.append(f"{loja_nome} (Histórico)")
+                else:
+                    lojas_b_historico.append(f"{loja_nome} (Histórico)")
+            lojas_b_ativas = sorted(list(set(lojas_b_ativas)))
+            lojas_b_historico = sorted(list(set(lojas_b_historico)))
         except Exception:
             pass
+            
+        # Determina o display para B
+        if lojas_b_ativas:
+            lojas_b_str = ", ".join(lojas_b_ativas)
+        elif lojas_b_historico:
+            lojas_b_str = ", ".join(lojas_b_historico)
+        else:
+            # Tenta ler o campo de origem definitiva do produto
+            origem_id = data_b.get("supermercado_origem", "")
+            if origem_id:
+                origem_nome = MAP_SUPERMERCADOS.get(origem_id, origem_id.upper())
+                lojas_b_str = f"[Sem ofertas] (Origem: {origem_nome})"
+            else:
+                lojas_b_str = "[Sem ofertas]"
             
         os.system("clear")
         print(f"=========================================================")
@@ -270,12 +335,12 @@ def rodar_assistente_interativo():
         
         print(f" [A] ID: {id_a}")
         print(f"     Nome:   {data_a.get('nome')} ({data_a.get('unidade')})")
-        print(f"     Lojas:  {', '.join(lojas_a)}" if lojas_a else "     Lojas:  [Sem ofertas ativas]")
+        print(f"     Lojas:  {lojas_a_str}")
         print(f"     Foto:   [✅ Sim] ({img_url_a})" if img_url_a else "     Foto:   [❌ Não]")
         print("-" * 57)
         print(f" [B] ID: {id_b}")
         print(f"     Nome:   {data_b.get('nome')} ({data_b.get('unidade')})")
-        print(f"     Lojas:  {', '.join(lojas_b)}" if lojas_b else "     Lojas:  [Sem ofertas ativas]")
+        print(f"     Lojas:  {lojas_b_str}")
         print(f"     Foto:   [✅ Sim] ({img_url_b})" if img_url_b else "     Foto:   [❌ Não]")
         print("=========================================================")
         print(" O que deseja fazer?")
