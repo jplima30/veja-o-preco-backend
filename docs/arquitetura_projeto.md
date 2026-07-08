@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 07/07/2026 — Sessão 41: Ingredientes Regionais e Central de Imagens Híbrida.*
+*Última atualização: 08/07/2026 — Sessão 42: Deduplicação Automática e Visibilidade de Lojas.*
 
 ---
 
@@ -613,3 +613,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Otimização de Sequência do Cron ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
    * Reordenada a fila de scripts de pós-triagem para rodar o auditor de categorias (`auditar_categorias.py --auto-apply`) **antes** da central de imagens (`central_imagens.py --cron-completo`).
    * Isso evita o processamento de curadoria automática (busca DuckDuckGo e download) para produtos inválidos (bazar/lixo) que seriam deletados em seguida pela auditoria.
+
+---
+
+**Sessão 42 (Deduplicação Automática e Visibilidade de Lojas)**
+
+**Data:** 08 de Julho de 2026
+**Objetivo:** Automatizar a mesclagem de produtos duplicados com nomes 100% idênticos diretamente no fluxo do Cron e melhorar a tomada de decisão no assistente interativo de duplicatas exibindo quais supermercados possuem ofertas ativas para cada ID comparado.
+
+### Implementações:
+1. **Deduplicação Inteligente no Cron ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   * Modificada a rotina de pós-captura para disparar o script de duplicatas com a nova flag silenciosa `--auto-merge-exact-words-silent` antes de exibir o diagnóstico de detecção `--detect-only`.
+   * Com isso, o Cron resolve e mescla automaticamente todas as duplicidades óbvias de nomes idênticos no Firestore a cada rodada das 10h e 14h, deixando no log final apenas os conflitos complexos que exigem decisão humana.
+2. **Flag de Mesclagem Silenciosa ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Inserido o suporte à flag `--auto-merge-exact-words-silent` na função `rodar_mesclagem_automatica_exata` para pular o bloqueio de confirmação `input()` ao rodar no Cron ou em segundo plano.
+3. **Visibilidade de Supermercados Ativos ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada busca automática em tempo real na coleção de `/ofertas` para os IDs de produtos comparados (A e B) dentro do loop do assistente interativo.
+   * As ofertas são filtradas em memória (pela data de expiração) para obter apenas as lojas ativas onde aquele ID está cadastrado hoje.
+   * O painel de exibição no terminal foi atualizado para mostrar a lista de supermercados em uma linha dedicada (`Lojas: Assaí, Mix Mateus`), auxiliando o operador a decidir rapidamente qual ID deve ser mantido ou descartado.
