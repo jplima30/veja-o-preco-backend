@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 
 # Adiciona as pastas corretas ao Path para importação do Firebase Admin
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -226,6 +227,38 @@ def rodar_assistente_interativo():
         min_words = len(w1) if len(w1) < len(w2) else len(w2)
         overlap = len(intersec) / min_words if min_words > 0 else 0
         
+        # Busca lojas das ofertas vigentes para A
+        lojas_a = []
+        try:
+            ofs_a = db.collection("ofertas").where("produto_id", "==", id_a).stream()
+            hoje = datetime.now()
+            for of in ofs_a:
+                o_data = of.to_dict()
+                expira_em = o_data.get("expira_em")
+                if expira_em:
+                    expira_naive = expira_em.replace(tzinfo=None) if hasattr(expira_em, "tzinfo") and expira_em.tzinfo else expira_em
+                    if expira_naive >= hoje:
+                        lojas_a.append(o_data.get("loja", "Desconhecida"))
+            lojas_a = sorted(list(set(lojas_a)))
+        except Exception:
+            pass
+            
+        # Busca lojas das ofertas vigentes para B
+        lojas_b = []
+        try:
+            ofs_b = db.collection("ofertas").where("produto_id", "==", id_b).stream()
+            hoje = datetime.now()
+            for of in ofs_b:
+                o_data = of.to_dict()
+                expira_em = o_data.get("expira_em")
+                if expira_em:
+                    expira_naive = expira_em.replace(tzinfo=None) if hasattr(expira_em, "tzinfo") and expira_em.tzinfo else expira_em
+                    if expira_naive >= hoje:
+                        lojas_b.append(o_data.get("loja", "Desconhecida"))
+            lojas_b = sorted(list(set(lojas_b)))
+        except Exception:
+            pass
+            
         os.system("clear")
         print(f"=========================================================")
         print(f"⚠️  POTENCIAL DUPLICATA ({atual + 1}/{total})")
@@ -237,10 +270,12 @@ def rodar_assistente_interativo():
         
         print(f" [A] ID: {id_a}")
         print(f"     Nome:   {data_a.get('nome')} ({data_a.get('unidade')})")
+        print(f"     Lojas:  {', '.join(lojas_a)}" if lojas_a else "     Lojas:  [Sem ofertas ativas]")
         print(f"     Foto:   [✅ Sim] ({img_url_a})" if img_url_a else "     Foto:   [❌ Não]")
         print("-" * 57)
         print(f" [B] ID: {id_b}")
         print(f"     Nome:   {data_b.get('nome')} ({data_b.get('unidade')})")
+        print(f"     Lojas:  {', '.join(lojas_b)}" if lojas_b else "     Lojas:  [Sem ofertas ativas]")
         print(f"     Foto:   [✅ Sim] ({img_url_b})" if img_url_b else "     Foto:   [❌ Não]")
         print("=========================================================")
         print(" O que deseja fazer?")
@@ -354,7 +389,7 @@ def rodar_assistente_interativo():
     print("\n👋 Assistente finalizado.")
     input("Pressione Enter para voltar ao menu...")
 
-def rodar_mesclagem_automatica_exata():
+def rodar_mesclagem_automatica_exata(silent=False):
     print("=========================================================")
     print("🔄 INICIANDO MESCLAGEM AUTOMÁTICA DE PALAVRAS IDÊNTICAS")
     print("=========================================================")
@@ -363,12 +398,14 @@ def rodar_mesclagem_automatica_exata():
         duplicatas = buscar_duplicatas_potenciais()
     except Exception as e:
         print(f"❌ Erro ao ler produtos: {e}")
-        input("\nPressione Enter para continuar...")
+        if not silent:
+            input("\nPressione Enter para continuar...")
         return
         
     if not duplicatas:
         print("\n✨ Nenhuma duplicata potencial encontrada no banco.")
-        input("\nPressione Enter para continuar...")
+        if not silent:
+            input("\nPressione Enter para continuar...")
         return
         
     total_mesclados = 0
@@ -418,13 +455,16 @@ def rodar_mesclagem_automatica_exata():
     print("🏁 MESCLAGEM AUTOMÁTICA CONCLUÍDA!")
     print(f"📉 Total de duplicatas eliminadas: {total_mesclados}")
     print("=========================================================\n")
-    input("Pressione Enter para continuar...")
+    if not silent:
+        input("Pressione Enter para continuar...")
 
 if __name__ == "__main__":
     import time
     if "--detect-only" in sys.argv:
         rodar_diagnostico_cron()
     elif "--auto-merge-exact-words" in sys.argv:
-        rodar_mesclagem_automatica_exata()
+        rodar_mesclagem_automatica_exata(silent=False)
+    elif "--auto-merge-exact-words-silent" in sys.argv:
+        rodar_mesclagem_automatica_exata(silent=True)
     else:
         rodar_assistente_interativo()
