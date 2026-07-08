@@ -627,7 +627,10 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Com isso, o Cron resolve e mescla automaticamente todas as duplicidades óbvias de nomes idênticos no Firestore a cada rodada das 10h e 14h, deixando no log final apenas os conflitos complexos que exigem decisão humana.
 2. **Flag de Mesclagem Silenciosa ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
    * Inserido o suporte à flag `--auto-merge-exact-words-silent` na função `rodar_mesclagem_automatica_exata` para pular o bloqueio de confirmação `input()` ao rodar no Cron ou em segundo plano.
-3. **Visibilidade de Supermercados Ativos ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
-   * Adicionada busca automática em tempo real na coleção de `/ofertas` para os IDs de produtos comparados (A e B) dentro do loop do assistente interativo.
-   * As ofertas são filtradas em memória (pela data de expiração) para obter apenas as lojas ativas onde aquele ID está cadastrado hoje.
-   * O painel de exibição no terminal foi atualizado para mostrar a lista de supermercados em uma linha dedicada (`Lojas: Assaí, Mix Mateus`), auxiliando o operador a decidir rapidamente qual ID deve ser mantido ou descartado.
+3. **Visibilidade de Supermercados Ativos e Históricos ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada busca em tempo real na coleção de `/ofertas` para os IDs comparados.
+   * **Tratamento de Visão (IA):** Criado o dicionário `MAP_SUPERMERCADOS` para mapear o `supermercado_id` (ex: `formosa` -> `Formosa`) caso o campo `loja` venha preenchido com a string genérica da extração via visão computacional.
+   * **Fallback de Histórico:** Se não houver ofertas vigentes para o produto hoje, o script resgata as ofertas expiradas daquele dia que ainda restam no banco e exibe com a marcação `(Histórico)`.
+   * **Fallback de Origem Definitiva:** Se o banco já tiver passado pela faxina noturna do Cron e não tiver nenhuma oferta recente, o assistente lê o campo permanente `supermercado_origem` no cadastro do produto (exibindo `[Sem ofertas] (Origem: Assaí)`).
+4. **Certidão de Nascimento do Produto ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   * Ao criar um novo produto em `salvar_produto_e_oferta`, adicionamos o campo permanente `"supermercado_origem": supermercado_id`. Isso garante a identificação da procedência original do produto mesmo após a limpeza de suas ofertas expiradas.
