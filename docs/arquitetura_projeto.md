@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 08/07/2026 — Sessão 42: Deduplicação Automática e Visibilidade de Lojas.*
+*Última atualização: 12/07/2026 — Sessão 43: Captura Resiliente de Vídeo no Instagram.*
 
 ---
 
@@ -634,3 +634,17 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * **Fallback de Origem Definitiva:** Se o banco já tiver passado pela faxina noturna do Cron e não tiver nenhuma oferta recente, o assistente lê o campo permanente `supermercado_origem` no cadastro do produto (exibindo `[Sem ofertas] (Origem: Assaí)`).
 4. **Certidão de Nascimento do Produto ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
    * Ao criar um novo produto em `salvar_produto_e_oferta`, adicionamos o campo permanente `"supermercado_origem": supermercado_id`. Isso garante a identificação da procedência original do produto mesmo após a limpeza de suas ofertas expiradas.
+
+---
+
+**Sessão 43 (Captura Resiliente de Vídeo no Instagram)**
+
+**Data:** 12 de Julho de 2026
+**Objetivo:** Solucionar falhas de timeout (30s) na captura de frames de vídeos no Instagram (especialmente no perfil do Assaí) provocadas por overlays transparentes e stickers interativos sobre o elemento de vídeo.
+
+### Implementações:
+1. **Captura por Coordenadas (Clip) ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   * Substituída a chamada `video_element.screenshot()` por uma captura recortada na página (`page.screenshot(clip=box, timeout=8000)`).
+   * O script agora lê a bounding box do vídeo e faz o print da viewport recortando apenas aquela área geométrica.
+   * Isso ignora completamente overlays, stickers ou animações de CSS do Instagram que travavam a estabilização do localizador do Playwright, garantindo a extração rápida de frames e eliminando o timeout de 30s.
+   * Mantivemos a triagem local e filtros de custo (OCR) 100% inalterados, preservando a lógica de economia do Gemini Vision.
