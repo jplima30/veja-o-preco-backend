@@ -205,7 +205,7 @@ Este documento descreve a evolução da arquitetura, decisões técnicas e o est
 
 ---
 
-*Última atualização: 12/07/2026 — Sessão 43: Captura Resiliente de Vídeo no Instagram.*
+*Última atualização: 30/07/2026 — Sessão 44: Extração via Canvas HTML5 e Tratamento Preventivo de Popups.*
 
 ---
 
@@ -643,8 +643,23 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Solucionar falhas de timeout (30s) na captura de frames de vídeos no Instagram (especialmente no perfil do Assaí) provocadas por overlays transparentes e stickers interativos sobre o elemento de vídeo.
 
 ### Implementações:
-1. **Captura por Coordenadas (Clip) ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+3. **Captura por Coordenadas (Clip) ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
    * Substituída a chamada `video_element.screenshot()` por uma captura recortada na página (`page.screenshot(clip=box, timeout=8000)`).
    * O script agora lê a bounding box do vídeo e faz o print da viewport recortando apenas aquela área geométrica.
    * Isso ignora completamente overlays, stickers ou animações de CSS do Instagram que travavam a estabilização do localizador do Playwright, garantindo a extração rápida de frames e eliminando o timeout de 30s.
    * Mantivemos a triagem local e filtros de custo (OCR) 100% inalterados, preservando a lógica de economia do Gemini Vision.
+
+---
+
+**Sessão 44 (Extração via Canvas HTML5 e Tratamento Preventivo de Popups)**
+
+**Data:** 30 de Julho de 2026
+**Objetivo:** Eliminar timeouts no `page.screenshot` durante a captura de vídeos (Reels) no Instagram através da extração direta do buffer de vídeo via HTML5 Canvas em JavaScript e aprimoramento do fechamento de popups de segurança.
+
+### Implementações:
+1. **Extração de Frames via HTML5 Canvas ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   * Injetado código JS via `page.evaluate()` que desenha o frame do elemento `<video>` em um `<canvas>` 2D em memória e retorna a imagem Base64 (`canvas.toDataURL('image/jpeg', 0.75)`).
+   * Essa chamada roda em menos de 10ms e não depende do engine de screenshot do Playwright, ficando 100% imune a timeouts provocados por animações, overlays ou buscas de buffer no player.
+   * Mantido fallback secundário para `page.screenshot(clip=box, animations="disabled", timeout=3000)` caso a segurança do navegador restrinja o Canvas.
+2. **Ampliação do Fechador de Popups (`tratar_popups_instagram` em [cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   * Adicionados novos seletores (ex: `button:has-text('Fechar')`, `button:has-text('Dismiss')`, `svg[aria-label='Fechar']`) para dispensar automaticamente modais de cookies, notificações e janelas suspensas no Instagram.

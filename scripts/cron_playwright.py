@@ -486,7 +486,7 @@ def processar_mateus_site(page, historico, force=False):
 
 def tratar_popups_instagram(page) -> bool:
     """
-    Tenta fechar popups/modais indesejados (ex: localização, notificações, cookies)
+    Tenta fechar popups/modais indesejados (ex: localização, notificações, cookies, logins suspensos)
     que bloqueiam a tela do Instagram.
     """
     try:
@@ -498,7 +498,11 @@ def tratar_popups_instagram(page) -> bool:
             "button:has-text('Não permitir')",
             "button:has-text('Ativar')",
             "button:has-text('Allow')",
-            "button:has-text('Permitir')"
+            "button:has-text('Permitir')",
+            "button:has-text('Fechar')",
+            "button:has-text('Dismiss')",
+            "svg[aria-label='Fechar']",
+            "svg[aria-label='Close']"
         ]
         for sel in selectors:
             loc = page.locator(sel)
@@ -632,14 +636,45 @@ def processar_instagram(page, historico, force=False):
                         
                         for t in range(0, int(duration), step):
                             try:
-                                page.evaluate(f'() => document.querySelector("video").currentTime = {t}')
-                                time.sleep(1.5)
-                                video_element = page.locator("video").first
-                                box = video_element.bounding_box()
-                                if box and box['width'] > 0 and box['height'] > 0:
-                                    img_bytes = page.screenshot(type="jpeg", quality=75, clip=box, timeout=8000)
-                                else:
-                                    img_bytes = page.screenshot(type="jpeg", quality=75, timeout=8000)
+                                page.evaluate(f'() => {{ const v = document.querySelector("video"); if(v) v.currentTime = {t}; }}')
+                                time.sleep(1.0)
+                                
+                                img_bytes = None
+                                # [MÉTODO 1 - HTML5 CANVAS] Extração instantânea em JS (0ms Playwright timeout)
+                                try:
+                                    img_b64_raw = page.evaluate('''() => {
+                                        try {
+                                            const video = document.querySelector("video");
+                                            if (!video) return null;
+                                            const w = video.videoWidth || video.clientWidth || 640;
+                                            const h = video.videoHeight || video.clientHeight || 640;
+                                            if (w === 0 || h === 0) return null;
+                                            const canvas = document.createElement("canvas");
+                                            canvas.width = w;
+                                            canvas.height = h;
+                                            const ctx = canvas.getContext("2d");
+                                            ctx.drawImage(video, 0, 0, w, h);
+                                            const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                                            if (dataUrl && dataUrl.startsWith("data:image/jpeg;base64,")) {
+                                                return dataUrl.replace("data:image/jpeg;base64,", "");
+                                            }
+                                        } catch(e) {}
+                                        return null;
+                                    }''')
+                                    if img_b64_raw:
+                                        img_bytes = base64.b64decode(img_b64_raw)
+                                except Exception:
+                                    pass
+                                
+                                # [MÉTODO 2 - FALLBACK SCREENSHOT] Se o Canvas estiver restrito, usa screenshot com animações desativadas
+                                if not img_bytes:
+                                    video_element = page.locator("video").first
+                                    box = video_element.bounding_box()
+                                    if box and box['width'] > 0 and box['height'] > 0:
+                                        img_bytes = page.screenshot(type="jpeg", quality=75, clip=box, animations="disabled", timeout=3000)
+                                    else:
+                                        img_bytes = page.screenshot(type="jpeg", quality=75, animations="disabled", timeout=3000)
+                                
                                 frames_b64.append(base64.b64encode(img_bytes).decode('utf-8'))
                                 print(f"    📸 Frame capturado: {t}s")
                                 falhas_consecutivas = 0
