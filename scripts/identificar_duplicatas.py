@@ -30,7 +30,8 @@ STOPWORDS_QUALIFICADORES = {
     "concentrado", "extraforte", "un", "unidade", "cada", "regular", "congelado", "congelada",
     "congelados", "congeladas", "resfriado", "resfriada", "resfriados", "resfriadas", "pronto", "pronta",
     "embalagem", "menor", "azul", "mista", "pack", "tp", "kg", "g", "gr", "gramas", "quilo", "kilo", "ml", "l",
-    "litro", "litros", "und", "unid", "de", "da", "do", "dos", "das", "em", "com", "para", "e", "a", "o", "as", "os", "por"
+    "litro", "litros", "und", "unid", "de", "da", "do", "dos", "das", "em", "com", "para", "e", "a", "o", "as", "os", "por",
+    "cumbuca", "barra", "flocão", "flocao", "flocos", "vidro", "almofada", "vácuo", "vacuo", "pouch", "interfolhado", "natura", "iqf", "zip"
 }
 
 # 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
@@ -43,12 +44,14 @@ MAPEAMENTO_ORTOGRAFICO = {
     "pq/kg": "kg"
 }
 
-# 3. Termos de Variação/Agrupamento (Para Smart Auto-Ignore)
+# 3. Termos de Variação/Agrupamento/Versões (Para Smart Auto-Ignore)
 TERMOS_VARIACAO_AGRUPADA = {
     "sabores", "sabor", "tipos", "tipo", "variações", "variacoes", "variação", "variacao",
     "variados", "variadas", "diversos", "diversas", "sortidos", "sortido", "fragrâncias",
     "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
-    "cores", "cor", "estampas", "tamanhos", "eucalipto"
+    "cores", "cor", "estampas", "tamanhos", "eucalipto", "pro", "clinical", "professional", "profissional",
+    "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
+    "uva", "laranja", "morango"
 }
 
 # 4. Marcas Conhecidas do Catálogo de Supermercado
@@ -62,7 +65,11 @@ MARCAS_SUPERMERCADO = {
     "trigolino", "sol", "hiléia", "hileia", "amalia", "amália", "vilma", "adria", "isabela", "barilla",
     "renata", "predilecta", "quaker", "kelloggs", "ovomaltine", "ninho", "molico", "ccgl", "damare",
     "mococa", "tirol", "tirolez", "catupiry", "danone", "chamyto", "yakult", "pampas", "garoto", "lacta",
-    "hersheys", "kopenhagen", "maggi", "saborami", "saizon", "sazón", "ajinomoto", "vono", "apti"
+    "hersheys", "kopenhagen", "maggi", "saborami", "saizon", "sazón", "ajinomoto", "vono", "apti",
+    "catarinão", "fazenda", "sepé", "urbano", "filippo", "berio", "cocinero", "target", "nutrivita",
+    "clara", "jaguá", "tchê", "casaredo", "red horse", "piramutaba", "abc", "concórdia", "soya", "vicente",
+    "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
+    "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
