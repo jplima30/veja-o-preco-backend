@@ -31,7 +31,8 @@ STOPWORDS_QUALIFICADORES = {
     "congelados", "congeladas", "resfriado", "resfriada", "resfriados", "resfriadas", "pronto", "pronta",
     "embalagem", "menor", "azul", "mista", "pack", "tp", "kg", "g", "gr", "gramas", "quilo", "kilo", "ml", "l",
     "litro", "litros", "und", "unid", "de", "da", "do", "dos", "das", "em", "com", "para", "e", "a", "o", "as", "os", "por",
-    "cumbuca", "barra", "flocão", "flocao", "flocos", "vidro", "almofada", "vácuo", "vacuo", "pouch", "interfolhado", "natura", "iqf", "zip"
+    "cumbuca", "barra", "flocão", "flocao", "flocos", "vidro", "almofada", "vácuo", "vacuo", "pouch", "interfolhado", "natura", "iqf", "zip",
+    "sal", "c/sal", "csal"
 }
 
 # 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
@@ -88,7 +89,10 @@ def extrair_numeros(nome: str) -> list:
 def normalizar_texto_completo(nome: str) -> str:
     import re
     n = nome.lower().strip()
-    # Junta número com unidade colada (ex: 200 g -> 200g, 1 l -> 1l, 2 kg -> 2kg)
+    # 1. Normaliza siglas e pontos isolados (ex: L.F. -> L F, L. F. -> L F, P. A -> P A)
+    n = re.sub(r'([a-z])\.\s*([a-z])', r'\1 \2', n)
+    n = re.sub(r'([a-z])\.', r'\1 ', n)
+    # 2. Junta número com unidade colada (ex: 200 g -> 200g, 1 l -> 1l, 2 kg -> 2kg)
     n = re.sub(r'(\d+)\s*(g|gr|gramas|kg|kilo|quilo|ml|l|litros|litro|un|und|unid)\b', r'\1\2', n)
     return n
 
