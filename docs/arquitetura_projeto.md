@@ -663,3 +663,21 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Mantido fallback secundário para `page.screenshot(clip=box, animations="disabled", timeout=3000)` caso a segurança do navegador restrinja o Canvas.
 2. **Ampliação do Fechador de Popups (`tratar_popups_instagram` em [cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
    * Adicionados novos seletores (ex: `button:has-text('Fechar')`, `button:has-text('Dismiss')`, `svg[aria-label='Fechar']`) para dispensar automaticamente modais de cookies, notificações e janelas suspensas no Instagram.
+
+---
+
+**Sessão 45 (Smart Auto-Merge & Smart Auto-Ignore de Duplicatas no CRON - Issue #45)**
+
+**Data:** 03 de Agosto de 2026
+**Objetivo:** Automatizar completamente a triagem e resolução de conflitos de duplicatas no Firestore, eliminando o acúmulo de duplicidades (177 conflitos) através do Smart Auto-Merge de alta confiança e do Smart Auto-Ignore autônomo para variações de sabores e tipos.
+
+### Implementações:
+1. **Dicionários Especializados de Catálogo ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Incorporados 4 dicionários mapeados diretamente da base real do Firestore: `STOPWORDS_QUALIFICADORES` (termos como *original, tradicional, sachê, pacote, caixeta, congelado, resfriado*), `MAPEAMENTO_ORTOGRAFICO` (mussarela ↔ muçarela, aerosol ↔ aerossol, amazon ↔ amazônia), `TERMOS_VARIACAO_AGRUPADA` (sabores, tipos, variações, diversos, eucalipto) e discriminadores de SKU.
+2. **Algoritmos de Decisão Inteligente ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * **`eh_duplicata_alta_confianca()`:** Identifica duplicatas reais com gramatura idêntica ignorando ruídos de embalagem/ortografia e dispara a mesclagem automática.
+   * **`eh_variacao_agrupada()`:** Detecta ofertas genéricas agrupadas vs SKUs específicos e salva o par automaticamente na coleção `/duplicatas_ignoradas` no Firestore de forma não-bloqueante.
+   * **`escolher_produto_canonico()`:** Prioriza a manutenção do produto com imagem auditada e/ou maior histórico de ofertas ativas.
+3. **Menu Interativo e Execução no CRON:**
+   * Adicionada a opção `[5] 🚀 Smart Auto-Merge & Auto-Ignore` no assistente interativo do `gerenciador.py`.
+   * Atualizado o `cron_playwright.py` para executar a flag silenciosa `--auto-merge-smart-silent` diariamente no encerramento da captura.
