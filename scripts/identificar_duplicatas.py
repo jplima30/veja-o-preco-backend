@@ -94,7 +94,13 @@ def normalizar_palavras_ortografia(words: set) -> set:
             novas.add(w_norm)
     return novas
 
-def eh_variacao_agrupada(data_a: dict, data_b: dict) -> bool:
+def eh_variacao_agrupada(data_a: dict, data_b: dict, marcas_dinamicas: set = None) -> bool:
+    # 0. Checagem direta dos atributos explícitos 'marca' no Firestore (se preenchidos pelos scrapers)
+    marca_a_doc = str(data_a.get("marca", "")).strip().lower() if data_a.get("marca") else ""
+    marca_b_doc = str(data_b.get("marca", "")).strip().lower() if data_b.get("marca") else ""
+    if marca_a_doc and marca_b_doc and marca_a_doc != marca_b_doc:
+        return True
+
     n1 = normalizar_texto_completo(data_a.get("nome", ""))
     n2 = normalizar_texto_completo(data_b.get("nome", ""))
     w1 = set(n1.split())
@@ -111,9 +117,13 @@ def eh_variacao_agrupada(data_a: dict, data_b: dict) -> bool:
     if inter_a and inter_b and inter_a != inter_b:
         return True
 
-    # 2. Checa se são marcas concorrentes diferentes (ex: Estrela vs Vitarella)
-    marcas_a = w1.intersection(MARCAS_SUPERMERCADO)
-    marcas_b = w2.intersection(MARCAS_SUPERMERCADO)
+    # 2. Checa se são marcas concorrentes diferentes (Unindo lista estática + marcas aprendidas dinamicamente do banco)
+    todas_marcas = MARCAS_SUPERMERCADO
+    if marcas_dinamicas:
+        todas_marcas = MARCAS_SUPERMERCADO.union(marcas_dinamicas)
+
+    marcas_a = w1.intersection(todas_marcas)
+    marcas_b = w2.intersection(todas_marcas)
     if marcas_a and marcas_b and marcas_a != marcas_b:
         return True
 
