@@ -23,13 +23,14 @@ MAP_SUPERMERCADOS = {
     "economico": "Seja Econômico"
 }
 
-# 1. Stopwords de Conservação e Embalagem que podem ser ignoradas na auto-mesclagem de alta confiança
+# 1. Stopwords de Conservação, Preposições e Embalagem que podem ser ignoradas na auto-mesclagem de alta confiança
 STOPWORDS_QUALIFICADORES = {
     "original", "tradicional", "especial", "premium", "clássico", "classico", "sachê", "sache",
     "pacote", "pote", "lata", "caixa", "caixeta", "display", "garrafa", "pet", "envelopado", "envelopada",
     "concentrado", "extraforte", "un", "unidade", "cada", "regular", "congelado", "congelada",
     "congelados", "congeladas", "resfriado", "resfriada", "resfriados", "resfriadas", "pronto", "pronta",
-    "embalagem", "menor", "azul", "mista", "pack", "tp"
+    "embalagem", "menor", "azul", "mista", "pack", "tp", "kg", "g", "gr", "gramas", "quilo", "kilo", "ml", "l",
+    "litro", "litros", "und", "unid", "de", "da", "do", "dos", "das", "em", "com", "para", "e", "a", "o", "as", "os", "por"
 }
 
 # 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
@@ -50,11 +51,39 @@ TERMOS_VARIACAO_AGRUPADA = {
     "cores", "cor", "estampas", "tamanhos", "eucalipto"
 }
 
+# 4. Marcas Conhecidas do Catálogo de Supermercado
+MARCAS_SUPERMERCADO = {
+    "estrela", "vitarella", "araguaia", "ricosa", "elseve", "seda", "sadia", "perdigao", "perdigão",
+    "seara", "rezende", "nestle", "nestlé", "itambe", "itambé", "italac", "piracanjuba", "colgate",
+    "sorriso", "omo", "ype", "ypê", "tixan", "brilhante", "downy", "comfort", "yoki", "kitano",
+    "knorr", "arisco", "fugini", "paladori", "quero", "heinz", "hellmanns", "pomarola", "bauducco",
+    "mabel", "marilan", "visconti", "parati", "toddy", "nescau", "santa clara", "pilao", "pilão",
+    "melitta", "ecofrigo", "frigol", "frico", "fricó", "frimesa", "pampeano", "dabelle", "dona benta",
+    "trigolino", "sol", "hiléia", "hileia", "amalia", "amália", "vilma", "adria", "isabela", "barilla",
+    "renata", "predilecta", "quaker", "kelloggs", "ovomaltine", "ninho", "molico", "ccgl", "damare",
+    "mococa", "tirol", "tirolez", "catupiry", "danone", "chamyto", "yakult", "pampas", "garoto", "lacta",
+    "hersheys", "kopenhagen", "maggi", "saborami", "saizon", "sazón", "ajinomoto", "vono", "apti"
+}
+
+# 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
+PROPRIEDADES_INCOMPATIVEIS = [
+    ({"com"}, {"sem"}),
+    ({"coxa", "coxas"}, {"sobrecoxa", "sobrecoxas"}),
+    ({"peito"}, {"coxa", "coxas", "sobrecoxa", "sobrecoxas", "asa", "asas"}),
+    ({"inteiro", "inteira"}, {"fatiado", "fatiada", "moído", "moida", "moida"}),
+]
+
 
 def extrair_numeros(nome: str) -> list:
     import re
-    # Encontra sequências de números no nome (ex: 200g -> ['200'])
     return re.findall(r'\d+', nome.lower())
+
+def normalizar_texto_completo(nome: str) -> str:
+    import re
+    n = nome.lower().strip()
+    # Junta número com unidade colada (ex: 200 g -> 200g, 1 l -> 1l, 2 kg -> 2kg)
+    n = re.sub(r'(\d+)\s*(g|gr|gramas|kg|kilo|quilo|ml|l|litros|litro|un|und|unid)\b', r'\1\2', n)
+    return n
 
 def normalizar_palavras_ortografia(words: set) -> set:
     novas = set()
@@ -66,29 +95,38 @@ def normalizar_palavras_ortografia(words: set) -> set:
     return novas
 
 def eh_variacao_agrupada(data_a: dict, data_b: dict) -> bool:
-    n1 = data_a.get("nome", "").lower().strip()
-    n2 = data_b.get("nome", "").lower().strip()
+    n1 = normalizar_texto_completo(data_a.get("nome", ""))
+    n2 = normalizar_texto_completo(data_b.get("nome", ""))
     w1 = set(n1.split())
     w2 = set(n2.split())
     
+    # 1. Checa termos de agrupamento (ex: "Sabores" vs "Morango")
     has_var_a = bool(w1.intersection(TERMOS_VARIACAO_AGRUPADA))
     has_var_b = bool(w2.intersection(TERMOS_VARIACAO_AGRUPADA))
-    
-    # Se um tem termo de variação e o outro não (ex: "Sabores" vs "Morango") -> Variação!
     if has_var_a != has_var_b:
         return True
         
-    # Se ambos tiverem termos de variação/aroma diferentes -> Variação!
     inter_a = w1.intersection(TERMOS_VARIACAO_AGRUPADA)
     inter_b = w2.intersection(TERMOS_VARIACAO_AGRUPADA)
     if inter_a and inter_b and inter_a != inter_b:
         return True
+
+    # 2. Checa se são marcas concorrentes diferentes (ex: Estrela vs Vitarella)
+    marcas_a = w1.intersection(MARCAS_SUPERMERCADO)
+    marcas_b = w2.intersection(MARCAS_SUPERMERCADO)
+    if marcas_a and marcas_b and marcas_a != marcas_b:
+        return True
+
+    # 3. Checa se são propriedades incompatíveis (ex: Coxas vs Sobrecoxas, Com vs Sem)
+    for set1, set2 in PROPRIEDADES_INCOMPATIVEIS:
+        if (w1.intersection(set1) and w2.intersection(set2)) or (w1.intersection(set2) and w2.intersection(set1)):
+            return True
         
     return False
 
 def eh_duplicata_alta_confianca(data_a: dict, data_b: dict) -> bool:
-    n1 = data_a.get("nome", "").lower().strip()
-    n2 = data_b.get("nome", "").lower().strip()
+    n1 = normalizar_texto_completo(data_a.get("nome", ""))
+    n2 = normalizar_texto_completo(data_b.get("nome", ""))
     
     nums_a = extrair_numeros(n1)
     nums_b = extrair_numeros(n2)
@@ -105,7 +143,7 @@ def eh_duplicata_alta_confianca(data_a: dict, data_b: dict) -> bool:
     if w1_norm == w2_norm:
         return True
         
-    # 2. Se a diferença consistir exclusivamente de qualificadores/stopwords de embalagem
+    # 2. Se a diferença consistir exclusivamente de qualificadores/stopwords de embalagem/preposições
     diff = w1_norm ^ w2_norm
     if diff and diff.issubset(STOPWORDS_QUALIFICADORES):
         w1_essenciais = w1_norm - STOPWORDS_QUALIFICADORES
