@@ -23,11 +23,111 @@ MAP_SUPERMERCADOS = {
     "economico": "Seja Econômico"
 }
 
+# 1. Stopwords de Conservação e Embalagem que podem ser ignoradas na auto-mesclagem de alta confiança
+STOPWORDS_QUALIFICADORES = {
+    "original", "tradicional", "especial", "premium", "clássico", "classico", "sachê", "sache",
+    "pacote", "pote", "lata", "caixa", "caixeta", "display", "garrafa", "pet", "envelopado", "envelopada",
+    "concentrado", "extraforte", "un", "unidade", "cada", "regular", "congelado", "congelada",
+    "congelados", "congeladas", "resfriado", "resfriada", "resfriados", "resfriadas", "pronto", "pronta",
+    "embalagem", "menor", "azul", "mista", "pack", "tp"
+}
+
+# 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
+MAPEAMENTO_ORTOGRAFICO = {
+    "mussarela": "muçarela",
+    "aerosol": "aerossol",
+    "amazon": "amazônia",
+    "pc/kg": "kg",
+    "pç/kg": "kg",
+    "pq/kg": "kg"
+}
+
+# 3. Termos de Variação/Agrupamento (Para Smart Auto-Ignore)
+TERMOS_VARIACAO_AGRUPADA = {
+    "sabores", "sabor", "tipos", "tipo", "variações", "variacoes", "variação", "variacao",
+    "variados", "variadas", "diversos", "diversas", "sortidos", "sortido", "fragrâncias",
+    "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
+    "cores", "cor", "estampas", "tamanhos", "eucalipto"
+}
+
 
 def extrair_numeros(nome: str) -> list:
     import re
     # Encontra sequências de números no nome (ex: 200g -> ['200'])
     return re.findall(r'\d+', nome.lower())
+
+def normalizar_palavras_ortografia(words: set) -> set:
+    novas = set()
+    for w in words:
+        w_limpo = w.strip("(),.-/")
+        w_norm = MAPEAMENTO_ORTOGRAFICO.get(w_limpo, w_limpo)
+        if w_norm:
+            novas.add(w_norm)
+    return novas
+
+def eh_variacao_agrupada(data_a: dict, data_b: dict) -> bool:
+    n1 = data_a.get("nome", "").lower().strip()
+    n2 = data_b.get("nome", "").lower().strip()
+    w1 = set(n1.split())
+    w2 = set(n2.split())
+    
+    has_var_a = bool(w1.intersection(TERMOS_VARIACAO_AGRUPADA))
+    has_var_b = bool(w2.intersection(TERMOS_VARIACAO_AGRUPADA))
+    
+    # Se um tem termo de variação e o outro não (ex: "Sabores" vs "Morango") -> Variação!
+    if has_var_a != has_var_b:
+        return True
+        
+    # Se ambos tiverem termos de variação/aroma diferentes -> Variação!
+    inter_a = w1.intersection(TERMOS_VARIACAO_AGRUPADA)
+    inter_b = w2.intersection(TERMOS_VARIACAO_AGRUPADA)
+    if inter_a and inter_b and inter_a != inter_b:
+        return True
+        
+    return False
+
+def eh_duplicata_alta_confianca(data_a: dict, data_b: dict) -> bool:
+    n1 = data_a.get("nome", "").lower().strip()
+    n2 = data_b.get("nome", "").lower().strip()
+    
+    nums_a = extrair_numeros(n1)
+    nums_b = extrair_numeros(n2)
+    if nums_a != nums_b:
+        return False
+        
+    w1 = set(n1.split())
+    w2 = set(n2.split())
+    
+    w1_norm = normalizar_palavras_ortografia(w1)
+    w2_norm = normalizar_palavras_ortografia(w2)
+    
+    # 1. Se após normalização ortográfica forem idênticas
+    if w1_norm == w2_norm:
+        return True
+        
+    # 2. Se a diferença consistir exclusivamente de qualificadores/stopwords de embalagem
+    diff = w1_norm ^ w2_norm
+    if diff and diff.issubset(STOPWORDS_QUALIFICADORES):
+        w1_essenciais = w1_norm - STOPWORDS_QUALIFICADORES
+        w2_essenciais = w2_norm - STOPWORDS_QUALIFICADORES
+        if w1_essenciais == w2_essenciais or w1_essenciais.issubset(w2_essenciais) or w2_essenciais.issubset(w1_essenciais):
+            return True
+            
+    return False
+
+def escolher_produto_canonico(id_a: str, data_a: dict, id_b: str, data_b: dict) -> tuple:
+    has_img_a = bool(data_a.get("imagem_url"))
+    has_img_b = bool(data_b.get("imagem_url"))
+    
+    if has_img_a and not has_img_b:
+        return id_a, id_b
+    elif has_img_b and not has_img_a:
+        return id_b, id_a
+    else:
+        if id_a <= id_b:
+            return id_a, id_b
+        else:
+            return id_b, id_a
 
 def obter_similaridade(n1: str, n2: str, w1: set, w2: set) -> tuple:
     import difflib
@@ -347,11 +447,12 @@ def rodar_assistente_interativo():
         print("   [1] Sim, mesclar B para A (Mantém o item [A])")
         print("   [2] Sim, mesclar A para B (Mantém o item [B])")
         print("   [3] Ignorar este par e ir para o próximo")
-        print("   [4] ⚡ Executar mesclagem automática para todas as palavras idênticas")
+        print("   [4] ⚡ Mesclagem automática para palavras 100% idênticas")
+        print("   [5] 🚀 Smart Auto-Merge & Auto-Ignore (Resolução Inteligente em Lote)")
         print("   [0] Sair do assistente")
         print("=========================================================")
         
-        opcao = input("👉 Escolha uma opção [0-4]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-5]: ").strip()
         
         if opcao == "0":
             break
@@ -385,55 +486,7 @@ def rodar_assistente_interativo():
             time.sleep(1)
             atual += 1
         elif opcao == "4":
-            print("\n=========================================================")
-            print("🔄 INICIANDO MESCLAGEM AUTOMÁTICA EM LOTE...")
-            print("=========================================================")
-            total_mesclados = 0
-            ids_removidos = set()
-            
-            for idx_check in range(atual, total):
-                id_a_ch, data_a_ch, id_b_ch, data_b_ch, score_ch = duplicatas[idx_check]
-                if id_a_ch in ids_removidos or id_b_ch in ids_removidos:
-                    continue
-                    
-                n1 = data_a_ch.get("nome", "").lower().strip()
-                n2 = data_b_ch.get("nome", "").lower().strip()
-                
-                w1 = sorted(n1.split())
-                w2 = sorted(n2.split())
-                
-                if w1 != w2:
-                    continue
-                    
-                has_img_a = bool(data_a_ch.get("imagem_url"))
-                has_img_b = bool(data_b_ch.get("imagem_url"))
-                
-                if has_img_a and not has_img_b:
-                    id_manter = id_a_ch
-                    id_deletar = id_b_ch
-                elif has_img_b and not has_img_a:
-                    id_manter = id_b_ch
-                    id_deletar = id_a_ch
-                else:
-                    if id_a_ch <= id_b_ch:
-                        id_manter = id_a_ch
-                        id_deletar = id_b_ch
-                    else:
-                        id_manter = id_b_ch
-                        id_deletar = id_a_ch
-                        
-                print(f"🔀 Auto-mesclando: '{id_deletar}' ➡️ '{id_manter}'")
-                try:
-                    if mesclar_produtos_firestore(id_deletar, id_manter):
-                        ids_removidos.add(id_deletar)
-                        total_mesclados += 1
-                except Exception as e:
-                    print(f"   ❌ Erro: {e}")
-            
-            print(f"\n✨ Concluído! {total_mesclados} duplicatas exatas resolvidas.")
-            print("⏳ Recarregando lista de duplicatas do Firestore...")
-            time.sleep(2)
-            
+            rodar_mesclagem_automatica_exata(silent=False)
             try:
                 duplicatas = buscar_duplicatas_potenciais()
                 total = len(duplicatas)
@@ -442,9 +495,14 @@ def rodar_assistente_interativo():
                 print(f"❌ Erro ao recarregar: {e}")
                 input("Pressione Enter para continuar...")
                 break
-                
-            if not duplicatas:
-                print("\n✨ Nenhuma duplicata restante encontrada!")
+        elif opcao == "5":
+            rodar_smart_automerge(silent=False)
+            try:
+                duplicatas = buscar_duplicatas_potenciais()
+                total = len(duplicatas)
+                atual = 0
+            except Exception as e:
+                print(f"❌ Erro ao recarregar: {e}")
                 input("Pressione Enter para continuar...")
                 break
         else:
@@ -489,22 +547,7 @@ def rodar_mesclagem_automatica_exata(silent=False):
         if w1 != w2:
             continue
             
-        has_img_a = bool(data_a.get("imagem_url"))
-        has_img_b = bool(data_b.get("imagem_url"))
-        
-        if has_img_a and not has_img_b:
-            id_manter = id_a
-            id_deletar = id_b
-        elif has_img_b and not has_img_a:
-            id_manter = id_b
-            id_deletar = id_a
-        else:
-            if id_a <= id_b:
-                id_manter = id_a
-                id_deletar = id_b
-            else:
-                id_manter = id_b
-                id_deletar = id_a
+        id_manter, id_deletar = escolher_produto_canonico(id_a, data_a, id_b, data_b)
                 
         print(f"🔀 Mesclando automaticamente: '{id_deletar}' ➡️ '{id_manter}'")
         try:
@@ -523,6 +566,70 @@ def rodar_mesclagem_automatica_exata(silent=False):
     if not silent:
         input("Pressione Enter para continuar...")
 
+def rodar_smart_automerge(silent=False):
+    print("=========================================================")
+    print("⚡ INICIANDO SMART AUTO-MERGE & AUTO-IGNORE EM LOTE")
+    print("=========================================================")
+    print("⏳ Carregando produtos e calculando similaridades...")
+    try:
+        duplicatas = buscar_duplicatas_potenciais()
+    except Exception as e:
+        print(f"❌ Erro ao ler produtos: {e}")
+        if not silent:
+            input("\nPressione Enter para continuar...")
+        return
+        
+    if not duplicatas:
+        print("\n✨ Nenhuma duplicata potencial encontrada no banco.")
+        if not silent:
+            input("\nPressione Enter para continuar...")
+        return
+        
+    total_mesclados = 0
+    total_ignorados = 0
+    ids_removidos = set()
+    
+    for id_a, data_a, id_b, data_b, score in duplicatas:
+        if id_a in ids_removidos or id_b in ids_removidos:
+            continue
+            
+        # 1. Checa se é uma variação de sabor/agrupamento -> Auto-Ignore
+        if eh_variacao_agrupada(data_a, data_b):
+            chave_ignorado = f"{id_a}_vs_{id_b}" if id_a < id_b else f"{id_b}_vs_{id_a}"
+            try:
+                db.collection("duplicatas_ignoradas").document(chave_ignorado).set({
+                    "ignorado": True,
+                    "motivo": "smart_auto_ignore_variacao",
+                    "atualizado_em": firestore.SERVER_TIMESTAMP
+                })
+                total_ignorados += 1
+                if not silent:
+                    print(f"🛡️ Auto-Ignorando variação/sabor: '{data_a.get('nome')}' ↔️ '{data_b.get('nome')}'")
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar auto-ignore: {e}")
+            continue
+            
+        # 2. Checa se é duplicata de alta confiança -> Smart Auto-Merge
+        if eh_duplicata_alta_confianca(data_a, data_b):
+            id_manter, id_deletar = escolher_produto_canonico(id_a, data_a, id_b, data_b)
+            print(f"🔀 Smart Auto-Mesclando: '{id_deletar}' ➡️ '{id_manter}'")
+            try:
+                if mesclar_produtos_firestore(id_deletar, id_manter):
+                    ids_removidos.add(id_deletar)
+                    total_mesclados += 1
+                else:
+                    print(f"   ⚠️ Falha ao mesclar '{id_deletar}'")
+            except Exception as e:
+                print(f"   ❌ Erro ao mesclar '{id_deletar}': {e}")
+
+    print("\n=========================================================")
+    print("🏁 SMART AUTO-MERGE & IGNORE CONCLUÍDO!")
+    print(f"📉 Total de duplicatas mescladas: {total_mesclados}")
+    print(f"🛡️ Total de variações auto-ignoradas: {total_ignorados}")
+    print("=========================================================\n")
+    if not silent:
+        input("Pressione Enter para continuar...")
+
 if __name__ == "__main__":
     import time
     if "--detect-only" in sys.argv:
@@ -531,5 +638,9 @@ if __name__ == "__main__":
         rodar_mesclagem_automatica_exata(silent=False)
     elif "--auto-merge-exact-words-silent" in sys.argv:
         rodar_mesclagem_automatica_exata(silent=True)
+    elif "--auto-merge-smart" in sys.argv:
+        rodar_smart_automerge(silent=False)
+    elif "--auto-merge-smart-silent" in sys.argv:
+        rodar_smart_automerge(silent=True)
     else:
         rodar_assistente_interativo()
