@@ -85,6 +85,9 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"shortinho", "roupinha", "pants", "calça"}, {"regular", "tradicional", "fita"}),
     ({"wafer"}, {"recheado", "rolo", "rosquinha", "maria", "maizena"}),
     ({"pó", "po"}, {"líquido", "liquido", "uht"}),
+    ({"coxao", "coxão"}, {"músculo", "musculo", "patinho", "alcatra"}),
+    ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão"}),
+    ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão"}),
 ]
 
 
