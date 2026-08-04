@@ -52,7 +52,8 @@ TERMOS_VARIACAO_AGRUPADA = {
     "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
     "cores", "cor", "estampas", "tamanhos", "eucalipto", "pro", "clinical", "professional", "profissional",
     "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
-    "uva", "laranja", "morango", "juntinhos", "shortinho", "roupinha", "pants", "calça"
+    "uva", "laranja", "morango", "juntinhos", "shortinho", "roupinha", "pants", "calça", "crocks", "leve",
+    "pele", "com pele", "sem pele", "p", "m", "g", "xg", "xxg", "xxgg"
 }
 
 # 4. Marcas Conhecidas do Catálogo de Supermercado
@@ -70,7 +71,8 @@ MARCAS_SUPERMERCADO = {
     "catarinão", "fazenda", "sepé", "urbano", "filippo", "berio", "cocinero", "target", "nutrivita",
     "clara", "jaguá", "tchê", "casaredo", "red horse", "piramutaba", "abc", "concórdia", "soya", "vicente",
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
-    "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí"
+    "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
+    "pomodoro"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
