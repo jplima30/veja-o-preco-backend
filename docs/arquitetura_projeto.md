@@ -734,3 +734,17 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
    * Adicionadas marcas de pet food (`faro`, `whiskas`, `pedigree`, `friskies`, `champ`) ao `MARCAS_SUPERMERCADO`.
    * Adicionada a regra `({"pó", "po"}, {"líquido", "liquido", "uht"})` às `PROPRIEDADES_INCOMPATIVEIS`.
+
+---
+
+**Sessão 50 (Incompatibilidade de Cortes Bovinos e Mesclagem de Flocão/Peixe - Issue #46)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar matriz de incompatibilidade de cortes bovinos (`Coxão Mole`, `Músculo`, `Patinho`, `Alcatra`) e executar a mesclagem dos produtos do Flocão Dona Clara e Filé de Pescada Gó no Firestore.
+
+### Implementações:
+1. **Regras de Cortes Bovinos ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionadas combinações incompatíveis entre coxão mole, músculo, patinho e alcatra em `PROPRIEDADES_INCOMPATIVEIS`.
+2. **Mesclagem no Firestore:**
+   * Mesclado Par #24 (`farinha-de-milho-dona-clara-flocao-500g-un` ➡️ `flocao-de-milho-premium-dona-clara-pacote-500g-un`).
+   * Mesclado Par #25 (`file-congelado-de-go-amazon-pacote-500g-un` ➡️ `file-de-pescada-go-congelada-amazon-norte-pacote-500g-un`).
