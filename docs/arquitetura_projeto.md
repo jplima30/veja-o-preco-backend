@@ -682,3 +682,17 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Menu Interativo e Execução no CRON:**
    * Adicionada a opção `[5] 🚀 Smart Auto-Merge & Auto-Ignore` no assistente interativo do `gerenciador.py`.
    * Atualizado o `cron_playwright.py` para executar a flag silenciosa `--auto-merge-smart-silent` diariamente no encerramento da captura.
+
+---
+
+**Sessão 46 (Refinamento de Modelos de Fralda e Submarcas no Algoritmo de Deduplicação - Issue #42)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Evoluir a inteligência do algoritmo de deduplicação em `scripts/identificar_duplicatas.py` para eliminar falsos positivos de marcas/modelos específicos (ex: fraldas shortinho/roupinha vs fraldas de fita, e linhas infantis/submarcas como Seda Juntinhos) e realizar mesclagem orientada no Firestore.
+
+### Implementações:
+1. **Modelos de Fraldas e Submarcas ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada a regra de `PROPRIEDADES_INCOMPATIVEIS` para modelos de fralda: `({"shortinho", "roupinha", "pants", "calça"}, {"regular", "tradicional", "fita"})`.
+   * Adicionadas submarcas e termos de modelos (`juntinhos`, `shortinho`, `roupinha`, `pants`, `calça`) ao dicionário `TERMOS_VARIACAO_AGRUPADA`, garantindo que produtos de linhas específicas não sejam erroneamente mesclados com produtos regulares.
+2. **Mesclagem no Firestore:**
+   * Executada com sucesso a mesclagem das ofertas do produto com ruído de OCR (`shampoo-ou-shampoo-condicionador-procao-para-caes-varios-tipos-500ml-un`) para o produto canônico (`shampoo-ou-condicionador-procao-varios-tipos-500ml-un`), registrando o sinônimo de redirecionamento.
