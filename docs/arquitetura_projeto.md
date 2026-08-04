@@ -791,3 +791,17 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Mesclagem no Firestore:**
    * Mesclado Par #36 (`bisteca-do-peito-com-osso-resfriado-bovino-kg` ➡️ `bisteca-do-peito-dianteiro-bovino-resfriado-kg`).
    * Mesclado Par #38 (`carne-bovina-em-conserva-marca-target-lata-320g-un` ➡️ `carne-bovina-target-mista-lata-320g-un`).
+
+---
+
+**Sessão 54 (Regras de Pão Integral vs Tradicional, Acém vs Peito e Mesclagem Steak Rezende - Issue #50)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar incompatibilidade entre receitas de pão (`Integral` vs `Tradicional/Branco`), acém com osso vs peito bovino com osso e executar a mesclagem das ofertas do Steak de Frango Rezende.
+
+### Implementações:
+1. **Dicionários e Incompatividades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada a regra `({"integral"}, {"tradicional", "comum", "branco"})` em `PROPRIEDADES_INCOMPATIVEIS`.
+   * Adicionada a regra `({"acém", "acem"}, {"peito", "cupim"})` em `PROPRIEDADES_INCOMPATIVEIS`.
+2. **Mesclagem no Firestore:**
+   * Mesclado Par #43 (`steak-de-frango-empanado-rezende-embalagem-100g-un` ➡️ `steak-de-frango-rezende-congelado-100g-un`).

@@ -90,8 +90,10 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão", "fígado", "figado"}),
     ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão", "fígado", "figado"}),
     ({"fígado", "figado"}, {"coxao", "coxão", "patinho", "músculo", "musculo", "acém", "acem", "alcatra"}),
+    ({"acém", "acem"}, {"peito", "cupim", "músculo", "musculo", "patinho", "coxao", "coxão", "alcatra"}),
     ({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"}),
     ({"premium", "gourmet"}, {"regular", "tradicional", "extraforte", "clássico", "classico"}),
+    ({"integral"}, {"tradicional", "comum", "branco"}),
 ]
 
 
