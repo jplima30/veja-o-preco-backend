@@ -32,7 +32,7 @@ STOPWORDS_QUALIFICADORES = {
     "embalagem", "menor", "azul", "mista", "pack", "tp", "kg", "g", "gr", "gramas", "quilo", "kilo", "ml", "l",
     "litro", "litros", "und", "unid", "de", "da", "do", "dos", "das", "em", "com", "para", "e", "a", "o", "as", "os", "por",
     "cumbuca", "barra", "flocão", "flocao", "flocos", "vidro", "almofada", "vácuo", "vacuo", "pouch", "interfolhado", "natura", "iqf", "zip",
-    "sal", "c/sal", "csal", "sêmola", "semola"
+    "sal", "c/sal", "csal", "sêmola", "semola", "granel", "a granel"
 }
 
 # 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
@@ -54,7 +54,7 @@ TERMOS_VARIACAO_AGRUPADA = {
     "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
     "uva", "laranja", "morango", "juntinhos", "shortinho", "roupinha", "pants", "calça", "crocks", "leve",
     "pele", "com pele", "sem pele", "p", "m", "g", "xg", "xxg", "xxgg", "minions", "barbie", "batman",
-    "wafer", "recheado", "rolo", "rosquinha", "maria", "maizena", "p.a", "p.a.", "ponta"
+    "wafer", "recheado", "rolo", "rosquinha", "maria", "maizena", "p.a", "p.a.", "ponta", "combo", "pack"
 }
 
 # 4. Marcas Conhecidas do Catálogo de Supermercado
@@ -88,6 +88,7 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"coxao", "coxão"}, {"músculo", "musculo", "patinho", "alcatra"}),
     ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão"}),
     ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão"}),
+    ({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"}),
 ]
 
 
