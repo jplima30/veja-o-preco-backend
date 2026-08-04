@@ -73,7 +73,7 @@ MARCAS_SUPERMERCADO = {
     "clara", "jaguá", "tchê", "casaredo", "red horse", "piramutaba", "abc", "concórdia", "soya", "vicente",
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
     "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
-    "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ"
+    "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
