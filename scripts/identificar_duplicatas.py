@@ -73,7 +73,8 @@ MARCAS_SUPERMERCADO = {
     "clara", "jaguá", "tchê", "casaredo", "red horse", "piramutaba", "abc", "concórdia", "soya", "vicente",
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
     "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
-    "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin"
+    "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin",
+    "triângulo mineiro", "triangulo mineiro"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
@@ -85,10 +86,12 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"shortinho", "roupinha", "pants", "calça"}, {"regular", "tradicional", "fita"}),
     ({"wafer"}, {"recheado", "rolo", "rosquinha", "maria", "maizena"}),
     ({"pó", "po"}, {"líquido", "liquido", "uht"}),
-    ({"coxao", "coxão"}, {"músculo", "musculo", "patinho", "alcatra"}),
-    ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão"}),
-    ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão"}),
+    ({"coxao", "coxão"}, {"músculo", "musculo", "patinho", "alcatra", "fígado", "figado"}),
+    ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão", "fígado", "figado"}),
+    ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão", "fígado", "figado"}),
+    ({"fígado", "figado"}, {"coxao", "coxão", "patinho", "músculo", "musculo", "acém", "acem", "alcatra"}),
     ({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"}),
+    ({"premium", "gourmet"}, {"regular", "tradicional", "extraforte", "clássico", "classico"}),
 ]
 
 

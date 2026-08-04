@@ -776,3 +776,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Mesclagem no Firestore:**
    * Mesclado Par #32 (`racao-para-caes-thor-junior-a-granel-kg` ➡️ `racao-para-caes-thor-junior-quilo`).
    * Mesclado Par #34 (`americano-frango-congelado-kg` ➡️ `frango-americano-in-natura-congelado-kg`).
+
+---
+
+**Sessão 53 (Marca Triângulo Mineiro, Fígado/Miúdos e Mesclagem de Bisteca/Target - Issue #49)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Incorporar a marca Triângulo Mineiro, matriz de incompatibilidade de miúdos/cortes (`fígado` vs `coxão duro`/`músculo`), linha `premium` vs `regular` e executar a mesclagem dos produtos de Bisteca do Peito e Carne em Conserva Target.
+
+### Implementações:
+1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada `triângulo mineiro` a `MARCAS_SUPERMERCADO`.
+   * Adicionada a regra de incompatibilidade para `fígado` e linha `premium` em `PROPRIEDADES_INCOMPATIVEIS`.
+2. **Mesclagem no Firestore:**
+   * Mesclado Par #36 (`bisteca-do-peito-com-osso-resfriado-bovino-kg` ➡️ `bisteca-do-peito-dianteiro-bovino-resfriado-kg`).
+   * Mesclado Par #38 (`carne-bovina-em-conserva-marca-target-lata-320g-un` ➡️ `carne-bovina-target-mista-lata-320g-un`).
