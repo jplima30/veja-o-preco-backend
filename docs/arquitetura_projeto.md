@@ -696,3 +696,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionadas submarcas e termos de modelos (`juntinhos`, `shortinho`, `roupinha`, `pants`, `calça`) ao dicionário `TERMOS_VARIACAO_AGRUPADA`, garantindo que produtos de linhas específicas não sejam erroneamente mesclados com produtos regulares.
 2. **Mesclagem no Firestore:**
    * Executada com sucesso a mesclagem das ofertas do produto com ruído de OCR (`shampoo-ou-shampoo-condicionador-procao-para-caes-varios-tipos-500ml-un`) para o produto canônico (`shampoo-ou-condicionador-procao-varios-tipos-500ml-un`), registrando o sinônimo de redirecionamento.
+
+---
+
+**Sessão 47 (Expansão de Marcas e Sub-Linhas no Algoritmo de Deduplicação - Issue #43)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar novas marcas de molho de tomate (`Pomodoro`), qualificadores de sub-linhas/laticínios/peixes (`crocks`, `leve`, `com pele`, `sem pele`) e tamanhos de fralda (`p`, `m`, `g`, `xg`, `xxg`, `xxgg`) para garantir a diferenciação autônoma no `identificar_duplicatas.py`.
+
+### Implementações:
+1. **Dicionários de Catálogo ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada `pomodoro` às `MARCAS_SUPERMERCADO`.
+   * Adicionados `crocks`, `leve`, `pele`, `com pele`, `sem pele` e tamanhos de fralda em `TERMOS_VARIACAO_AGRUPADA`.
