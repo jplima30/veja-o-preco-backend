@@ -722,3 +722,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionados termos de personagens e formatos aos `TERMOS_VARIACAO_AGRUPADA` e `PROPRIEDADES_INCOMPATIVEIS`.
 2. **Mesclagem no Firestore:**
    * Mesclado o Par #13 (`macarrao-espaguete-ricosa-pacote-400g-un` ➡️ `macarrao-de-semola-espaguete-ricosa-pacote-400g-un`), consolidando ofertas e criando sinônimo.
+
+---
+
+**Sessão 49 (Estados Físicos e Marcas de Ração no Algoritmo de Deduplicação - Issue #45)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar incompatibilidade entre estados físicos de produtos (ex: Leite em pó vs Leite líquido/UHT) e adicionar marcas de ração animal (`Faro`, `Whiskas`, `Pedigree`, `Friskies`) para prevenção autônoma de falsos positivos no `identificar_duplicatas.py`.
+
+### Implementações:
+1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionadas marcas de pet food (`faro`, `whiskas`, `pedigree`, `friskies`, `champ`) ao `MARCAS_SUPERMERCADO`.
+   * Adicionada a regra `({"pó", "po"}, {"líquido", "liquido", "uht"})` às `PROPRIEDADES_INCOMPATIVEIS`.
