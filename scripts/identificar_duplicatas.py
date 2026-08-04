@@ -52,7 +52,7 @@ TERMOS_VARIACAO_AGRUPADA = {
     "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
     "cores", "cor", "estampas", "tamanhos", "eucalipto", "pro", "clinical", "professional", "profissional",
     "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
-    "uva", "laranja", "morango"
+    "uva", "laranja", "morango", "juntinhos", "shortinho", "roupinha", "pants", "calça"
 }
 
 # 4. Marcas Conhecidas do Catálogo de Supermercado
@@ -79,6 +79,7 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"coxa", "coxas"}, {"sobrecoxa", "sobrecoxas"}),
     ({"peito"}, {"coxa", "coxas", "sobrecoxa", "sobrecoxas", "asa", "asas"}),
     ({"inteiro", "inteira"}, {"fatiado", "fatiada", "moído", "moida", "moida"}),
+    ({"shortinho", "roupinha", "pants", "calça"}, {"regular", "tradicional", "fita"}),
 ]
 
 
