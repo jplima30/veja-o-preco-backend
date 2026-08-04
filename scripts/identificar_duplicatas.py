@@ -74,7 +74,7 @@ MARCAS_SUPERMERCADO = {
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
     "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
     "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin",
-    "triângulo mineiro", "triangulo mineiro"
+    "triângulo mineiro", "triangulo mineiro", "baly", "dona dê", "dona de"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
@@ -94,6 +94,9 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"}),
     ({"premium", "gourmet"}, {"regular", "tradicional", "extraforte", "clássico", "classico"}),
     ({"integral"}, {"tradicional", "comum", "branco"}),
+    ({"amarela"}, {"fina", "branca", "dagua", "d'água"}),
+    ({"pescada"}, {"piramutaba", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
+    ({"piramutaba"}, {"pescada", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
 ]
 
 

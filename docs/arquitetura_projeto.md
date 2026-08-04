@@ -805,3 +805,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionada a regra `({"acém", "acem"}, {"peito", "cupim"})` em `PROPRIEDADES_INCOMPATIVEIS`.
 2. **Mesclagem no Firestore:**
    * Mesclado Par #43 (`steak-de-frango-empanado-rezende-embalagem-100g-un` ➡️ `steak-de-frango-rezende-congelado-100g-un`).
+
+---
+
+**Sessão 55 (Marcas Baly/Dona Dê, Incompatibilidade de Peixes e Farinhas - Issue #51)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar marcas de energético (`Baly`) e alimento (`Dona Dê`), implementar matriz de espécies de peixes incompatíveis (`Pescada` vs `Piramutaba`) e tipos de farinha (`Amarela` vs `Fina/Branca`) para conclusão da validação autônoma dos 53 potenciais duplicados.
+
+### Implementações:
+1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionadas `baly`, `dona dê` e `dona de` ao `MARCAS_SUPERMERCADO`.
+   * Adicionadas matrizes incompatíveis para espécies de peixes (pescada, piramutaba, tambaqui, dourada, filhote, tucunaré, salmão, tilápia) e tipos de farinha em `PROPRIEDADES_INCOMPATIVEIS`.
