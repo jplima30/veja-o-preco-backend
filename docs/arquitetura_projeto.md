@@ -761,3 +761,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    * Adicionadas `excelência`, `excelencia`, `vittamax`, `chanin` ao `MARCAS_SUPERMERCADO`.
 2. **Mesclagem no Firestore:**
    * Mesclado Par #28 (`leite-condensado-nestle-semidesnatado-caixa-395g-un` ➡️ `leite-condensado-semidesnatado-moca-nestle-tp-395g-un`).
+
+---
+
+**Sessão 52 (Regras de Faixa Etária Pet, Vendas a Granel e Mesclagem Ração Thor/Frango - Issue #48)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar incompatibilidade entre faixas etárias de alimento pet (`Adultos` vs `Júnior/Filhote`), tratar qualificadores de venda a granel e executar mesclagens dos produtos da Ração Thor e Frango Americano.
+
+### Implementações:
+1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada a regra `({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"})` em `PROPRIEDADES_INCOMPATIVEIS`.
+   * Adicionados `granel`, `a granel` ao `STOPWORDS_QUALIFICADORES`.
+2. **Mesclagem no Firestore:**
+   * Mesclado Par #32 (`racao-para-caes-thor-junior-a-granel-kg` ➡️ `racao-para-caes-thor-junior-quilo`).
+   * Mesclado Par #34 (`americano-frango-congelado-kg` ➡️ `frango-americano-in-natura-congelado-kg`).
