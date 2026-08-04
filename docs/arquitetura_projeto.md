@@ -748,3 +748,16 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Mesclagem no Firestore:**
    * Mesclado Par #24 (`farinha-de-milho-dona-clara-flocao-500g-un` ➡️ `flocao-de-milho-premium-dona-clara-pacote-500g-un`).
    * Mesclado Par #25 (`file-congelado-de-go-amazon-pacote-500g-un` ➡️ `file-de-pescada-go-congelada-amazon-norte-pacote-500g-un`).
+
+---
+
+**Sessão 51 (Adição de Marcas Excelência/Vittamax/Chanin e Mesclagem Leite Condensado Moça - Issue #47)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar marcas de linguiças e alimentos de pet (`Excelência`, `Vittamax`, `Chanin`) ao dicionário de marcas conhecidas e executar a mesclagem das ofertas do Leite Condensado Nestlé para o produto canônico Leite Condensado Moça Nestlé.
+
+### Implementações:
+1. **Dicionário de Marcas ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionadas `excelência`, `excelencia`, `vittamax`, `chanin` ao `MARCAS_SUPERMERCADO`.
+2. **Mesclagem no Firestore:**
+   * Mesclado Par #28 (`leite-condensado-nestle-semidesnatado-caixa-395g-un` ➡️ `leite-condensado-semidesnatado-moca-nestle-tp-395g-un`).
