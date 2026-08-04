@@ -708,3 +708,17 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 1. **Dicionários de Catálogo ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
    * Adicionada `pomodoro` às `MARCAS_SUPERMERCADO`.
    * Adicionados `crocks`, `leve`, `pele`, `com pele`, `sem pele` e tamanhos de fralda em `TERMOS_VARIACAO_AGRUPADA`.
+
+---
+
+**Sessão 48 (Validação de Cortes de Carne PA, Formatos de Biscoito e Sêmola - Issue #44)**
+
+**Data:** 04 de Agosto de 2026
+**Objetivo:** Adicionar diferenciais de cortes de carne bovina (`p.a.`, `ponta de agulha`), formatos de biscoitos (`wafer` vs `rolo`/`recheado`), estampas de personagens (`minions`, `barbie`) e qualificador `sêmola` ao algoritmo de deduplicação.
+
+### Implementações:
+1. **Regras de Deduplicação ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Incorporada a palavra `sêmola` ao `STOPWORDS_QUALIFICADORES`.
+   * Adicionados termos de personagens e formatos aos `TERMOS_VARIACAO_AGRUPADA` e `PROPRIEDADES_INCOMPATIVEIS`.
+2. **Mesclagem no Firestore:**
+   * Mesclado o Par #13 (`macarrao-espaguete-ricosa-pacote-400g-un` ➡️ `macarrao-de-semola-espaguete-ricosa-pacote-400g-un`), consolidando ofertas e criando sinônimo.
