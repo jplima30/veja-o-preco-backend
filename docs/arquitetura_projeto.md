@@ -808,6 +808,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 
 ---
 
+**Sessão 56 (Redirecionador Preventivo de Sinônimos no Ingest e Marca vs Genérico - Issue #52)**
+
+**Data:** 05 de Agosto de 2026
+**Objetivo:** Implementar o Redirecionador Preventivo por Sinônimos em cadeia no `functions/main.py` (`salvar_produto_e_oferta`) para evitar a criação de produtos duplicados no cadastro de ofertas e aprimorar as regras de Marca vs Genérico e cortes com osso no `identificar_duplicatas.py`.
+
+### Implementações:
+1. **Redirecionamento Preventivo em Cadeia ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   * Aprimorada a função `resolver_produto_id_com_sinonimo(db, produto_id)` com resolução em loop (até 5 saltos em cadeia) para redirecionar slugs antigos diretamente para o produto canônico correto antes do upsert no Firestore.
+2. **Ajuste Fino de Marca vs Genérico ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionada a regra `bool(marcas_a) != bool(marcas_b)` no `eh_variacao_agrupada()` para auto-ignorar produtos de marca famosa comparados contra descrições genéricas sem marca.
+   * Adicionada `copacol` às `MARCAS_SUPERMERCADO` e a regra `({"osso"}, {"filé", "file", "desossado"})` em `PROPRIEDADES_INCOMPATIVEIS`.
+
+---
+
 **Sessão 55 (Marcas Baly/Dona Dê, Incompatibilidade de Peixes e Farinhas - Issue #51)**
 
 **Data:** 04 de Agosto de 2026

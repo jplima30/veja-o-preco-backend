@@ -74,7 +74,7 @@ MARCAS_SUPERMERCADO = {
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
     "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
     "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin",
-    "triângulo mineiro", "triangulo mineiro", "baly", "dona dê", "dona de"
+    "triângulo mineiro", "triangulo mineiro", "baly", "dona dê", "dona de", "copacol"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
@@ -97,6 +97,7 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"amarela"}, {"fina", "branca", "dagua", "d'água"}),
     ({"pescada"}, {"piramutaba", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
     ({"piramutaba"}, {"pescada", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
+    ({"osso"}, {"filé", "file", "desossado"}),
 ]
 
 
@@ -146,7 +147,7 @@ def eh_variacao_agrupada(data_a: dict, data_b: dict, marcas_dinamicas: set = Non
     if inter_a and inter_b and inter_a != inter_b:
         return True
 
-    # 2. Checa se são marcas concorrentes diferentes (Unindo lista estática + marcas aprendidas dinamicamente do banco)
+    # 2. Checa se são marcas concorrentes diferentes ou Produto de Marca vs Produto Genérico
     todas_marcas = MARCAS_SUPERMERCADO
     if marcas_dinamicas:
         todas_marcas = MARCAS_SUPERMERCADO.union(marcas_dinamicas)
@@ -154,6 +155,8 @@ def eh_variacao_agrupada(data_a: dict, data_b: dict, marcas_dinamicas: set = Non
     marcas_a = w1.intersection(todas_marcas)
     marcas_b = w2.intersection(todas_marcas)
     if marcas_a and marcas_b and marcas_a != marcas_b:
+        return True
+    if bool(marcas_a) != bool(marcas_b):
         return True
 
     # 3. Checa se são propriedades incompatíveis (ex: Coxas vs Sobrecoxas, Com vs Sem)
