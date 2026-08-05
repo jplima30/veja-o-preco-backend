@@ -402,17 +402,26 @@ def resolver_produto_id_com_sinonimo(db_conn, produto_id: str) -> str:
     """
     Verifica se o produto_id possui um redirecionamento cadastrado na coleção 'sinonimos'.
     Retorna o id_correto se existir, ou o próprio produto_id original.
+    Suporta resolução em cadeia (ex: A -> B -> C).
     """
+    id_atual = produto_id
+    iteracoes = 0
     try:
-        ref_sinonimo = db_conn.collection("sinonimos").document(produto_id).get()
-        if ref_sinonimo.exists:
-            id_correto = ref_sinonimo.to_dict().get("id_correto")
-            if id_correto:
-                print(f"  🔄 Redirecionando produto_id '{produto_id}' para o sinônimo '{id_correto}'")
-                return id_correto
+        while iteracoes < 5:
+            ref_sinonimo = db_conn.collection("sinonimos").document(id_atual).get()
+            if ref_sinonimo.exists:
+                id_correto = ref_sinonimo.to_dict().get("id_correto")
+                if id_correto and id_correto != id_atual:
+                    print(f"  🔄 Redirecionando produto_id '{id_atual}' para o sinônimo '{id_correto}'")
+                    id_atual = id_correto
+                    iteracoes += 1
+                else:
+                    break
+            else:
+                break
     except Exception as e:
         print(f"⚠️ Erro ao buscar sinônimo para '{produto_id}': {e}")
-    return produto_id
+    return id_atual
 
 
 def salvar_produto_e_oferta(
