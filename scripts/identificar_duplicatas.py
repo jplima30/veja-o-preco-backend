@@ -52,7 +52,7 @@ TERMOS_VARIACAO_AGRUPADA = {
     "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
     "cores", "cor", "estampas", "tamanhos", "eucalipto", "pro", "clinical", "professional", "profissional",
     "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
-    "uva", "laranja", "morango", "juntinhos", "shortinho", "roupinha", "pants", "calça", "crocks", "leve",
+    "uva", "laranja", "morango", "coração", "coracao", "juntinhos", "shortinho", "roupinha", "pants", "calça", "crocks", "leve",
     "pele", "com pele", "sem pele", "p", "m", "g", "xg", "xxg", "xxgg", "minions", "barbie", "batman",
     "wafer", "recheado", "rolo", "rosquinha", "maria", "maizena", "p.a", "p.a.", "ponta", "combo", "pack"
 }
@@ -74,7 +74,7 @@ MARCAS_SUPERMERCADO = {
     "belunno", "camponesa", "sadio", "super frango", "lar", "gallo", "andorinha", "petruz", "pinho sol",
     "pinho trop", "doritos", "yokitos", "sococo", "rancheiro", "zilmar", "deleyda", "gomes da costa", "jundiaí",
     "pomodoro", "faro", "whiskas", "pedigree", "friskies", "champ", "excelência", "excelencia", "vittamax", "chanin",
-    "triângulo mineiro", "triangulo mineiro", "baly", "dona dê", "dona de", "copacol"
+    "triângulo mineiro", "triangulo mineiro", "baly", "dona dê", "dona de", "copacol", "canção", "cancao"
 }
 
 # 5. Propriedades Incompatíveis (Antônimos / Cortes / Tipos Opostos)
@@ -89,7 +89,7 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"coxao", "coxão"}, {"músculo", "musculo", "patinho", "alcatra", "fígado", "figado"}),
     ({"patinho"}, {"músculo", "musculo", "alcatra", "coxao", "coxão", "fígado", "figado"}),
     ({"músculo", "musculo"}, {"alcatra", "patinho", "coxao", "coxão", "fígado", "figado"}),
-    ({"fígado", "figado"}, {"coxao", "coxão", "patinho", "músculo", "musculo", "acém", "acem", "alcatra"}),
+    ({"fígado", "figado"}, {"coxao", "coxão", "patinho", "músculo", "musculo", "acém", "acem", "alcatra", "mocotó", "mocoto"}),
     ({"acém", "acem"}, {"peito", "cupim", "músculo", "musculo", "patinho", "coxao", "coxão", "alcatra"}),
     ({"adulto", "adultos"}, {"júnior", "junior", "filhote", "filhotes", "sênior", "senior"}),
     ({"premium", "gourmet"}, {"regular", "tradicional", "extraforte", "clássico", "classico"}),
@@ -98,6 +98,11 @@ PROPRIEDADES_INCOMPATIVEIS = [
     ({"pescada"}, {"piramutaba", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
     ({"piramutaba"}, {"pescada", "tambaqui", "dourada", "filhote", "tucunaré", "salmão", "tilápia"}),
     ({"osso"}, {"filé", "file", "desossado"}),
+    ({"paleta"}, {"panceta", "costela", "lombo", "pernil"}),
+    ({"panceta"}, {"paleta", "costela", "lombo", "pernil"}),
+    ({"costela"}, {"panceta", "paleta", "lombo", "pernil"}),
+    ({"parboilizado"}, {"branco", "polido", "agulhinha", "integral"}),
+    ({"mocotó", "mocoto"}, {"fígado", "figado", "língua", "lingua", "rabada", "bochecha", "coração", "coracao"}),
 ]
 
 

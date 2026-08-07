@@ -822,6 +822,24 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 
 ---
 
+**Sessão 57 (Normalização Ortográfica de Contrafilé/Pá, Cortes Suínos/Arroz e Mesclagem Firestore - Issue #53)**
+
+**Data:** 07 de Agosto de 2026
+**Objetivo:** Adicionar mapeamentos de normalização ortográfica de OCR (`contra filé` ➡️ `contrafilé`, `pá` ➡️ `paleta`), incluir marca `Canção`, regras de cortes suínos, tipos de arroz e miúdos bovinos, e executar a mesclagem de 4 produtos duplicados no Firestore.
+
+### Implementações:
+1. **Inteligência & Normalização ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   * Adicionadas marca `Canção` a `MARCAS_SUPERMERCADO`.
+   * Adicionadas regras de incompatibilidade de cortes suínos (*paleta*, *panceta*, *costela*, *lombo*), tipos de arroz (*parboilizado* vs *branco/integral*) e miúdos (*mocotó* vs *fígado/língua/rabada/coração*) em `PROPRIEDADES_INCOMPATIVEIS`.
+   * Adicionado `coração` aos `TERMOS_VARIACAO_AGRUPADA`.
+2. **Mesclagens Executadas no Firestore:**
+   * Mesclado Par #03 (`bisteca-do-contra-file-resfriado-bovino-kg` ➡️ `bisteca-do-contrafile-resfriada-bovina-kg`).
+   * Mesclado Par #04 (`limpador-desengordurante-para-cozinha-veja-fragrancias-refil-400ml-un` ➡️ `limpador-desengordurante-veja-fragrancias-refil-400ml-un`).
+   * Mesclado Par #06 (`pa-paleta-bovina-com-osso-resfriada-kg` ➡️ `paleta-com-osso-resfriada-bovina-kg`).
+   * Mesclado Par #09 (`presunto-de-peru-rezende-delice-quilo-kg` ➡️ `rezende-presunto-de-peru-cozido-delice-pc-kg`).
+
+---
+
 **Sessão 55 (Marcas Baly/Dona Dê, Incompatibilidade de Peixes e Farinhas - Issue #51)**
 
 **Data:** 04 de Agosto de 2026
