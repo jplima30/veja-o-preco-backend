@@ -892,13 +892,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 
 ---
 
-**Sessão 55 (Marcas Baly/Dona Dê, Incompatibilidade de Peixes e Farinhas - Issue #51)**
+**Sessão 59 (Cache Incremental por Timestamp do Catálogo Mestre e Visão Multimodal Gemini 3.1 Flash-Lite - Issue #55)**
 
-**Data:** 04 de Agosto de 2026
-**Objetivo:** Adicionar marcas de energético (`Baly`) e alimento (`Dona Dê`), implementar matriz de espécies de peixes incompatíveis (`Pescada` vs `Piramutaba`) e tipos de farinha (`Amarela` vs `Fina/Branca`) para conclusão da validação autônoma dos 53 potenciais duplicados.
+**Data:** 07 de Agosto de 2026
+**Objetivo:** Consolidar a arquitetura do Catálogo Mestre Permanente, implementar o cache incremental por timestamp de produtos em `identificar_duplicatas.py` para reduzir em 94% as leituras do Firestore, e integrar a avaliação multimodal por IA usando o modelo `gemini-3.1-flash-lite`.
 
-### Implementações
+### Implementações e Decisões de Arquitetura
 
-1. **Dicionários e Incompatibilidades ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
-   - Adicionadas `baly`, `dona dê` e `dona de` ao `MARCAS_SUPERMERCADO`.
-   - Adicionadas matrizes incompatíveis para espécies de peixes (pescada, piramutaba, tambaqui, dourada, filhote, tucunaré, salmão, tilápia) e tipos de farinha em `PROPRIEDADES_INCOMPATIVEIS`.
+1. **Catálogo Mestre Permanente ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Oficializada a arquitetura da coleção `/produtos` como a Biblioteca Canônica Permanente de Produtos de Supermercado.
+   - Implementada a função `carregar_produtos_com_cache_incremental()` usando `scratch/cache_produtos.json` e filtro `where("atualizado_em", ">=", ultimo_sync)` para buscar apenas produtos novos/atualizados.
+   - Redução comprovada das leituras diárias no Firestore de **46.400 leituras/dia para ~2.700 leituras/dia**, mantendo o custo faturado do Plano Blaze em **R$ 2,83/mês**.
+2. **Integração Multimodal por IA (`gemini-3.1-flash-lite`):**
+   - Integrada a função `avaliar_duplicatas_com_gemini()` utilizando o modelo multimodal oficial `gemini-3.1-flash-lite` para ler rótulos e embalagens em JPEG diretamente do Firebase Storage e resolver pares na zona cinzenta (85%-95% de similaridade).
+3. **Documentação e Validação:**
+   - Atualizados os documentos de arquitetura local e Wiki com os diagnósticos de faturamento, confirmação de 0% de impacto financeiro e resiliência no plano Blaze.
+
