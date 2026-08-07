@@ -236,9 +236,65 @@ def obter_similaridade(n1: str, n2: str, w1: set, w2: set) -> tuple:
         
     return raz_direta, raz_token, overlap, diff_tamanho
 
+def carregar_produtos_com_cache_incremental() -> list:
+    """
+    Sincroniza e retorna o Catálogo Mestre de Produtos usando cache local em scratch/cache_produtos.json.
+    Lê apenas produtos novos ou atualizados do Firestore desde a última sincronização,
+    preservando 100% do histórico mestre sem inflar o número de leituras no Firestore.
+    """
+    import json
+    cache_dir = os.path.join(os.path.dirname(__file__), "..", "scratch")
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_path = os.path.join(cache_dir, "cache_produtos.json")
+    
+    cache_dados = {}
+    ultimo_sync = None
+    
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                cache_dados = data.get("produtos", {})
+                ultimo_sync_str = data.get("ultimo_sync")
+                if ultimo_sync_str:
+                    ultimo_sync = datetime.fromisoformat(ultimo_sync_str)
+        except Exception:
+            cache_dados = {}
+            ultimo_sync = None
+
+    produtos_ref = db.collection("produtos")
+    if ultimo_sync:
+        docs = list(produtos_ref.where("atualizado_em", ">=", ultimo_sync).stream())
+    else:
+        docs = list(produtos_ref.stream())
+
+    for d in docs:
+        d_data = d.to_dict()
+        d_json = {}
+        for k, v in d_data.items():
+            if hasattr(v, "isoformat"):
+                d_json[k] = v.isoformat()
+            else:
+                d_json[k] = v
+        cache_dados[d.id] = d_json
+
+    try:
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "ultimo_sync": datetime.now().isoformat(),
+                "produtos": cache_dados
+            }, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+    resultado = []
+    for pid, pdata in cache_dados.items():
+        resultado.append((pid, pdata))
+    return resultado
+
 def buscar_duplicatas_potenciais() -> list:
     """
-    Varre o Firestore, aplica a heurística e retorna lista de tuplas de duplicatas:
+    Varre o Firestore via cache incremental, aplica a heurística e retorna lista de tuplas de duplicatas:
     [(prod_a_id, prod_a_data, prod_b_id, prod_b_data, razao_max)]
     """
     # Carrega duplicatas ignoradas para filtrar do escaneamento
@@ -246,18 +302,16 @@ def buscar_duplicatas_potenciais() -> list:
     ignorados_docs = list(ignorados_ref.stream())
     pares_ignorados = {doc.id for doc in ignorados_docs}
 
-    produtos_ref = db.collection("produtos")
-    docs = list(produtos_ref.stream())
+    docs_tuplas = carregar_produtos_com_cache_incremental()
     
     produtos = []
-    for d in docs:
-        data = d.to_dict()
+    for pid, data in docs_tuplas:
         nome = data.get("nome", "")
         # Precomputa em minúsculo
         nome_limpo = nome.lower().strip()
         nums = extrair_numeros(nome_limpo)
         words = set(nome_limpo.split())
-        produtos.append((d.id, data, nome_limpo, nums, words))
+        produtos.append((pid, data, nome_limpo, nums, words))
         
     duplicatas = []
     total = len(produtos)
@@ -651,6 +705,120 @@ def rodar_mesclagem_automatica_exata(silent=False):
     if not silent:
         input("Pressione Enter para continuar...")
 
+def obter_api_key():
+    key = os.environ.get("GEMINI_API_KEY")
+    if key:
+        return key
+    try:
+        import subprocess
+        cmd = ["gcloud", "secrets", "versions", "access", "latest", "--secret=GEMINI_API_KEY", "--quiet"]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return res.stdout.strip()
+    except Exception:
+        return None
+
+def avaliar_duplicatas_com_gemini(duplicatas_residuais: list, silent=False) -> tuple:
+    """
+    Avalia em lote pares residuais de produtos suspeitos (85%-95% de similaridade)
+    usando o modelo multimodal gemini-3.1-flash-lite para análise de rótulos/imagens e textos.
+    Retorna (total_mesclados, total_ignorados).
+    """
+    if not duplicatas_residuais:
+        return 0, 0
+
+    key = obter_api_key()
+    if not key:
+        if not silent:
+            print("⚠️ GEMINI_API_KEY não encontrada. Pulando avaliação multimodal por IA.")
+        return 0, 0
+
+    try:
+        from google import genai
+        from google.genai import types
+        import json, requests
+
+        client = genai.Client(api_key=key)
+
+        mesclados = 0
+        ignorados = 0
+
+        for id_a, data_a, id_b, data_b, score in duplicatas_residuais:
+            img_url_a = data_a.get("imagem_url", "")
+            img_url_b = data_b.get("imagem_url", "")
+            
+            parts = []
+            if img_url_a and img_url_a.startswith("http"):
+                try:
+                    r_a = requests.get(img_url_a, timeout=8)
+                    if r_a.status_code == 200:
+                        parts.append(types.Part.from_bytes(data=r_a.content, mime_type="image/jpeg"))
+                except Exception:
+                    pass
+
+            if img_url_b and img_url_b.startswith("http"):
+                try:
+                    r_b = requests.get(img_url_b, timeout=8)
+                    if r_b.status_code == 200:
+                        parts.append(types.Part.from_bytes(data=r_b.content, mime_type="image/jpeg"))
+                except Exception:
+                    pass
+
+            prompt_text = (
+                f"Analise o par de produtos de supermercado abaixo:\n"
+                f"Produto A: ID='{id_a}', Nome='{data_a.get('nome')}', Unidade='{data_a.get('unidade')}'\n"
+                f"Produto B: ID='{id_b}', Nome='{data_b.get('nome')}', Unidade='{data_b.get('unidade')}'\n\n"
+                f"Analise o texto e os rótulos visuais das imagens (se fornecidas).\n"
+                f"Determine se se trata do MESMO produto (mesma marca, tipo e gramatura) devendo ser MESCLADOS,\n"
+                f"ou de produtos DIFERENTES / VARIAÇÕES (marcas concorrentes diferentes, cortes diferentes).\n\n"
+                f"Responda EXCLUSIVAMENTE em formato JSON:\n"
+                f"{{\n"
+                f"  \"decisao\": \"MESCLAR\" ou \"DIFERENTE\",\n"
+                f"  \"confianca\": 0.95,\n"
+                f"  \"motivo\": \"Explicação sucinta\"\n"
+                f"}}"
+            )
+            parts.append(prompt_text)
+
+            try:
+                response = client.models.generate_content(
+                    model="gemini-3.1-flash-lite",
+                    contents=parts,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
+                )
+                res_data = json.loads(response.text)
+                decisao = res_data.get("decisao", "").upper()
+                confianca = float(res_data.get("confianca", 0.0))
+                motivo = res_data.get("motivo", "")
+
+                if decisao == "MESCLAR" and confianca >= 0.85:
+                    id_manter, id_deletar = escolher_produto_canonico(id_a, data_a, id_b, data_b)
+                    if not silent:
+                        print(f"🤖 Gemini 3.1 Flash-Lite [MESCLAR]: '{id_deletar}' ➡️ '{id_manter}' ({motivo})")
+                    if mesclar_produtos_firestore(id_deletar, id_manter):
+                        mesclados += 1
+                else:
+                    chave_ignorado = f"{id_a}_vs_{id_b}" if id_a < id_b else f"{id_b}_vs_{id_a}"
+                    db.collection("duplicatas_ignoradas").document(chave_ignorado).set({
+                        "ignorado": True,
+                        "motivo": f"gemini_auto_ignore: {motivo}",
+                        "atualizado_em": firestore.SERVER_TIMESTAMP
+                    })
+                    ignorados += 1
+                    if not silent:
+                        print(f"🤖 Gemini 3.1 Flash-Lite [AUTO-IGNORE]: '{data_a.get('nome')}' ↔️ '{data_b.get('nome')}' ({motivo})")
+            except Exception as e:
+                if not silent:
+                    print(f"⚠️ Erro ao avaliar par '{id_a}' vs '{id_b}': {e}")
+
+        return mesclados, ignorados
+
+    except Exception as e:
+        if not silent:
+            print(f"⚠️ Erro na avaliação multimodal do Gemini: {e}")
+        return 0, 0
+
 def rodar_smart_automerge(silent=False):
     print("=========================================================")
     print("⚡ INICIANDO SMART AUTO-MERGE & AUTO-IGNORE EM LOTE")
@@ -673,6 +841,7 @@ def rodar_smart_automerge(silent=False):
     total_mesclados = 0
     total_ignorados = 0
     ids_removidos = set()
+    pares_residuais = []
     
     for id_a, data_a, id_b, data_b, score in duplicatas:
         if id_a in ids_removidos or id_b in ids_removidos:
@@ -706,6 +875,14 @@ def rodar_smart_automerge(silent=False):
                     print(f"   ⚠️ Falha ao mesclar '{id_deletar}'")
             except Exception as e:
                 print(f"   ❌ Erro ao mesclar '{id_deletar}': {e}")
+            continue
+
+        pares_residuais.append((id_a, data_a, id_b, data_b, score))
+
+    if pares_residuais:
+        m_ia, i_ia = avaliar_duplicatas_com_gemini(pares_residuais, silent=silent)
+        total_mesclados += m_ia
+        total_ignorados += i_ia
 
     print("\n=========================================================")
     print("🏁 SMART AUTO-MERGE & IGNORE CONCLUÍDO!")
