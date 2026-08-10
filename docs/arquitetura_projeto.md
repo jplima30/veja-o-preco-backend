@@ -908,3 +908,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Documentação e Validação:**
    - Atualizados os documentos de arquitetura local e Wiki com os diagnósticos de faturamento, confirmação de 0% de impacto financeiro e resiliência no plano Blaze.
 
+---
+
+**Sessão 60 (Expurgo Automático de Cache Local e Self-Healing de Produtos Deletados - Issue #56)**
+
+**Data:** 10 de Agosto de 2026
+**Objetivo:** Implementar o expurgo autônomo de produtos excluídos/mesclados no arquivo de cache local (`scratch/cache_produtos.json`) e garantir o mecanismo de *Self-Healing* para eliminar alertas de falsos-positivos nas varreduras diárias do CRON.
+
+### Implementações
+
+1. **Expurgo de Cache Local (`remover_do_cache_local` em [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Criada a função `remover_do_cache_local(id_removido)` que apaga cirurgicamente do JSON local a entrada do produto que acabou de ser mesclado/deletado no Firestore.
+2. **Resiliência e Self-Healing:**
+   - Ao tentar interagir com o Firestore no `mesclar_produtos_firestore` e identificar que um produto de origem ou destino não existe mais no banco (`doc.exists == False`), o script expurga automaticamente aquele ID do cache local, impedindo que fantasmas antigos reapareçam em relatórios do CRON.
+3. **Validação:**
+   - Reconstruído e validado o catálogo com 0% de falsos-positivos na base do Firestore.
+
+
