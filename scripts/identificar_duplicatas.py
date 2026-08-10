@@ -356,12 +356,31 @@ def buscar_duplicatas_potenciais() -> list:
     duplicatas.sort(key=lambda x: x[4], reverse=True)
     return duplicatas
 
+def remover_do_cache_local(id_removido: str):
+    cache_dir = os.path.join(os.path.dirname(__file__), "..", "scratch")
+    cache_path = os.path.join(cache_dir, "cache_produtos.json")
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if "produtos" in data and id_removido in data["produtos"]:
+                del data["produtos"][id_removido]
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
 def mesclar_produtos_firestore(id_de: str, id_para: str) -> bool:
     produtos_ref = db.collection("produtos")
     
     doc_de = produtos_ref.document(id_de).get()
     doc_para = produtos_ref.document(id_para).get()
     
+    if not doc_de.exists:
+        remover_do_cache_local(id_de)
+    if not doc_para.exists:
+        remover_do_cache_local(id_para)
+        
     if not doc_de.exists or not doc_para.exists:
         return False
         
@@ -390,6 +409,7 @@ def mesclar_produtos_firestore(id_de: str, id_para: str) -> bool:
         
     # 3. Deleta duplicado
     produtos_ref.document(id_de).delete()
+    remover_do_cache_local(id_de)
     
     # 4. Registrar sinônimo para redirecionamento futuro
     db.collection("sinonimos").document(id_de).set({
