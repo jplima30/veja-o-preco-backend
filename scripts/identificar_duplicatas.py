@@ -465,12 +465,16 @@ def rodar_assistente_interativo():
         return
         
     if not duplicatas:
-        print("\n✨ Parabéns! Nenhuma duplicata em potencial encontrada no banco.")
-        input("\nPressione Enter para voltar...")
+        print("\n" + "=" * 65)
+        print("✨ CATÁLOGO 100% ÍNTEGRO E LIMPO!")
+        print("   Nenhuma duplicata em potencial pendente para análise no banco.")
+        print("=" * 65 + "\n")
+        input("Pressione Enter para voltar ao menu...")
         return
         
     total = len(duplicatas)
     atual = 0
+    pares_exibidos = 0
     
     while atual < total:
         id_a, data_a, id_b, data_b, score = duplicatas[atual]
@@ -483,6 +487,8 @@ def rodar_assistente_interativo():
             # Um deles já foi mesclado ou excluído em lote, passa adiante
             atual += 1
             continue
+            
+        pares_exibidos += 1
             
         data_a = doc_a.to_dict()
         data_b = doc_b.to_dict()
