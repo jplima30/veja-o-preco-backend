@@ -924,4 +924,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Validação:**
    - Reconstruído e validado o catálogo com 0% de falsos-positivos na base do Firestore.
 
+---
+
+**Sessão 61 (Refinamento de UX Terminal e Ocultação de UserWarnings - Issue #57)**
+
+**Data:** 10 de Agosto de 2026
+**Objetivo:** Silenciar avisos informativos (`UserWarning`) do SDK do Firestore e adicionar um banner visual destacado de 100% integridade do banco no assistente de duplicatas.
+
+### Implementações
+
+1. **Supressão de Avisos (`warnings.filterwarnings`):**
+   - Configurada a supressão de `UserWarning` no topo de [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) para eliminar ruídos visuais de descontinuação interna da biblioteca do Google Firestore no terminal.
+2. **Interface Visual Destacada (UX):**
+   - Adicionado o banner destacado `✨ CATÁLOGO 100% ÍNTEGRO E LIMPO!` quando não houver duplicatas pendentes para revisão no assistente interativo, fornecendo feedback visual claro ao operador.
+
+
 

@@ -1,6 +1,11 @@
 import os
 import sys
+import warnings
 from datetime import datetime
+
+# Silencia avisos informativos internos da biblioteca do Firestore
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", module="google.cloud.firestore")
 
 # Adiciona as pastas corretas ao Path para importação do Firebase Admin
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -588,51 +593,62 @@ def rodar_assistente_interativo():
         print(f"⚠️  POTENCIAL DUPLICATA ({atual + 1}/{total})")
         print(f"   Similaridade: {max(raz_direta, raz_token)*100:.1f}% | Overlap: {overlap*100:.1f}%")
         print(f"=========================================================")
+        sup_a = buscar_supermercados_produto(id_a)
+        sup_b = buscar_supermercados_produto(id_b)
         
-        img_url_a = data_a.get("imagem_url", "")
-        img_url_b = data_b.get("imagem_url", "")
+        print("\n" + "="*65)
+        print(f"📌 COMPARANDO PAR [{atual + 1}/{total}] — SCORE DE SIMILARIDADE: {score*100:.1f}%")
+        print("="*65)
+        print(f"🔸 PRODUTO A:  {data_a.get('nome')}")
+        print(f"   • ID:       {id_a}")
+        print(f"   • Categoria:{data_a.get('categoria', 'N/A')}")
+        print(f"   • Unidade:  {data_a.get('unidade', 'N/A')}")
+        print(f"   • Lojas:    {sup_a}")
+        print(f"   • Foto:     {data_a.get('imagem_url', 'Sem foto')}")
+        print("-" * 65)
+        print(f"🔹 PRODUTO B:  {data_b.get('nome')}")
+        print(f"   • ID:       {id_b}")
+        print(f"   • Categoria:{data_b.get('categoria', 'N/A')}")
+        print(f"   • Unidade:  {data_b.get('unidade', 'N/A')}")
+        print(f"   • Lojas:    {sup_b}")
+        print(f"   • Foto:     {data_b.get('imagem_url', 'Sem foto')}")
+        print("="*65)
+        print(f"📊 MÉTRICAS: Direta={raz_direta*100:.1f}% | TokenSort={raz_token*100:.1f}% | Overlap={overlap*100:.1f}%")
+        print("="*65)
+        print("OPÇÕES DISPONÍVEIS:")
+        print(f"  [1] 🔀 Mesclar A ➡️ B (Manter B: '{data_b.get('nome')}')")
+        print(f"  [2] 🔀 Mesclar B ➡️ A (Manter A: '{data_a.get('nome')}')")
+        print(f"  [3] 🛡️  Ignorar permanentemente (Produtos parecidos, mas diferentes)")
+        print(f"  [4] ⚡ Executar Mesclagem Automática Exata (Palavras idênticas)")
+        print(f"  [5] 🚀 Smart Auto-Merge & Auto-Ignore (IA + Heurísticas)")
+        print(f"  [0] ⏭️  Pular para o próximo")
+        print(f"  [Q] 🔙 Sair do Assistente")
+        print("="*65)
         
-        print(f" [A] ID: {id_a}")
-        print(f"     Nome:   {data_a.get('nome')} ({data_a.get('unidade')})")
-        print(f"     Lojas:  {lojas_a_str}")
-        print(f"     Foto:   [✅ Sim] ({img_url_a})" if img_url_a else "     Foto:   [❌ Não]")
-        print("-" * 57)
-        print(f" [B] ID: {id_b}")
-        print(f"     Nome:   {data_b.get('nome')} ({data_b.get('unidade')})")
-        print(f"     Lojas:  {lojas_b_str}")
-        print(f"     Foto:   [✅ Sim] ({img_url_b})" if img_url_b else "     Foto:   [❌ Não]")
-        print("=========================================================")
-        print(" O que deseja fazer?")
-        print("   [1] Sim, mesclar B para A (Mantém o item [A])")
-        print("   [2] Sim, mesclar A para B (Mantém o item [B])")
-        print("   [3] Ignorar este par e ir para o próximo")
-        print("   [4] ⚡ Mesclagem automática para palavras 100% idênticas")
-        print("   [5] 🚀 Smart Auto-Merge & Auto-Ignore (Resolução Inteligente em Lote)")
-        print("   [0] Sair do assistente")
-        print("=========================================================")
+        opcao = input("👉 Escolha uma opção [0-5, Q]: ").strip().upper()
         
-        opcao = input("👉 Escolha uma opção [0-5]: ").strip()
-        
-        if opcao == "0":
+        if opcao == "Q":
             break
+        elif opcao == "0":
+            atual += 1
+            continue
         elif opcao == "1":
-            print(f"\n⏳ Mesclando '{id_b}' em '{id_a}'...")
-            if mesclar_produtos_firestore(id_b, id_a):
-                print("✅ Mesclado com sucesso!")
+            print(f"\n⏳ Mesclando '{id_a}' ➡️ '{id_b}'...")
+            if mesclar_produtos_firestore(id_a, id_b):
+                print("✅ Mesclagem concluída com sucesso!")
             else:
                 print("❌ Falha ao mesclar.")
             time.sleep(1)
             atual += 1
         elif opcao == "2":
-            print(f"\n⏳ Mesclando '{id_a}' em '{id_b}'...")
-            if mesclar_produtos_firestore(id_a, id_b):
-                print("✅ Mesclado com sucesso!")
+            print(f"\n⏳ Mesclando '{id_b}' ➡️ '{id_a}'...")
+            if mesclar_produtos_firestore(id_b, id_a):
+                print("✅ Mesclagem concluída com sucesso!")
             else:
                 print("❌ Falha ao mesclar.")
             time.sleep(1)
             atual += 1
         elif opcao == "3":
-            print(f"\n⏳ Registrando este par como falso positivo ignorado...")
             chave_ignorado = f"{id_a}_vs_{id_b}" if id_a < id_b else f"{id_b}_vs_{id_a}"
             try:
                 db.collection("duplicatas_ignoradas").document(chave_ignorado).set({
@@ -668,7 +684,14 @@ def rodar_assistente_interativo():
             print("⚠️ Opção inválida.")
             time.sleep(1)
 
-    print("\n👋 Assistente finalizado.")
+    if pares_exibidos == 0:
+        print("\n" + "=" * 65)
+        print("✨ CATÁLOGO 100% ÍNTEGRO E LIMPO!")
+        print("   Nenhuma duplicata em potencial pendente para análise no banco.")
+        print("=" * 65 + "\n")
+    else:
+        print("\n👋 Assistente finalizado.")
+        
     input("Pressione Enter para voltar ao menu...")
 
 def rodar_mesclagem_automatica_exata(silent=False):
