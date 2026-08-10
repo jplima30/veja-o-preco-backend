@@ -885,16 +885,16 @@ if __name__ == "__main__":
         subprocess.run([venv_functions_python, script_auditoria, "--auto-apply"], check=True)
         
         print("\n" + "="*60)
-        print("🖼️ [AUTO-IMAGENS] Iniciando Curadoria e Sincronização Automática...")
-        print("="*60)
-        script_imagens = os.path.join(os.path.dirname(__file__), "central_imagens.py")
-        subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
-        
-        print("\n" + "="*60)
         print("🔍 [DEDUPLICAÇÃO] Executando Smart Auto-Merge & Auto-Ignore...")
         print("="*60)
         script_duplicatas = os.path.join(os.path.dirname(__file__), "identificar_duplicatas.py")
         subprocess.run([venv_functions_python, script_duplicatas, "--auto-merge-smart-silent"], check=True)
+        
+        print("\n" + "="*60)
+        print("🖼️ [AUTO-IMAGENS] Iniciando Curadoria e Sincronização Automática...")
+        print("="*60)
+        script_imagens = os.path.join(os.path.dirname(__file__), "central_imagens.py")
+        subprocess.run([venv_functions_python, script_imagens, "--cron-completo"], check=True)
         
         print("\n" + "="*60)
         print("🔍 [DIAGNÓSTICO] Verificando duplicatas potenciais restantes no Firestore...")

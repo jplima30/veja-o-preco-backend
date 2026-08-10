@@ -938,5 +938,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Interface Visual Destacada (UX):**
    - Adicionado o banner destacado `✨ CATÁLOGO 100% ÍNTEGRO E LIMPO!` quando não houver duplicatas pendentes para revisão no assistente interativo, fornecendo feedback visual claro ao operador.
 
+---
+
+**Sessão 62 (Reordenamento do Pipeline do CRON e Sincronização em Tempo Real de Imagens de Oferta - Issue #58)**
+
+**Data:** 10 de Agosto de 2026
+**Objetivo:** Reordenar o encadeamento dos scripts no pipeline do CRON ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)) para executar a deduplicação de produtos **antes** da sincronização de imagens, e atualizar a `imagem_url` da oferta diretamente na mesclagem.
+
+### Implementações
+
+1. **Reordenamento do Pipeline ([cron_playwright.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/cron_playwright.py)):**
+   - Ajustada a ordem pós-captura para: (1) `auditar_categorias.py` ➡️ (2) `identificar_duplicatas.py` ➡️ (3) `central_imagens.py`. Isso garante que qualquer oferta mesclada na deduplicação passe pela sincronização de imagens no mesmo ciclo do CRON.
+2. **Cópia Instantânea de Imagem Canônica ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Atualizada a função `mesclar_produtos_firestore` para atribuir a `imagem_url` do produto canônico diretamente no documento da oferta ao realizar a migração.
+
+
 
 
