@@ -396,12 +396,16 @@ def mesclar_produtos_firestore(id_de: str, id_para: str) -> bool:
     ofertas_ref = db.collection("ofertas").where("produto_id", "==", id_de).stream()
     ofertas_migradas = 0
     unidade_norm = data_para.get("unidade", "un")
+    img_canonica = data_para.get("imagem_url") or data_de.get("imagem_url")
     
     for of_doc in ofertas_ref:
-        of_doc.reference.update({
+        update_fields = {
             "produto_id": id_para,
             "unidade": unidade_norm
-        })
+        }
+        if img_canonica:
+            update_fields["imagem_url"] = img_canonica
+        of_doc.reference.update(update_fields)
         ofertas_migradas += 1
         
     # 2. Herdar imagem se o de origem tiver e o destino não
