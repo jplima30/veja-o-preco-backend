@@ -13,20 +13,11 @@ from firebase_admin import firestore
 from google import genai
 from google.genai import types
 
-def obter_api_key():
-    key = os.environ.get("GEMINI_API_KEY")
-    if key:
-        return key
-    print("🔑 Buscando GEMINI_API_KEY do Secret Manager via gcloud...", flush=True)
-    try:
-        # Tenta buscar via gcloud se estiver rodando localmente sem env setado
-        cmd = ["gcloud", "secrets", "versions", "access", "latest", "--secret=GEMINI_API_KEY", "--quiet"]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        print("🔑 Chave obtida com sucesso!", flush=True)
-        return res.stdout.strip()
-    except Exception as e:
-        print(f"⚠️ Não foi possível obter GEMINI_API_KEY do Secret Manager: {e}", flush=True)
-        return None
+def obter_gemini_client():
+    """Retorna o cliente Gemini conectado nativamente ao Vertex AI (GCP)."""
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+    return genai.Client(vertexai=True, project=project_id, location=location)
 
 # Inicializar Firebase
 if not firebase_admin._apps:
@@ -36,12 +27,11 @@ db = firestore.client()
 CATEGORIAS_VALIDAS = ["CARNES", "HORTIFRUTI", "PADARIA", "BEBIDAS", "HIGIENE", "LIMPEZA", "FRIOS_LATICINIOS", "PET"]
 
 def obter_sugestoes_gemini(produtos):
-    key = obter_api_key()
-    if not key:
-        print("❌ GEMINI_API_KEY não disponível. Abortando auditoria semântica.", flush=True)
+    try:
+        client = obter_gemini_client()
+    except Exception as e:
+        print(f"❌ Não foi possível inicializar Vertex AI: {e}", flush=True)
         return []
-    
-    client = genai.Client(api_key=key)
     
     # Monta a lista compacta de produtos
     lista_texto = "\n".join([f"ID: {p['id']} | Nome: {p['nome']}" for p in produtos])
@@ -89,7 +79,7 @@ def obter_sugestoes_gemini(produtos):
     
     try:
         response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"

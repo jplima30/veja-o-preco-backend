@@ -779,18 +779,14 @@ def avaliar_duplicatas_com_gemini(duplicatas_residuais: list, silent=False) -> t
     if not duplicatas_residuais:
         return 0, 0
 
-    key = obter_api_key()
-    if not key:
-        if not silent:
-            print("⚠️ GEMINI_API_KEY não encontrada. Pulando avaliação multimodal por IA.")
-        return 0, 0
-
     try:
         from google import genai
         from google.genai import types
         import json, requests
 
-        client = genai.Client(api_key=key)
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+        client = genai.Client(vertexai=True, project=project_id, location=location)
 
         mesclados = 0
         ignorados = 0
@@ -834,7 +830,7 @@ def avaliar_duplicatas_com_gemini(duplicatas_residuais: list, silent=False) -> t
 
             try:
                 response = client.models.generate_content(
-                    model="gemini-3.1-flash-lite",
+                    model="gemini-2.5-flash-lite",
                     contents=parts,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json"
