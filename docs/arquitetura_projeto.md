@@ -952,6 +952,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Cópia Instantânea de Imagem Canônica ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
    - Atualizada a função `mesclar_produtos_firestore` para atribuir a `imagem_url` do produto canônico diretamente no documento da oferta ao realizar a migração.
 
+---
 
+**Sessão 63 (Migração para Google Cloud Vertex AI - Issue #59)**
 
+**Data:** 13 de Agosto de 2026
+**Objetivo:** Migrar a integração de inteligência artificial da API Gemini do Google AI Studio para o Google Cloud Vertex AI (GCP), unificando todo o faturamento da IA no modelo pós-pago (Blaze/GCP) e eliminando a necessidade de compra de créditos pré-pagos.
 
+### Implementações
+
+1. **Habilitação de Serviço no GCP:**
+   - Habilitada a API `aiplatform.googleapis.com` no projeto `veja-o-preco` via `gcloud services enable`.
+2. **Atualização do SDK Google GenAI ([main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   - Atualizada a função `get_gemini_client()` para instanciar o cliente conectado nativamente ao Vertex AI (`vertexai=True, project=..., location="us-central1"`).
+   - Padronizados os modelos estáveis suportados no Vertex AI (`gemini-2.5-flash` para visão multimodal e `gemini-2.5-flash-lite` para extração e auditoria).
+3. **Migração dos Scripts de Automação Local:**
+   - Atualizados [auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) e [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) para utilizar o cliente Vertex AI com autenticação padrão ADC, eliminando consultas diretas de chaves de API.

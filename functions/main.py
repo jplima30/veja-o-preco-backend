@@ -34,11 +34,12 @@ def get_db():
         _db_cache = firestore.client()
     return _db_cache
 
-# Configuração do Gemini (Migrado para Secret Manager)
+# Configuração do Gemini (Google Cloud Vertex AI)
 def get_gemini_client():
-    """Retorna o cliente Gemini usando a chave do Secret Manager."""
-    api_key = os.environ.get("GEMINI_API_KEY")
-    return genai.Client(api_key=api_key)
+    """Retorna o cliente Gemini conectado nativamente ao Google Cloud Vertex AI."""
+    project_id = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+    return genai.Client(vertexai=True, project=project_id, location=location)
 
 # ==============================================================================
 # MÓDULO FIRESTORE — Utilitários de Persistência
@@ -1098,7 +1099,7 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
         gemini_parts.append(prompt)
 
         response_gemini = client.models.generate_content(
-            model="gemini-3.1-flash-image", # Migrado do preview (deprecado 25/06/2026) para estável
+            model="gemini-2.5-flash",
             contents=gemini_parts,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
@@ -1389,7 +1390,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 raise e
 
             # 5. Roteamento e Prompt
-            modelo_escolhido = "gemini-3.1-flash-lite"
+            modelo_escolhido = "gemini-2.5-flash-lite"
             prompt_instrucao = """
             Você é um assistente de elite para extração de dados de encartes de supermercado.
             Sua missão é extrair TODOS os produtos e ofertas presentes no PDF anexado.
@@ -1731,8 +1732,8 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             """
             gemini_parts.append(prompt_vision)
 
-            # 5. Roteamento (Utilizando 3.1-flash-image para máximo Q.I. Visual em fotos e vídeos)
-            modelo_escolhido = "gemini-3.1-flash-image" # Migrado do preview (deprecado 25/06/2026) para estável
+            # 5. Roteamento (Utilizando Gemini 2.5 Flash no Vertex AI para visão computacional)
+            modelo_escolhido = "gemini-2.5-flash"
             
             print(f"DEBUG VISION - Invocando modelo {modelo_escolhido} (Modo Vídeo: {is_video})...")
             try:
