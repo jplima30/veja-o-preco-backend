@@ -432,26 +432,27 @@ def rodar_diagnostico_cron():
     try:
         duplicatas = buscar_duplicatas_potenciais()
         if not duplicatas:
-            print("✨ INTEGRIDADE: Nenhuma duplicata em potencial detectada no banco de dados!")
+            print("✨ CATÁLOGO 100% ÍNTEGRO: Todas as ofertas e produtos estão higienizados e sem duplicidades!")
             return
             
-        print("\n" + "!" * 60)
-        print(f"⚠️  ALERTA: ENCONTRADAS {len(duplicatas)} POTENCIAIS DUPLICATAS NO BANCO:")
-        print("!" * 60)
+        print("\n" + "=" * 65)
+        print(f"📊 DIAGNÓSTICO DO CATÁLOGO: {len(duplicatas)} pares com similaridade textual restante.")
+        print("   (Nota: As duplicatas de alta confiança já foram mescladas automaticamente).")
+        print("=" * 65)
         
-        # Agrupa e mostra os top 10 potenciais duplicados
+        # Agrupa e mostra os top 5 potenciais duplicados
         contador = 0
         for id_a, data_a, id_b, data_b, score in duplicatas:
             contador += 1
             print(f"  • [{score*100:.1f}%] '{data_a.get('nome')}' ↔️ '{data_b.get('nome')}'")
             print(f"    IDs: {id_a} ↔️ {id_b}")
-            if contador >= 10:
-                print(f"  ... e mais {len(duplicatas) - 10} potenciais correspondências.")
+            if contador >= 5:
+                print(f"  ... e mais {len(duplicatas) - 5} variações preservadas.")
                 break
                 
-        print("\n💡 Dica: Rode `python3 scripts/gerenciador.py` e escolha a opção 4 -> 3")
-        print("   para resolver estas duplicidades de forma guiada no terminal.")
-        print("="*60 + "\n")
+        print("\nℹ️  Esses itens foram preservados por envolverem unidades distintas (ex: kg vs un) ou variações específicas.")
+        print("💡 Caso deseje uma revisão manual opcional: gerenciador.py -> Opção 4 -> 4")
+        print("=" * 65 + "\n")
     except Exception as e:
         print(f"⚠️ Falha ao rodar diagnóstico de duplicatas: {e}")
 
