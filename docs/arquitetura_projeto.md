@@ -968,3 +968,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Padronizados os modelos estáveis suportados no Vertex AI (`gemini-2.5-flash` para visão multimodal e `gemini-2.5-flash-lite` para extração e auditoria).
 3. **Migração dos Scripts de Automação Local:**
    - Atualizados [auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) e [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) para utilizar o cliente Vertex AI com autenticação padrão ADC, eliminando consultas diretas de chaves de API.
+
+---
+
+**Sessão 64 (Aprimoramento do Diagnóstico de Duplicidades no CRON - Issue #60)**
+
+**Data:** 24 de Agosto de 2026
+**Objetivo:** Refinar o relatório de diagnóstico do CRON em [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py), tornando o status de integridade do catálogo transparente, contextualizando as variações preservadas por unidade/embalagem e eliminando falsos alarmes de duplicidade.
+
+### Implementações
+
+1. **Aprimoramento do Diagnóstico (`rodar_diagnostico_cron` em [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Atualizada a mensagem do CRON para indicar claramente quando o catálogo está 100% íntegro.
+   - Contextualizado que qualquer par residual preservado envolve unidades distintas (ex: kg vs un) ou variações específicas, orientando corretamente o atalho de revisão opcional no gerenciador (`Opção 4 -> 4`).
+2. **Validação de Sintaxe:**
+   - Sintaxe Python validada com `python3 -m py_compile`.
