@@ -1000,3 +1000,19 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Sintaxe Python validada com `python3 -m py_compile`.
    - Execução de teste validada com sucesso, confirmando a eliminação de alertas fantasmas.
 
+---
+
+**Sessão 66 (Correção de Referência de Lojas no Assistente Interativo - Issue #62)**
+
+**Data:** 24 de Agosto de 2026
+**Objetivo:** Corrigir exceção `NameError` em `rodar_assistente_interativo` no arquivo [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py), utilizando as variáveis consolidadas de lojas ativas/históricas (`lojas_a_str` e `lojas_b_str`).
+
+### Implementações
+
+1. **Correção de Referências ([identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Removidas chamadas órfãs à função indefinida `buscar_supermercados_produto()`.
+   - Aplicadas as variáveis formatadas `lojas_a_str` e `lojas_b_str` no card de comparação de produtos no terminal.
+2. **Validação de Sintaxe:**
+   - Sintaxe Python validada com `python3 -m py_compile`.
+
+
