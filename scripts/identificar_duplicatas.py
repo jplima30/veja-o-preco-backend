@@ -241,11 +241,11 @@ def obter_similaridade(n1: str, n2: str, w1: set, w2: set) -> tuple:
         
     return raz_direta, raz_token, overlap, diff_tamanho
 
-def carregar_produtos_com_cache_incremental() -> list:
+def carregar_produtos_com_cache_incremental(force_full_refresh: bool = False) -> list:
     """
     Sincroniza e retorna o Catálogo Mestre de Produtos usando cache local em scratch/cache_produtos.json.
     Lê apenas produtos novos ou atualizados do Firestore desde a última sincronização,
-    preservando 100% do histórico mestre sem inflar o número de leituras no Firestore.
+    ou realiza recarga completa fresca quando force_full_refresh=True.
     """
     import json
     cache_dir = os.path.join(os.path.dirname(__file__), "..", "scratch")
@@ -255,7 +255,7 @@ def carregar_produtos_com_cache_incremental() -> list:
     cache_dados = {}
     ultimo_sync = None
     
-    if os.path.exists(cache_path):
+    if not force_full_refresh and os.path.exists(cache_path):
         try:
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -268,9 +268,10 @@ def carregar_produtos_com_cache_incremental() -> list:
             ultimo_sync = None
 
     produtos_ref = db.collection("produtos")
-    if ultimo_sync:
+    if ultimo_sync and not force_full_refresh:
         docs = list(produtos_ref.where("atualizado_em", ">=", ultimo_sync).stream())
     else:
+        cache_dados = {}
         docs = list(produtos_ref.stream())
 
     for d in docs:
@@ -297,7 +298,7 @@ def carregar_produtos_com_cache_incremental() -> list:
         resultado.append((pid, pdata))
     return resultado
 
-def buscar_duplicatas_potenciais() -> list:
+def buscar_duplicatas_potenciais(force_full_refresh: bool = False) -> list:
     """
     Varre o Firestore via cache incremental, aplica a heurística e retorna lista de tuplas de duplicatas:
     [(prod_a_id, prod_a_data, prod_b_id, prod_b_data, razao_max)]
@@ -307,7 +308,7 @@ def buscar_duplicatas_potenciais() -> list:
     ignorados_docs = list(ignorados_ref.stream())
     pares_ignorados = {doc.id for doc in ignorados_docs}
 
-    docs_tuplas = carregar_produtos_com_cache_incremental()
+    docs_tuplas = carregar_produtos_com_cache_incremental(force_full_refresh=force_full_refresh)
     
     produtos = []
     for pid, data in docs_tuplas:
@@ -430,7 +431,7 @@ def mesclar_produtos_firestore(id_de: str, id_para: str) -> bool:
 def rodar_diagnostico_cron():
     print("⏳ Analisando integridade do catálogo por similaridade...")
     try:
-        duplicatas = buscar_duplicatas_potenciais()
+        duplicatas = buscar_duplicatas_potenciais(force_full_refresh=True)
         if not duplicatas:
             print("✨ CATÁLOGO 100% ÍNTEGRO: Todas as ofertas e produtos estão higienizados e sem duplicidades!")
             return

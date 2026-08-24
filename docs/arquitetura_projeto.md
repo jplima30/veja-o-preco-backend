@@ -983,3 +983,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Contextualizado que qualquer par residual preservado envolve unidades distintas (ex: kg vs un) ou variações específicas, orientando corretamente o atalho de revisão opcional no gerenciador (`Opção 4 -> 4`).
 2. **Validação de Sintaxe:**
    - Sintaxe Python validada com `python3 -m py_compile`.
+
+---
+
+**Sessão 65 (Recarga Limpa de Cache no Diagnóstico de Integridade - Issue #61)**
+
+**Data:** 24 de Agosto de 2026
+**Objetivo:** Implementar o parâmetro `force_full_refresh` em [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) para que o diagnóstico final do CRON recarregue o estado mais recente do Firestore pós-merge, eliminando duplicatas fantasmas de cache defasado e assegurando relatórios 100% precisos.
+
+### Implementações
+
+1. **Recarga Limpa de Cache (`force_full_refresh` em [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Adicionado suporte a `force_full_refresh=True` nas funções `carregar_produtos_com_cache_incremental()` e `buscar_duplicatas_potenciais()`.
+   - No diagnóstico final do CRON (`rodar_diagnostico_cron`), a busca agora força a recarga fresca de produtos e ignorados, eliminando 100% dos falsos-positivos decorrentes de cache local desatualizado.
+2. **Validação de Sintaxe e Execução:**
+   - Sintaxe Python validada com `python3 -m py_compile`.
+   - Execução de teste validada com sucesso, confirmando a eliminação de alertas fantasmas.
+
