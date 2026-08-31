@@ -1015,4 +1015,18 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 2. **Validação de Sintaxe:**
    - Sintaxe Python validada com `python3 -m py_compile`.
 
+---
 
+**Sessão 67 (Padronização do Motor Gemini 3.1 Flash-Lite na Vertex AI - Issue #63)**
+
+**Data:** 31 de Agosto de 2026
+**Objetivo:** Padronizar oficialmente o modelo `gemini-3.1-flash-lite` como motor unificado e exclusivo de Inteligência Artificial para extração de encartes (PDFs), visão computacional (OCR de fotos/panfletos/Reels), desduplicação e auditoria de categorias na Vertex AI, garantindo suporte estável de longo prazo (até 2027), alta precisão e custo-benefício imbatível ($0,25/$1,50 por 1M tokens), com 100% dos custos absorvidos pelos créditos gratuitos ativos no Google Cloud.
+
+### Implementações
+
+1. **Padronização em Cloud Functions ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   - Atualizados os endpoints `buscar_encarte_assai`, `extrair_dados_encarte` e `extrair_dados_imagem` para utilizarem explicitamente `model="gemini-3.1-flash-lite"`.
+2. **Atualização dos Scripts de Automação Local:**
+   - Atualizados [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) e [auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) para o motor `gemini-3.1-flash-lite`.
+3. **Validação de Sintaxe:**
+   - Sintaxe Python validada com `python3 -m py_compile` em todos os módulos afetados.
