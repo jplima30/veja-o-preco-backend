@@ -33,7 +33,7 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 | Camada | Tecnologia | Função |
 |---|---|---|
 | **Core** | Python 3.12 + Firebase Functions | Runtime das Cloud Functions |
-| **I.A. Engine** | Gemini 3.1 Flash Image / Flash Lite | Visão computacional em encartes e PDFs |
+| **I.A. Engine** | Google Cloud Vertex AI (`gemini-3.1-flash-lite`) | Visão computacional em encartes, OCR de imagens e processamento de PDFs |
 | **Automação** | Playwright (perfil persistente) | Captura de publicações em redes sociais |
 | **Computer Vision** | EasyOCR | Triagem local de imagens antes da I.A. |
 | **Banco de Dados** | Cloud Firestore | Persistência com deduplicação e histórico |
