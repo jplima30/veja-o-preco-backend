@@ -24,10 +24,33 @@ def normalizar_unidade(unidade: str) -> str:
         return "g"
     return u
 
+def canonicizar_meta_termos(nome: str) -> str:
+    """
+    Padroniza variações semânticas de termos coletivos/promocionais de encarte
+    (ex: 'vários tipos', 'diversos sabores', 'sabores sortidos') para a forma
+    canônica 'vários sabores', evitando duplicidade de produtos mestres.
+    """
+    import re
+    n = nome.strip()
+    # 1. "vários tipos" / "diversos tipos" / "tipos variados" -> "vários sabores"
+    n = re.sub(r'\b(v[aá]rios|diversos)\s+(tipos|modelos)\b', 'vários sabores', n, flags=re.IGNORECASE)
+    n = re.sub(r'\b(tipos)\s+(variados|diversos|sortidos)\b', 'vários sabores', n, flags=re.IGNORECASE)
+    
+    # 2. "sabores sortidos" / "diversos sabores" / "sabores variados" -> "vários sabores"
+    n = re.sub(r'\b(diversos)\s+(sabores)\b', 'vários sabores', n, flags=re.IGNORECASE)
+    n = re.sub(r'\b(sabores)\s+(sortidos|variados|diversos)\b', 'vários sabores', n, flags=re.IGNORECASE)
+    
+    # 3. "aromas sortidos" / "diversas fragrâncias" / "várias fragrâncias" -> "várias fragrâncias"
+    n = re.sub(r'\b(v[aá]rios|diversos)\s+(aromas)\b', 'várias fragrâncias', n, flags=re.IGNORECASE)
+    n = re.sub(r'\b(aromas|fragr[aâ]ncias)\s+(sortidos|sortidas|variados|variadas|diversos|diversas)\b', 'várias fragrâncias', n, flags=re.IGNORECASE)
+    
+    return re.sub(r'\s+', ' ', n).strip()
+
+
 def limpar_nome_promocional(nome: str) -> str:
     """
     Remove do nome do produto termos e slogans promocionais como:
-    "Leve mais e pague menos", "Leve X pague Y", etc.
+    "Leve mais e pague menos", "Leve X pague Y", etc., e canoniciza meta-termos.
     """
     import re
     n = nome.strip()
@@ -38,6 +61,10 @@ def limpar_nome_promocional(nome: str) -> str:
     n = re.sub(r'\s*\b(leve\s+\d+\s+pague\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
     # 3. Remove "pague X leve Y" (ex: pague 2 leve 3)
     n = re.sub(r'\s*\b(pague\s+\d+\s+leve\s+\d+)\b\.?\s*$', '', n, flags=re.IGNORECASE)
+    
+    # 4. Canoniciza variações semânticas de termos promocionais coletivos
+    n = canonicizar_meta_termos(n)
+    
     return re.sub(r'\s+', ' ', n).strip()
 
 def mesclar_banco():
