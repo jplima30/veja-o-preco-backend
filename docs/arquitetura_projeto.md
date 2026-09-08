@@ -1030,3 +1030,23 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Atualizados [identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py) e [auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) para o motor `gemini-3.1-flash-lite`.
 3. **Validação de Sintaxe:**
    - Sintaxe Python validada com `python3 -m py_compile` em todos os módulos afetados.
+
+---
+
+**Sessão 68 (Canonicização Semântica de Meta-Termos e Calibração de Duplicatas - Issue #64)**
+
+**Data:** 08 de Setembro de 2026
+**Objetivo:** Implementar canonicização automática de termos promocionais e coletivos de encartes de supermercados (ex: "vários tipos" vs "vários sabores", "sabores sortidos") para prevenir a geração de produtos mestres duplicados na ingestão (`salvar_produto_e_oferta`), e refinar o detector semântico de duplicatas (`identificar_duplicatas.py`) para distinguir meta-termos promocionais equivalentes de sabores incompatíveis reais.
+
+### Implementações
+
+1. **Canonicização de Meta-Termos ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py) e [scripts/mesclar_produtos.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/mesclar_produtos.py)):**
+   - Criada a função `canonicizar_meta_termos(nome)` com regras regex para padronizar variações como `"vários tipos"`, `"diversos tipos"`, `"tipos variados"`, `"sabores sortidos"` para o termo canônico `"vários sabores"`.
+   - Integrada a canonicização em `limpar_nome_promocional()` e `normalizar_nome()`.
+2. **Refinamento Semântico no Detector de Duplicatas ([scripts/identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Separado o conjunto de termos em `META_TERMOS_EQUIVALENTES` e `SABORES_E_VARIACOES_INCOMPATIVEIS`.
+   - Mapeada equivalência semântica em `MAPEAMENTO_ORTOGRAFICO` (`tipos` ➔ `sabores`).
+   - Ajustada a função `eh_variacao_agrupada()` para não bloquear produtos que diferem apenas por meta-termos promocionais coletivos.
+3. **Validação de Sintaxe:**
+   - Sintaxe Python validada com `python3 -m py_compile`.
+

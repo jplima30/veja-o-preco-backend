@@ -40,27 +40,40 @@ STOPWORDS_QUALIFICADORES = {
     "sal", "c/sal", "csal", "sêmola", "semola", "granel", "a granel"
 }
 
-# 2. Dicionário de Mapeamento Ortográfico Frequente do OCR
+# 2. Dicionário de Mapeamento Ortográfico e Semântico Frequente do OCR
 MAPEAMENTO_ORTOGRAFICO = {
     "mussarela": "muçarela",
     "aerosol": "aerossol",
     "amazon": "amazônia",
     "pc/kg": "kg",
     "pç/kg": "kg",
-    "pq/kg": "kg"
+    "pq/kg": "kg",
+    "tipos": "sabores",
+    "tipo": "sabor",
+    "aromas": "fragrâncias",
+    "aroma": "fragrância"
 }
 
-# 3. Termos de Variação/Agrupamento/Versões (Para Smart Auto-Ignore)
-TERMOS_VARIACAO_AGRUPADA = {
+# 3. Termos de Variação/Agrupamento/Versões (Para Smart Auto-Ignore e Detecção Semântica)
+# 3.1 Meta-termos equivalentes de agregação promocional (ex: "vários sabores" == "vários tipos")
+META_TERMOS_EQUIVALENTES = {
     "sabores", "sabor", "tipos", "tipo", "variações", "variacoes", "variação", "variacao",
     "variados", "variadas", "diversos", "diversas", "sortidos", "sortido", "fragrâncias",
-    "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "exceto", "modelos", "modelo",
-    "cores", "cor", "estampas", "tamanhos", "eucalipto", "pro", "clinical", "professional", "profissional",
+    "fragrancias", "fragrância", "fragrancia", "aromas", "aroma", "modelos", "modelo"
+}
+
+# 3.2 Sabores específicos, versões técnicas e cortes incompatíveis (não devem ser mesclados entre si)
+SABORES_E_VARIACOES_INCOMPATIVEIS = {
+    "eucalipto", "pro", "clinical", "professional", "profissional", "exceto",
     "bacon", "cupuaçu", "cupuacu", "goiaba", "abacaxi", "manga", "pêssego", "pessego", "maracujá", "maracuja",
     "uva", "laranja", "morango", "coração", "coracao", "juntinhos", "shortinho", "roupinha", "pants", "calça", "crocks", "leve",
     "pele", "com pele", "sem pele", "p", "m", "g", "xg", "xxg", "xxgg", "minions", "barbie", "batman",
-    "wafer", "recheado", "rolo", "rosquinha", "maria", "maizena", "p.a", "p.a.", "ponta", "combo", "pack"
+    "wafer", "recheado", "rolo", "rosquinha", "maria", "maizena", "p.a", "p.a.", "ponta", "combo", "pack",
+    "cores", "cor", "estampas", "tamanhos"
 }
+
+# Mantido para compatibilidade
+TERMOS_VARIACAO_AGRUPADA = META_TERMOS_EQUIVALENTES.union(SABORES_E_VARIACOES_INCOMPATIVEIS)
 
 # 4. Marcas Conhecidas do Catálogo de Supermercado
 MARCAS_SUPERMERCADO = {
@@ -146,15 +159,29 @@ def eh_variacao_agrupada(data_a: dict, data_b: dict, marcas_dinamicas: set = Non
     w1 = set(n1.split())
     w2 = set(n2.split())
     
-    # 1. Checa termos de agrupamento (ex: "Sabores" vs "Morango")
-    has_var_a = bool(w1.intersection(TERMOS_VARIACAO_AGRUPADA))
-    has_var_b = bool(w2.intersection(TERMOS_VARIACAO_AGRUPADA))
-    if has_var_a != has_var_b:
+    # 1. Checa termos de agrupamento e sabores específicos
+    has_meta_a = bool(w1.intersection(META_TERMOS_EQUIVALENTES))
+    has_meta_b = bool(w2.intersection(META_TERMOS_EQUIVALENTES))
+    has_spec_a = bool(w1.intersection(SABORES_E_VARIACOES_INCOMPATIVEIS))
+    has_spec_b = bool(w2.intersection(SABORES_E_VARIACOES_INCOMPATIVEIS))
+
+    # 1.1 Se um produto tem meta-termo coletivo e o outro tem um sabor específico (ex: 'Vários Sabores' vs 'Morango'), são diferentes
+    if (has_meta_a and has_spec_b) or (has_meta_b and has_spec_a):
         return True
-        
-    inter_a = w1.intersection(TERMOS_VARIACAO_AGRUPADA)
-    inter_b = w2.intersection(TERMOS_VARIACAO_AGRUPADA)
-    if inter_a and inter_b and inter_a != inter_b:
+
+    # 1.2 Se ambos têm sabores/versões específicas e elas são diferentes (ex: Morango vs Uva)
+    inter_spec_a = w1.intersection(SABORES_E_VARIACOES_INCOMPATIVEIS)
+    inter_spec_b = w2.intersection(SABORES_E_VARIACOES_INCOMPATIVEIS)
+    if inter_spec_a and inter_spec_b and inter_spec_a != inter_spec_b:
+        return True
+
+    # 1.3 Se um tem sabor específico e o outro não tem nenhum sabor específico (ex: 'Bolo Cenoura' vs 'Bolo')
+    if bool(inter_spec_a) != bool(inter_spec_b):
+        return True
+
+    # 1.4 Se um tem meta-termo e o outro não tem qualificador (ex: 'Bolo Vários Sabores' vs 'Bolo')
+    # Nota: Se ambos tiverem meta-termos (ex: 'Vários Sabores' vs 'Vários Tipos'), NÃO bloqueia, pois são equivalentes!
+    if (has_meta_a != has_meta_b) and not (has_spec_a or has_spec_b):
         return True
 
     # 2. Checa se são marcas concorrentes diferentes ou Produto de Marca vs Produto Genérico
