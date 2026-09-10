@@ -61,23 +61,33 @@ def normalizar_unidade(unidade: str) -> str:
     return u
 
 
-def normalizar_categoria(categoria: str) -> str:
+def normalizar_categoria(categoria: str, nome: str = "") -> str:
     """
     Padroniza categorias de produtos para evitar duplicações de cadastro e alinhar com o App.
     Mapeia variações ortográficas e setores correlatos (como rotisseria -> PADARIA).
+    Se o nome do produto contiver termos ou marcas estritamente da linha PET/veterinária,
+    garante a atribuição imediata a PET, sobrepondo classificações genéricas como HIGIENE ou LIMPEZA.
     """
     if not categoria:
-        return "ALIMENTOS"
+        categoria = "ALIMENTOS"
     c = categoria.strip().lower()
+    n = nome.strip().lower() if nome else ""
     
-    # 0. PET (Avaliar primeiro para evitar desvios para Higiene, Limpeza, Carnes, etc.)
+    # 0. PET (Avaliar primeiro no nome e na categoria para evitar desvios para Higiene, Limpeza, Carnes, etc.)
     termos_pet = [
         "ração", "racao", "dog chow", "cat chow", "pedigree", "whiskas", "friskies", 
         "procão", "procao", "purina", "monello", "birbo", "granplus", "golden", "bomguy", 
         "nino dog", "chum", "adestrador", "tapete higiênico", "tapete higienico", "pet care", 
         "gato", "gatos", "cachorro", "cachorros", "filhote", "filhotes", "cão", "caes", "cao",
-        "veterinário", "veterinario", "kdog"
+        "veterinário", "veterinario", "kdog", "k-dog", "sanol dog", "sanol", "petiscos pet",
+        "bifinho", "bifinhos", "areia sanitária", "areia sanitaria", "sílica pet", "silica pet"
     ]
+    # Checagem prioritária no NOME do produto
+    if n and any(re.search(rf'\b{term}\b', n) for term in termos_pet):
+        if not any(x in n for x in ["coração", "coracao"]):
+            return "PET"
+
+    # Checagem na categoria informada
     if any(re.search(rf'\b{term}\b', c) for term in termos_pet):
         # Evitar falsos positivos como corações de carne
         if not any(x in c for x in ["coração", "coracao"]):
@@ -126,7 +136,7 @@ def normalizar_categoria(categoria: str) -> str:
 
     # 4. CARNES
     termos_carnes = [
-        "carne", "picanha", "alcatra", "músculo", "musculo", "peito de frango", "sobrecoxa", 
+        "carnes", "carne", "picanha", "alcatra", "músculo", "musculo", "peito de frango", "sobrecoxa", 
         "asa", "coração", "coracao", "linguiça", "linguica", "salsicha", "tambaqui", "peixe", 
         "filé", "file", "bovino", "suíno", "suino", "frango", "bacalhau", "costelinha", 
         "chouriço", "chourico", "pernil", "paleta"
@@ -181,6 +191,10 @@ def normalizar_categoria(categoria: str) -> str:
     ]
     if any(re.search(rf'\b{term}\b', c) for term in termos_limpeza):
         return "LIMPEZA"
+
+    cat_upper = categoria.strip().upper()
+    if cat_upper in {"CARNES", "HORTIFRUTI", "PADARIA", "BEBIDAS", "HIGIENE", "LIMPEZA", "FRIOS_LATICINIOS", "PET"}:
+        return cat_upper
 
     return "ALIMENTOS"
 
@@ -491,7 +505,7 @@ def salvar_produto_e_oferta(
         print(f"  🚫 Oferta bloqueada por CATEGORIA PROIBIDA: {categoria} - {nome}")
         return {"produto_id": produto_id, "salvo": False, "motivo": "categoria_proibida"}
 
-    categoria = normalizar_categoria(categoria)
+    categoria = normalizar_categoria(categoria, nome)
 
     # 2. Lista de Palavras Proibidas (Safety Net)
     palavras_proibidas = [

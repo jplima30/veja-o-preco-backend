@@ -1087,5 +1087,25 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 3. **Auditoria Remota Pós-Deploy:**
    - Executada auditoria automatizada via rede confirmando 100% de conformidade estrutural e cromática (96/96 aprovados com 400 × 400 px e cantos `#FFFFFF` estrito).
 
+---
 
+**Sessão 71 (Higienização de Catálogo Pet e Blindagem da Categoria PET - Issue #65)**
+
+**Data:** 10 de Setembro de 2026
+**Objetivo:** Unificar duplicatas e registros órfãos dos produtos *Shampoo Procão* e *Ração Rocky Dog*, e blindar o motor de normalização e classificação do backend para priorizar termos da linha PET/veterinária, impedindo desvios indevidos para as categorias HIGIENE ou LIMPEZA.
+
+### Implementações
+
+1. **Higienização e Consolidação no Cloud Firestore:**
+   - Unificadas 4 duplicatas/órfãos de *Shampoo Procão* (`shampoo-procao-500ml-un`, `shampoo-procao-500ml-varios-tipos-cada`, `shampoo-procao-un` e `shampoo-ou-condicionador-procao-varios-tipos-500ml-un`) no produto canônico `shampoo-procao-varios-tipos-500ml-un` (categoria `PET`, R$ 12,90 Mix Mateus).
+   - Unificada a variação sem peso de *Rocky Dog* (`racao-para-caes-rocky-dog-un`) no produto canônico `racao-para-caes-rocky-dog-25kg-un` (categoria `PET`, R$ 109,99 Mix Mateus).
+   - Registrados os redirecionamentos transparentes na coleção `/sinonimos` para reaproveitamento em futuros scrapes.
+2. **Blindagem do Motor de Normalização de Categoria ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   - Atualizada a função `normalizar_categoria(categoria, nome)` para receber o nome do produto e avaliar termos veterinários/pet com prioridade zero antes das regras de Higiene e Limpeza.
+   - Adicionada preservação direta para categorias válidas já identificadas em maiúsculas (`CARNES`, `HORTIFRUTI`, `PADARIA`, etc.) e inclusão de "carnes" na whitelist de termos carnes.
+3. **Atualização da Rotina de Reclassificação ([scripts/reclassificar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/reclassificar_categorias.py)):**
+   - Inserida a checagem prioritária da categoria `PET` no topo de `classificar_refinado(nome, cat_original)` e ajustadas as regras de exclusão de rações.
+4. **Validação de Sintaxe e Testes Unitários:**
+   - Sintaxe Python validada com `python3 -m py_compile`.
+   - Testes unitários executados e aprovados com 100% de sucesso para produtos PET, Carnes, Bebidas, Padaria, Hortifrúti, Frios e Higiene.
 

@@ -10,6 +10,19 @@ def classificar_refinado(nome, cat_original):
     nome_lower = nome.lower()
     cat_original_lower = cat_original.lower()
     
+    # 0. PET (Avaliar primeiro para evitar que produtos de banho, higiene ou cuidado pet caiam em Higiene ou Limpeza)
+    termos_pet = [
+        "ração", "racao", "dog chow", "cat chow", "pedigree", "whiskas", "friskies", 
+        "procão", "procao", "purina", "monello", "birbo", "granplus", "golden", "bomguy", 
+        "nino dog", "chum", "adestrador", "tapete higiênico", "tapete higienico", "pet care", 
+        "gato", "gatos", "cachorro", "cachorros", "filhote", "filhotes", "cão", "caes", "cao",
+        "veterinário", "veterinario", "kdog", "k-dog", "sanol dog", "sanol", "petiscos pet",
+        "bifinho", "bifinhos", "areia sanitária", "areia sanitaria", "sílica pet", "silica pet"
+    ]
+    if any(re.search(rf'\b{term}\b', nome_lower) for term in termos_pet) or any(re.search(rf'\b{term}\b', cat_original_lower) for term in termos_pet):
+        if not any(x in nome_lower for x in ["coração", "coracao"]):
+            return "PET"
+
     # 1. Regra de Higiene / Limpeza baseadas na categoria original do banco
     if any(x in cat_original_lower for x in ["limpeza", "detergente", "sabão", "sabao"]):
         return "LIMPEZA"
@@ -17,7 +30,7 @@ def classificar_refinado(nome, cat_original):
         return "HIGIENE"
 
     # Exclusões de produtos industrializados/mercearia para evitar falsos positivos
-    if any(term in nome_lower for term in ["farofa", "extrato", "molho", "sachê", "sache", "tempero", "caldo", "conserva", "ração", "racao"]):
+    if any(term in nome_lower for term in ["farofa", "extrato", "molho", "sachê", "sache", "tempero", "caldo", "conserva"]):
         return "ALIMENTOS"
 
     # 2. BEBIDAS (Avaliar antes de Hortifruti para evitar que suco de uva vire Hortifruti)
@@ -39,8 +52,6 @@ def classificar_refinado(nome, cat_original):
         "presunto", "costelinha", "chouriço", "chourico", "pernil", "paleta"
     ]
     if any(re.search(rf'\b{term}\b', nome_lower) for term in termos_carnes):
-        if "ração" in nome_lower or "racao" in nome_lower:
-            return "ALIMENTOS"
         return "CARNES"
         
     # 4. HORTIFRUTI
