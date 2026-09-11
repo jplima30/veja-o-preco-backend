@@ -16,7 +16,7 @@ from google.genai import types
 def obter_gemini_client():
     """Retorna o cliente Gemini conectado nativamente ao Vertex AI (GCP)."""
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
-    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
     return genai.Client(vertexai=True, project=project_id, location=location)
 
 # Inicializar Firebase
