@@ -1109,3 +1109,24 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Sintaxe Python validada com `python3 -m py_compile`.
    - Testes unitários executados e aprovados com 100% de sucesso para produtos PET, Carnes, Bebidas, Padaria, Hortifrúti, Frios e Higiene.
 
+---
+
+**Sessão 72 (Desbloqueio de Triagem e Roteamento Vertex AI Anycast Global - Issue #66)**
+
+**Data:** 11 de Setembro de 2026
+**Objetivo:** Eliminar o erro 404 regional do Vertex AI no modelo `gemini-3.1-flash-lite`, desbloquear a extração de encartes/ofertas pela triagem de OCR e corrigir o crash de parsing de data no Cloud Scheduler.
+
+### Implementações
+
+1. **Roteamento Anycast Global no Vertex AI ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   - Atualizado o fallback de `location` em `get_gemini_client()` de `"us-central1"` para `"global"`. O modelo `gemini-3.1-flash-lite` está provisionado no endpoint Anycast global do Google Cloud, eliminando o erro 404 e mantendo o modelo de alta performance e baixo custo selecionado para o projeto.
+2. **Compatibilidade Nativa Multimodal Vertex AI:**
+   - Substituídas as tentativas de chamada ao método `client.files.upload()` e `client.files.delete()` em `extrair_dados_encarte` e `extrair_dados_imagem` pela passagem nativa de bytes via `types.Part.from_bytes(data=..., mime_type=...)`, suportada nativamente no Vertex AI para PDFs e imagens.
+3. **Atualização do SDK Firebase Functions ([functions/requirements.txt](file:///Users/jplima/Documents/veja-o-preco-backend/functions/requirements.txt)):**
+   - Atualizado `firebase-functions` de `0.1.2` para `0.6.0`, sanando o bug de parsing de datas com microssegundos (`ValueError`) no gatilho agendado do Cloud Scheduler (`atualizar_ofertas`).
+4. **Sincronização dos Scripts Locais ([scripts/auditar_categorias.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/auditar_categorias.py) e [scripts/identificar_duplicatas.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/identificar_duplicatas.py)):**
+   - Atualizado o fallback de `location` para `"global"` nos assistentes de auditoria semântica e deduplicação local.
+5. **Validação de Sintaxe e Teste de Conexão:**
+   - Sintaxe Python 100% validada via `python3 -m py_compile`.
+   - Teste de conexão e inferência executado com sucesso no Vertex AI retornando resposta do `gemini-3.1-flash-lite`.
+

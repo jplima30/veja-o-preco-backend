@@ -38,7 +38,7 @@ def get_db():
 def get_gemini_client():
     """Retorna o cliente Gemini conectado nativamente ao Google Cloud Vertex AI."""
     project_id = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
-    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
     return genai.Client(vertexai=True, project=project_id, location=location)
 
 # ==============================================================================
@@ -1421,14 +1421,12 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
         try:
             # 3. Usar o Cliente Gemini Global (já configurado no topo do arquivo)
             
-            # 4. Upload do arquivo para a API do Google
-            print(f"DEBUG GEMINI - Iniciando upload do arquivo: {tmp_path}")
-            try:
-                uploaded_file = client.files.upload(file=tmp_path)
-                print(f"DEBUG GEMINI - Upload concluído com sucesso: {uploaded_file.name}")
-            except Exception as e:
-                print(f"❌ ERRO GEMINI - Falha no upload: {str(e)}")
-                raise e
+            # 4. Leitura do arquivo PDF para envio nativo ao Vertex AI
+            print(f"DEBUG GEMINI - Lendo arquivo PDF para envio nativo: {tmp_path}")
+            with open(tmp_path, "rb") as f_pdf:
+                pdf_bytes = f_pdf.read()
+            uploaded_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
+            print("DEBUG GEMINI - Part do PDF criada com sucesso.")
 
             # 5. Roteamento e Prompt
             modelo_escolhido = "gemini-3.1-flash-lite"
@@ -1468,7 +1466,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             try:
                 response_gemini = client.models.generate_content(
                     model=modelo_escolhido,
-                    contents=[uploaded_file, prompt_instrucao],
+                    contents=[uploaded_part, prompt_instrucao],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json"
                     )
@@ -1705,32 +1703,11 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                 tmp_file.write(response.content)
                 tmp_path = tmp_file.name
 
-            # 3. Upload do arquivo para a API do Google (Visão)
+            # 3. Preparar mídia para envio nativo ao Vertex AI
             tipo_nome = "vídeo" if is_video else "imagem"
-            print(f"DEBUG VISION - Iniciando upload do {tipo_nome}: {tmp_path}")
-            try:
-                uploaded_file = client.files.upload(file=tmp_path)
-                print(f"DEBUG VISION - Upload concluído: {uploaded_file.name}")
-            except Exception as e:
-                print(f"❌ ERRO VISION - Falha no upload: {str(e)}")
-                raise e
-            
-            # Se for vídeo, precisamos esperar o Gemini processar o arquivo antes de inferir
-            if is_video:
-                import time
-                print("DEBUG VISION - Vídeo detectado. Aguardando processamento da IA...")
-                while uploaded_file.state.name == "PROCESSING":
-                    print(".", end="", flush=True)
-                    time.sleep(2)
-                    # Atualiza o status do arquivo
-                    uploaded_file = client.files.get(name=uploaded_file.name)
-                print()
-                
-                if uploaded_file.state.name == "FAILED":
-                    raise Exception("A IA falhou ao tentar processar o arquivo de vídeo.")
-                print("DEBUG VISION - Vídeo processado com sucesso pela IA. Iniciando inferência.")
-            
-            gemini_parts.append(uploaded_file)
+            mime = "video/mp4" if is_video else (content_type or "image/jpeg")
+            print(f"DEBUG VISION - Criando Part nativa do Vertex AI para {tipo_nome} ({mime})...")
+            gemini_parts.append(types.Part.from_bytes(data=response.content, mime_type=mime))
 
         try:
             # 4. Prompt de Visão estruturado com Filtro de Categorias RÍGIDO
@@ -1886,13 +1863,6 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
             )
 
         finally:
-            # Limpar o arquivo da API do Gemini para não gastar a cota gratuita
-            if 'uploaded_file' in locals() and uploaded_file:
-                try:
-                    client.files.delete(name=uploaded_file.name)
-                except Exception:
-                    pass
-
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
 

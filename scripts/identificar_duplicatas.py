@@ -812,7 +812,7 @@ def avaliar_duplicatas_com_gemini(duplicatas_residuais: list, silent=False) -> t
         import json, requests
 
         project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "veja-o-preco"
-        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
         client = genai.Client(vertexai=True, project=project_id, location=location)
 
         mesclados = 0
