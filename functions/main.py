@@ -639,6 +639,26 @@ def salvar_produto_e_oferta(
         "expira_em", ">=", datetime.now()
     ).limit(1).get()
     
+    # --- Registro Permanente em /historico_precos (Idempotente: 1 cotação por dia por produto/loja) ---
+    data_hoje_str = datetime.now().strftime("%Y-%m-%d")
+    historico_id = f"{produto_id}_{supermercado_id}_{data_hoje_str}"
+    try:
+        get_db().collection("historico_precos").document(historico_id).set({
+            "produto_id": produto_id,
+            "produto_nome": nome,
+            "supermercado_id": supermercado_id,
+            "loja": loja,
+            "preco": preco,
+            "preco_antigo": preco_antigo,
+            "unidade": unidade_norm,
+            "categoria": categoria,
+            "data": data_hoje_str,
+            "imagem_url": imagem_url,
+            "criado_em": datetime.now()
+        }, merge=True)
+    except Exception as e_hist:
+        print(f"  ⚠️ Aviso: Falha não-bloqueante ao registrar historico_precos: {e_hist}")
+
     if ofertas_duplicadas:
         doc_duplicado = ofertas_duplicadas[0]
         if post_id and not doc_duplicado.to_dict().get("post_id"):

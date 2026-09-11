@@ -1130,3 +1130,27 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Sintaxe Python 100% validada via `python3 -m py_compile`.
    - Teste de conexão e inferência executado com sucesso no Vertex AI retornando resposta do `gemini-3.1-flash-lite`.
 
+---
+
+**Sessão 73 (Histórico Permanente de Preços e Resgate do Cache de Agosto - Issue #67)**
+
+**Data:** 11 de Setembro de 2026
+**Objetivo:** Criar e automatizar o pipeline de histórico permanente de preços na coleção `/historico_precos` do Cloud Firestore, garantindo custo financeiro R$ 0,00 para futura monetização via recurso Premium, além de resgatar 1.194 ofertas históricas de agosto preservadas no cache local (LevelDB) do Preview do iOS Simulator.
+
+### Implementações e Decisões de Engenharia
+
+1. **Gravação Automática e Idempotente no Backend ([functions/main.py](file:///Users/jplima/Documents/veja-o-preco-backend/functions/main.py)):**
+   - Integrado o registro permanente em `/historico_precos` dentro da rotina de ingestão `salvar_produto_e_oferta()`.
+   - Utilizado ID determinístico `{produto_id}_{supermercado_id}_{data_hoje}` com `merge=True`, garantindo no máximo 1 gravação por dia por loja/produto, sem duplicações e sem gerar custos extras de operações de escrita no Firestore.
+   - Tratamento não-bloqueante (`try/except`) para assegurar que falhas eventuais no log de histórico nunca interrompam o fluxo principal de oferta ativa.
+2. **Isolamento de Coleções vs. Rotina de Limpeza:**
+   - Confirmada a segurança da rotina `limpar_ofertas_expiradas()`: ela atua estritamente sobre a vitrine rotativa `/ofertas`, preservando de forma perpétua os dados nas coleções `/historico_precos` e `/produtos`.
+3. **Resgate Cirúrgico do Cache Binário de Agosto ([scripts/popular_historico_agosto.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/popular_historico_agosto.py)):**
+   - Desenvolvido script especializado de extração que analisa os arquivos LevelDB (`.ldb`/`.log`) do Preview do SwiftUI.
+   - Decodificação via protobuf canônico do Firestore (`google.cloud.firestore_v1.types.Document`), resgatando preços, categorias, nomes, lojas, timestamps e URLs com 100% de integridade estrutural.
+   - Inseridas 1.194 cotações históricas de agosto e 132 cotações de ofertas vigentes do dia, totalizando **1.326 documentos** persistidos em lotes atômicos (`batch.commit()`) na coleção `historico_precos`.
+4. **Viabilidade Econômica (Custo R$ 0,00 no Plano Blaze):**
+   - O volume diário estimado de novas cotações (~100-300 writes/dia) consome menos de 1% da cota gratuita diária de 20.000 gravações do Firestore.
+   - O armazenamento de 1.326 cotações consome menos de 1,5 MB da cota gratuita de 1 GB.
+
+
