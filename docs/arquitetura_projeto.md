@@ -1153,4 +1153,32 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - O volume diário estimado de novas cotações (~100-300 writes/dia) consome menos de 1% da cota gratuita diária de 20.000 gravações do Firestore.
    - O armazenamento de 1.326 cotações consome menos de 1,5 MB da cota gratuita de 1 GB.
 
+---
+
+**Sessão 74 (Migração da Central de Imagens para Google Imagens via Playwright e Resolução 400x400 - Issue #68)**
+
+**Data:** 11 de Setembro de 2026
+**Objetivo:** Eliminar imagens ruidosas, incorretas ou irrelevantes geradas pelos motores legados (DuckDuckGo e Bing) na curadoria do catálogo, substituindo-os pelo Google Imagens comercial automatizado via Playwright (Chrome com perfil persistente anti-bloqueio) e padronizando a resolução canônica de packshots para 400 × 400 pixels em fundo branco estrito (#FFFFFF).
+
+### Implementações e Decisões de Engenharia
+
+1. **Substituição dos Motores de Busca ([scripts/central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py)):**
+   - Removidas as antigas funções de scraping `buscar_duckduckgo_images` e `buscar_bing_images`.
+   - Implementada a função `buscar_google_images_playwright(nome_produto, page, max_resultados=4)`, utilizando busca comercial refinada (`"{query}" supermercado`, parâmetro `udm=2` para modo Google Images).
+   - Extração direta das imagens de alta definição dos sites de e-commerce e supermercados (VTEX, Mercafacil, Sonda, etc.) pelo seletor de visualização detalhada `img[jsname="kn3ccd"], img.sFlh5c`.
+   - Implementado filtro de exclusão para domínios de notícias, enciclopédias e redes sociais (Wikipedia, G1, Facebook, etc.).
+2. **Prevenção de CAPTCHA e Otimização de Performance:**
+   - Adotado `launch_persistent_context` apontando para `scripts/playwright_profile` (ignorado no `.gitignore`), neutralizando redirecionamentos para `/sorry/index` (CAPTCHA) do Google.
+   - O navegador e o contexto Playwright são instanciados uma única vez no início da rotina de curadoria (`executar_curadoria`) e reutilizados em todos os produtos pendentes, fechando no bloco `finally`.
+3. **Padronização Gráfica 400 × 400 pixels:**
+   - Atualizada a função `processar_e_otimizar_imagem(url_imagem, tamanho=(400, 400), qualidade=80)`.
+   - Resolução elevada de 200×200 para 400×400 com preenchimento branco estrito (`ImageOps.pad` com `color="white"`, `centering=(0.5, 0.5)` e compressão JPEG com `quality=80, optimize=True`), garantindo nitidez cristalina nos layouts modernos do iOS App sem peso excessivo de download (~15 a 30 KB por imagem).
+4. **Alinhamento dos Menus e Scripts Operacionais:**
+   - Atualizados textos e opções do menu interativo e comandos do terminal de `scripts/central_imagens.py`.
+   - Validada a integridade do orquestrador `scripts/gerenciador.py`.
+5. **Validação e Testes:**
+   - Compilação validada via `python3 -m py_compile`.
+   - Teste de busca, extração e renderização 400x400 executado com 100% de sucesso.
+
+
 

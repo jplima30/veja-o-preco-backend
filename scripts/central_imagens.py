@@ -19,97 +19,102 @@ def inicializar_firebase():
         firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
     return firestore.client(), storage.bucket("veja-o-preco.firebasestorage.app")
 
-def buscar_duckduckgo_images(nome_produto: str) -> list:
+def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados: int = 4) -> list[str]:
     """
-    Busca até 4 URLs de imagens no DuckDuckGo de forma gratuita e sem chaves de API.
+    Busca até 4 URLs de imagens oficiais em alta resolução no Google Imagens utilizando Playwright.
+    Reutiliza a página do navegador se fornecida, ou abre um contexto persistente temporário.
     """
     import re
+    import urllib.parse
     
     # Limpa nome para busca
     n = nome_produto
     n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote)\)\s*$', '', n, flags=re.IGNORECASE)
     n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote)\s*$', '', n, flags=re.IGNORECASE)
     query = n.strip()
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    url_token = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}&iax=images&ia=images"
-    try:
-        # Intervalo preventivo rápido para o DuckDuckGo
-        time.sleep(0.5)
-        res = requests.get(url_token, headers=headers, timeout=5)
-        if res.status_code != 200:
+    
+    fechar_no_fim = False
+    context_temp = None
+    pw_temp = None
+    
+    if page is None:
+        try:
+            from playwright.sync_api import sync_playwright
+            pw_temp = sync_playwright().start()
+            profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
+            context_temp = pw_temp.chromium.launch_persistent_context(
+                profile_dir,
+                headless=True,
+                locale='pt-BR',
+                args=['--disable-blink-features=AutomationControlled']
+            )
+            page = context_temp.new_page()
+            fechar_no_fim = True
+        except Exception as e_launch:
+            print(f"   ⚠️ Falha ao inicializar Playwright: {e_launch}")
             return []
-        match = re.search(r"vqd=([\d-]+)&", res.text)
-        if not match:
-            match = re.search(r'vqd\s*=\s*[\'"]([^\'"]+)[\'"]', res.text)
-            if not match:
-                return []
-        vqd = match.group(1)
+
+    urls = []
+    try:
+        termo_busca = f'"{query}" supermercado'
+        url = f"https://www.google.com/search?q={urllib.parse.quote(termo_busca)}&udm=2&hl=pt-BR&gl=BR"
         
-        url_images = f"https://duckduckgo.com/i.js?l=wt-wt&o=json&q={urllib.parse.quote(query)}&vqd={vqd}&f=,,,&p=1"
-        res_images = requests.get(url_images, headers=headers, timeout=5)
-        if res_images.status_code == 200:
-            dados = res_images.json()
-            results = dados.get("results", [])
-            urls = []
-            for r in results:
-                img_url = r.get("image", "")
-                if img_url and img_url.startswith("http") and img_url not in urls:
-                    urls.append(img_url)
-                    if len(urls) >= 4:
-                        break
-            return urls
-    except Exception:
-        pass
-    return []
-
-def buscar_bing_images(nome_produto: str) -> list[str]:
-    """
-    Busca imagens no Bing como fallback gratuito caso o DuckDuckGo falhe ou bloqueie a requisição.
-    """
-    import re
-    import urllib.parse
-    import requests
-    import json
-    import html
-    
-    n = nome_produto
-    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote)\)\s*$', '', n, flags=re.IGNORECASE)
-    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote)\s*$', '', n, flags=re.IGNORECASE)
-    query = n.strip()
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Referer": "https://www.bing.com/"
-    }
-    
-    url = f"https://www.bing.com/images/search?q={urllib.parse.quote(query)}"
-    try:
-        time.sleep(0.5)
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code != 200:
-            return []
-            
-        matches = re.findall(r'class=\"iusc\"[^>]*\s+m=\"([^\"]+)\"', res.text)
-        urls = []
-        for m in matches:
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(600)
+        
+        grid_imgs = page.query_selector_all('img[alt]')
+        candidatos = []
+        for img in grid_imgs:
             try:
-                obj = json.loads(html.unescape(m))
-                img_url = obj.get("murl")
-                if img_url and img_url.startswith("http") and img_url not in urls:
-                    urls.append(img_url)
-                    if len(urls) >= 4:
-                        break
+                alt = img.get_attribute('alt') or ''
+                if len(alt) < 3 or any(term in alt.lower() for term in ['google', 'pesquisa', 'voos', 'mapas', 'vídeos', 'ferramentas']):
+                    continue
+                w = img.evaluate('el => el.naturalWidth || el.clientWidth')
+                h = img.evaluate('el => el.naturalHeight || el.clientHeight')
+                if w and h and (w < 50 or h < 50):
+                    continue
+                candidatos.append(img)
+                if len(candidatos) >= max_resultados * 2:
+                    break
             except Exception:
                 continue
-        return urls
-    except Exception:
-        pass
-    return []
+                
+        for img in candidatos:
+            try:
+                img.click()
+                page.wait_for_timeout(600)
+                
+                high_res_url = page.evaluate('''() => {
+                    const els = Array.from(document.querySelectorAll('img[jsname="kn3ccd"], img.sFlh5c[src^="http"]'));
+                    for (const el of els) {
+                        const s = el.src || '';
+                        if (s.startsWith('http') && !s.includes('gstatic.com') && !s.includes('google.com')) {
+                            return s;
+                        }
+                    }
+                    return '';
+                }''')
+                
+                if high_res_url and high_res_url not in urls:
+                    banned = ['wikipedia', 'wikimedia', 'noticia', 'g1.globo', 'facebook', 'instagram', 'paintingvalley', 'inuth.com']
+                    if not any(b in high_res_url.lower() for b in banned):
+                        urls.append(high_res_url)
+                        if len(urls) >= max_resultados:
+                            break
+            except Exception:
+                pass
+                
+    except Exception as e_search:
+        print(f"   ⚠️ Erro ao consultar Google Imagens: {e_search}")
+    finally:
+        if fechar_no_fim:
+            try:
+                if context_temp: context_temp.close()
+                if pw_temp: pw_temp.stop()
+            except Exception:
+                pass
+                
+    return urls
 
 def extrair_url_real(url: str) -> str:
     """
@@ -127,10 +132,10 @@ def extrair_url_real(url: str) -> str:
         pass
     return url
 
-def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
+def processar_e_otimizar_imagem(url_imagem: str, tamanho: tuple = (400, 400), qualidade: int = 80) -> io.BytesIO:
     """
     Baixa uma imagem da internet ou abre um arquivo local do disco,
-    ajusta sua proporção com preenchimento branco (200x200) e comprime para JPEG 75%.
+    ajusta sua proporção com preenchimento branco (400x400) e comprime para JPEG 80%.
     """
     import os
     import re
@@ -164,7 +169,7 @@ def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
             "Sec-Fetch-Mode": "no-cors",
             "Sec-Fetch-Site": "cross-site"
         }
-        resp = requests.get(url_limpa, headers=headers, timeout=10)
+        resp = requests.get(url_limpa, headers=headers, timeout=12)
         resp.raise_for_status()
         img_bytes = io.BytesIO(resp.content)
         
@@ -172,13 +177,14 @@ def processar_e_otimizar_imagem(url_imagem: str) -> io.BytesIO:
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
             
-        # Redimensionamento 200x200 preservando proporção
-        img_redimensionada = ImageOps.pad(img, (200, 200), color="white", centering=(0.5, 0.5))
+        # Redimensionamento 400x400 preservando proporção com fundo branco
+        img_redimensionada = ImageOps.pad(img, tamanho, color="white", centering=(0.5, 0.5))
         
         output = io.BytesIO()
-        img_redimensionada.save(output, "JPEG", quality=75)
+        img_redimensionada.save(output, "JPEG", quality=qualidade, optimize=True)
         output.seek(0)
         return output
+
 
 def carregar_estatisticas_gerais(db) -> dict:
     """
@@ -448,168 +454,193 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
             is_autopilot = True
             print("\n🤖 Iniciando Piloto Automático para o Grupo 3...")
     
-    for i, (prod_id, prod_data) in enumerate(produtos_pendentes):
-        nome = prod_data.get("nome", "Sem nome")
-        unidade = prod_data.get("unidade", "un")
-        origem_atual = prod_data.get("imagem_origem", "desconhecida")
-        url_atual = prod_data.get("imagem_url", "")
-        
-        # Busca lojas com ofertas para esse produto
-        lojas = set()
-        try:
-            query_lojas = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
-            for doc_of in query_lojas:
-                data_of = doc_of.to_dict()
-                loja = data_of.get("loja", "")
-                if loja:
-                    lojas.add(loja)
-        except Exception:
-            pass
+    # Inicia instância do Playwright com perfil persistente para evitar CAPTCHA e reutilizar na varredura
+    pw = None
+    context = None
+    page = None
+    try:
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
+        context = pw.chromium.launch_persistent_context(
+            profile_dir,
+            headless=True,
+            locale='pt-BR',
+            args=['--disable-blink-features=AutomationControlled']
+        )
+        page = context.new_page()
+    except Exception as e_pw:
+        print(f"⚠️ Aviso: Falha ao iniciar navegador Playwright persistente: {e_pw}")
 
-        while True:  # Loop de retentativa para o mesmo produto
-            print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
-            print(f"   ID: {prod_id}")
-            if lojas:
-                print(f"   🛒 Supermercado(s): {', '.join(sorted(lojas))}")
-            print(f"   Status Atual: {origem_atual.upper()}")
-            if url_atual:
-                print(f"   Imagem Atual: {url_atual}")
+    try:
+        for i, (prod_id, prod_data) in enumerate(produtos_pendentes):
+            nome = prod_data.get("nome", "Sem nome")
+            unidade = prod_data.get("unidade", "un")
+            origem_atual = prod_data.get("imagem_origem", "desconhecida")
+            url_atual = prod_data.get("imagem_url", "")
             
-            url_selecionada = ""
-            origem_selecionada = ""
-            pular_produto = False
-            buffer_otimizado = None
-            
-            # Passo 1: Busca automática de imagens no DuckDuckGo (com Fallback para Bing)
-            print("   🔍 Buscando no DuckDuckGo Images...")
-            urls_auto = buscar_duckduckgo_images(nome)
-            fonte_busca = "DuckDuckGo"
-            
-            if not urls_auto:
-                print("   ⚠️ Sem resultados ou bloqueio no DuckDuckGo. Tentando Bing Images...")
-                urls_auto = buscar_bing_images(nome)
-                fonte_busca = "Bing"
-            
-            if urls_auto:
-                print(f"   🌐 Encontradas {len(urls_auto)} imagens no {fonte_busca}.")
-                sucesso_download = False
+            # Busca lojas com ofertas para esse produto
+            lojas = set()
+            try:
+                query_lojas = db.collection("ofertas").where("produto_id", "==", prod_id).stream()
+                for doc_of in query_lojas:
+                    data_of = doc_of.to_dict()
+                    loja = data_of.get("loja", "")
+                    if loja:
+                        lojas.add(loja)
+            except Exception:
+                pass
+
+            while True:  # Loop de retentativa para o mesmo produto
+                print(f"\n📦 [{i+1}/{len(produtos_pendentes)}] Produto: {nome} ({unidade})")
+                print(f"   ID: {prod_id}")
+                if lojas:
+                    print(f"   🛒 Supermercado(s): {', '.join(sorted(lojas))}")
+                print(f"   Status Atual: {origem_atual.upper()}")
+                if url_atual:
+                    print(f"   Imagem Atual: {url_atual}")
                 
-                for idx, url_temp in enumerate(urls_auto):
-                    print(f"     [Tentativa {idx+1}/{len(urls_auto)}] Testando: {url_temp}")
+                url_selecionada = ""
+                origem_selecionada = ""
+                pular_produto = False
+                buffer_otimizado = None
+                
+                # Passo 1: Busca automática de imagens no Google Imagens (Playwright)
+                print("   🔍 Buscando no Google Imagens (Playwright)...")
+                urls_auto = buscar_google_images_playwright(nome, page=page)
+                fonte_busca = "Google Imagens"
+                
+                if urls_auto:
+                    print(f"   🌐 Encontradas {len(urls_auto)} imagens no {fonte_busca}.")
+                    sucesso_download = False
                     
-                    if is_autopilot:
-                        # Piloto Automático: tenta baixar silenciosamente
-                        try:
-                            buffer_otimizado = processar_e_otimizar_imagem(url_temp)
-                            url_selecionada = url_temp
-                            origem_selecionada = "manual"
-                            sucesso_download = True
-                            print("     🤖 [AUTO-PILOTO] Imagem baixada e otimizada com sucesso.")
-                            break
-                        except Exception as e_proc:
-                            print(f"     ❌ Falha ao processar link {idx+1}: {e_proc}")
-                    else:
-                        # Modo Interativo: pergunta ao usuário
-                        opcao = input(f"     👉 Usar imagem {idx+1}? [Y] Sim (Enter) / [N] Tentar próxima / [S] Pular / [A] Aceitar recorte / [M] Voltar ao Menu: ").strip().lower()
-                        if opcao in ("m", "menu", "voltar"):
-                            print("   🔙 Operação cancelada. Voltando ao menu principal...")
-                            return
-                        elif opcao == "" or opcao == "y" or opcao == "yes":
+                    for idx, url_temp in enumerate(urls_auto):
+                        print(f"     [Tentativa {idx+1}/{len(urls_auto)}] Testando: {url_temp}")
+                        
+                        if is_autopilot:
+                            # Piloto Automático: tenta baixar silenciosamente
                             try:
                                 buffer_otimizado = processar_e_otimizar_imagem(url_temp)
                                 url_selecionada = url_temp
                                 origem_selecionada = "manual"
-                                successes_download = True
                                 sucesso_download = True
+                                print("     🤖 [AUTO-PILOTO] Imagem baixada e otimizada (400x400) com sucesso.")
                                 break
                             except Exception as e_proc:
-                                print(f"     ❌ Erro ao baixar essa imagem: {e_proc}. Tente outra.")
-                        elif opcao == "a" or opcao == "aceitar":
-                            if url_atual:
-                                print("   💾 Marcando recorte atual como aceito no Firestore...")
-                                ref_doc = produtos_ref.document(prod_id)
-                                ref_doc.update({
-                                    "imagem_origem": "auto_crop_aceito",
-                                    "atualizado_em": datetime.now()
-                                })
-                                print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
-                            else:
-                                print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
-                            pular_produto = True
-                            break
-                        elif opcao == "s" or opcao == "skip":
-                            print("   ⏭️ Produto pulado.")
-                            pular_produto = True
-                            break
-                
+                                print(f"     ❌ Falha ao processar link {idx+1}: {e_proc}")
+                        else:
+                            # Modo Interativo: pergunta ao usuário
+                            opcao = input(f"     👉 Usar imagem {idx+1}? [Y] Sim (Enter) / [N] Tentar próxima / [S] Pular / [A] Aceitar recorte / [M] Voltar ao Menu: ").strip().lower()
+                            if opcao in ("m", "menu", "voltar"):
+                                print("   🔙 Operação cancelada. Voltando ao menu principal...")
+                                return
+                            elif opcao == "" or opcao == "y" or opcao == "yes":
+                                try:
+                                    buffer_otimizado = processar_e_otimizar_imagem(url_temp)
+                                    url_selecionada = url_temp
+                                    origem_selecionada = "manual"
+                                    sucesso_download = True
+                                    break
+                                except Exception as e_proc:
+                                    print(f"     ❌ Erro ao baixar essa imagem: {e_proc}. Tente outra.")
+                            elif opcao == "a" or opcao == "aceitar":
+                                if url_atual:
+                                    print("   💾 Marcando recorte atual como aceito no Firestore...")
+                                    ref_doc = produtos_ref.document(prod_id)
+                                    ref_doc.update({
+                                        "imagem_origem": "auto_crop_aceito",
+                                        "atualizado_em": datetime.now()
+                                    })
+                                    print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                                else:
+                                    print("   ⚠️ Este produto não possui um recorte de imagem para aceitar. Pulo realizado.")
+                                pular_produto = True
+                                break
+                            elif opcao == "s" or opcao == "skip":
+                                print("   ⏭️ Produto pulado.")
+                                pular_produto = True
+                                break
+                    
+                    if pular_produto:
+                        break
+                        
+                    if not sucesso_download and not pular_produto:
+                        print(f"   ❌ Nenhuma das imagens do {fonte_busca} pós-download funcionou.")
+                else:
+                    print("   ❌ Nenhuma imagem comercial encontrada no Google Imagens.")
+                    
                 if pular_produto:
                     break
                     
-                if not sucesso_download and not pular_produto:
-                    print(f"   ❌ Nenhuma das imagens do {fonte_busca} pós-download funcionou.")
-            else:
-                print("   ❌ Não encontrado no DuckDuckGo nem no Bing.")
-                
-            if pular_produto:
-                break
-                
-            # Passo 2: Entrada manual caso nenhuma automática tenha sido bem-sucedida
-            if not url_selecionada:
-                if is_autopilot:
-                    break
-                opcao_manual = input("   🔗 Cole a URL ou arraste um arquivo local (ou Enter para PULAR, 'A' para aceitar recorte, 'M' para voltar ao menu): ").strip()
-                if opcao_manual.lower() in ("m", "menu", "voltar"):
-                    print("   🔙 Operação cancelada. Voltando ao menu principal...")
-                    return
-                elif opcao_manual.lower() == "a":
-                    if url_atual:
-                        print("   💾 Marcando recorte atual como aceito no Firestore...")
-                        ref_doc = produtos_ref.document(prod_id)
-                        ref_doc.update({
-                            "imagem_origem": "auto_crop_aceito",
-                            "atualizado_em": datetime.now()
-                        })
-                        print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                # Passo 2: Entrada manual caso nenhuma automática tenha sido bem-sucedida
+                if not url_selecionada:
+                    if is_autopilot:
                         break
-                    else:
-                        print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
+                    opcao_manual = input("   🔗 Cole a URL ou arraste um arquivo local (ou Enter para PULAR, 'A' para aceitar recorte, 'M' para voltar ao menu): ").strip()
+                    if opcao_manual.lower() in ("m", "menu", "voltar"):
+                        print("   🔙 Operação cancelada. Voltando ao menu principal...")
+                        return
+                    elif opcao_manual.lower() == "a":
+                        if url_atual:
+                            print("   💾 Marcando recorte atual como aceito no Firestore...")
+                            ref_doc = produtos_ref.document(prod_id)
+                            ref_doc.update({
+                                "imagem_origem": "auto_crop_aceito",
+                                "atualizado_em": datetime.now()
+                            })
+                            print("   ✅ Status atualizado para AUTO_CROP_ACEITO.")
+                            break
+                        else:
+                            print("   ⚠️ Este produto não possui um recorte de imagem para aceitar.")
+                            continue
+                    if not opcao_manual:
+                        print("   ⏭️ Produto pulado.")
+                        break
+                    try:
+                        buffer_otimizado = processar_e_otimizar_imagem(opcao_manual)
+                        url_selecionada = opcao_manual
+                        origem_selecionada = "manual"
+                    except Exception as e_proc:
+                        print(f"   ❌ ERRO ao processar URL manual: {e_proc}")
                         continue
-                if not opcao_manual:
-                    print("   ⏭️ Produto pulado.")
-                    break
+                        
+                # Passo 3: Fazer Upload dos dados (o buffer_otimizado já está preenchido em 400x400)
                 try:
-                    buffer_otimizado = processar_e_otimizar_imagem(opcao_manual)
-                    url_selecionada = opcao_manual
-                    origem_selecionada = "manual"
-                except Exception as e_proc:
-                    print(f"   ❌ ERRO ao processar URL manual: {e_proc}")
-                    continue
+                    print("   ☁️ Fazendo upload para o Firebase Storage...")
+                    blob_name = f"produtos/{prod_id}.jpg"
+                    blob = bucket.blob(blob_name)
+                    blob.upload_from_string(buffer_otimizado.getvalue(), content_type="image/jpeg")
+                    blob.make_public()
+                    public_url = blob.public_url
                     
-            # Passo 3: Fazer Upload dos dados (o buffer_otimizado já está preenchido)
+                    print("   💾 Salvando metadados no Firestore...")
+                    ref_doc = produtos_ref.document(prod_id)
+                    ref_doc.update({
+                        "imagem_url": public_url,
+                        "imagem_origem": origem_selecionada,
+                        "atualizado_em": datetime.now()
+                    })
+                    
+                    tamanho_kb = len(buffer_otimizado.getvalue()) / 1024.0
+                    print(f"   ✅ SUCESSO! Imagem curada (400x400) salva com sucesso ({tamanho_kb:.2f} KB)!")
+                    total_atualizados += 1
+                    break
+                    
+                except Exception as e_up:
+                    print(f"   ❌ ERRO ao fazer upload ou salvar Firestore: {e_up}")
+                    break
+    finally:
+        if context:
             try:
-                print("   ☁️ Fazendo upload para o Firebase Storage...")
-                blob_name = f"produtos/{prod_id}.jpg"
-                blob = bucket.blob(blob_name)
-                blob.upload_from_string(buffer_otimizado.getvalue(), content_type="image/jpeg")
-                blob.make_public()
-                public_url = blob.public_url
-                
-                print("   💾 Salvando metadados no Firestore...")
-                ref_doc = produtos_ref.document(prod_id)
-                ref_doc.update({
-                    "imagem_url": public_url,
-                    "imagem_origem": origem_selecionada,
-                    "atualizado_em": datetime.now()
-                })
-                
-                tamanho_kb = len(buffer_otimizado.getvalue()) / 1024.0
-                print(f"   ✅ SUCESSO! Imagem curada salva com sucesso ({tamanho_kb:.2f} KB)!")
-                total_atualizados += 1
-                break
-                
-            except Exception as e_up:
-                print(f"   ❌ ERRO ao fazer upload ou salvar Firestore: {e_up}")
-                break
+                context.close()
+            except Exception:
+                pass
+        if pw:
+            try:
+                pw.stop()
+            except Exception:
+                pass
+
 
 def main():
     db, bucket = inicializar_firebase()
@@ -645,7 +676,7 @@ def main():
         
         print("SELECIONE A AÇÃO DESEJADA:\n")
         print("  [1] 🆕 Curar produtos SEM FOTO (Interativo)")
-        print("      👉 Pesquisa no DuckDuckGo e pergunta antes de salvar fotos de estúdio.\n")
+        print("      👉 Pesquisa no Google Imagens (Playwright) e pergunta antes de salvar fotos de estúdio (400x400).\n")
         print("  [2] ✂️  Curar recortes provisórios da IA [auto_crop] (Interativo)")
         print("      👉 Substitui imagens de encartes recortadas por fotos de estúdio limpas.\n")
         print("  [3] 📌 Curar recortes aceitos [auto_crop_aceito] e APIs de Lojas externas [api_loja] (Híbrido)")
