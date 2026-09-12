@@ -31,7 +31,8 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
     n = nome_produto
     n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote)\)\s*$', '', n, flags=re.IGNORECASE)
     n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote)\s*$', '', n, flags=re.IGNORECASE)
-    query = n.strip()
+    n_limpo = re.sub(r'[-/\\_,\.]', ' ', n)
+    query = ' '.join(n_limpo.split())
     
     fechar_no_fim = False
     context_temp = None
@@ -44,11 +45,13 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
             profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
             context_temp = pw_temp.chromium.launch_persistent_context(
                 profile_dir,
-                headless=True,
-                locale='pt-BR',
-                args=['--disable-blink-features=AutomationControlled']
+                headless=False,
+                channel='chrome',
+                args=['--disable-blink-features=AutomationControlled'],
+                ignore_default_args=['--enable-automation'],
+                locale='pt-BR'
             )
-            page = context_temp.new_page()
+            page = context_temp.pages[0] if context_temp.pages else context_temp.new_page()
             fechar_no_fim = True
         except Exception as e_launch:
             print(f"   ⚠️ Falha ao inicializar Playwright: {e_launch}")
@@ -56,22 +59,41 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
 
     urls = []
     try:
-        termo_busca = f'"{query}" supermercado'
-        url = f"https://www.google.com/search?q={urllib.parse.quote(termo_busca)}&udm=2&hl=pt-BR&gl=BR"
+        termo_busca = f"{query} supermercado"
         
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        page.wait_for_timeout(600)
-        
-        grid_imgs = page.query_selector_all('img[alt]')
+        # Se a página ainda não estiver no Google Imagens, navega para a home e acessa a aba Imagens
+        if "udm=2" not in page.url and "tbm=isch" not in page.url:
+            page.goto('https://www.google.com', wait_until='domcontentloaded')
+            page.wait_for_timeout(800)
+            q_home = page.wait_for_selector('textarea[name="q"], input[name="q"]', timeout=5000)
+            q_home.fill(termo_busca)
+            page.keyboard.press('Enter')
+            page.wait_for_load_state('domcontentloaded')
+            page.wait_for_timeout(1000)
+            
+            img_tab = page.query_selector('a:has-text("Imagens"), a:has-text("Images")')
+            if img_tab:
+                img_tab.click()
+                page.wait_for_load_state('domcontentloaded')
+                page.wait_for_timeout(1200)
+        else:
+            # Já está no Google Imagens: basta preencher o campo e dar Enter
+            q_box = page.wait_for_selector('textarea[name="q"], input[name="q"]', timeout=5000)
+            q_box.fill(termo_busca)
+            page.keyboard.press('Enter')
+            page.wait_for_load_state('domcontentloaded')
+            page.wait_for_timeout(1200)
+            
+        cards = page.query_selector_all('div.bFtXbb img, div.uhHOwf img, img[alt]')
         candidatos = []
-        for img in grid_imgs:
+        for img in cards:
             try:
                 alt = img.get_attribute('alt') or ''
-                if len(alt) < 3 or any(term in alt.lower() for term in ['google', 'pesquisa', 'voos', 'mapas', 'vídeos', 'ferramentas']):
+                if any(term in alt.lower() for term in ['google', 'pesquisa', 'voos', 'mapas', 'vídeos', 'ferramentas']):
                     continue
                 w = img.evaluate('el => el.naturalWidth || el.clientWidth')
                 h = img.evaluate('el => el.naturalHeight || el.clientHeight')
-                if w and h and (w < 50 or h < 50):
+                if w and h and (w < 40 or h < 40):
                     continue
                 candidatos.append(img)
                 if len(candidatos) >= max_resultados * 2:
@@ -82,7 +104,7 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
         for img in candidatos:
             try:
                 img.click()
-                page.wait_for_timeout(600)
+                page.wait_for_timeout(1000)
                 
                 high_res_url = page.evaluate('''() => {
                     const els = Array.from(document.querySelectorAll('img[jsname="kn3ccd"], img.sFlh5c[src^="http"]'));
@@ -113,6 +135,7 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
                 if pw_temp: pw_temp.stop()
             except Exception:
                 pass
+
                 
     return urls
 
@@ -464,11 +487,13 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
         profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
         context = pw.chromium.launch_persistent_context(
             profile_dir,
-            headless=True,
-            locale='pt-BR',
-            args=['--disable-blink-features=AutomationControlled']
+            headless=False,
+            channel='chrome',
+            args=['--disable-blink-features=AutomationControlled'],
+            ignore_default_args=['--enable-automation'],
+            locale='pt-BR'
         )
-        page = context.new_page()
+        page = context.pages[0] if context.pages else context.new_page()
     except Exception as e_pw:
         print(f"⚠️ Aviso: Falha ao iniciar navegador Playwright persistente: {e_pw}")
 
@@ -611,7 +636,8 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
                     blob = bucket.blob(blob_name)
                     blob.upload_from_string(buffer_otimizado.getvalue(), content_type="image/jpeg")
                     blob.make_public()
-                    public_url = blob.public_url
+                    timestamp_agora = int(time.time())
+                    public_url = f"{blob.public_url}?t={timestamp_agora}"
                     
                     print("   💾 Salvando metadados no Firestore...")
                     ref_doc = produtos_ref.document(prod_id)

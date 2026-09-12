@@ -1179,6 +1179,10 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 5. **Validação e Testes:**
    - Compilação validada via `python3 -m py_compile`.
    - Teste de busca, extração e renderização 400x400 executado com 100% de sucesso.
+6. **Curadoria em Lote e 100% de Cobertura das Ofertas Vigentes:**
+   - Executado o script especializado de curadoria em lote das ofertas ativas ([scripts/curar_lote_hoje.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/curar_lote_hoje.py)).
+   - 132 de 132 ofertas vigentes (**100.0%**) migradas para o padrão oficial de estúdio em 400 × 400 pixels com fundo branco `#FFFFFF` e ativadas no iOS App com o selo verde (`checkmark.seal.fill` e `400 × 400 px (Curadoria HD)`) via parâmetro `?t=<timestamp>`.
+
 
 
 
