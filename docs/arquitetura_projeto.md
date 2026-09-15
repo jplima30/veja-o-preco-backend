@@ -1205,3 +1205,24 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 4. **Validação de Sintaxe:**
    - Sintaxe Python 100% validada via `python3 -m py_compile`.
 
+---
+
+**Sessão 76 (Curadoria Inteligente Semântica de Alta Fidelidade e 100% de Cobertura de Ofertas - Issue #70)**
+
+**Data:** 15 de Setembro de 2026
+**Objetivo:** Realizar a curadoria semântica e inteligente de imagens de estúdio em 400 × 400 pixels para os 49 produtos únicos restantes que possuíam ofertas ativas sem foto, eliminando falhas causadas por abreviações compactas de encarte (ex: `ABS` interpretado como freio de carro em vez de absorvente, `C/A`, `S/A`, `L8P7`) e atingir 100% de cobertura de imagens ativas no catálogo do app.
+
+### Implementações e Decisões de Engenharia
+
+1. **Expansão Semântica de Abreviações e Limpeza de Códigos de Encarte ([scripts/central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py)):**
+   - Atualizada a função `limpar_termo_busca(nome_produto)` com dicionário de expansão prioritária para termos abreviados comuns de encartes de supermercado: `ABS` → `Absorvente`, `C/A` → `com abas`, `S/A` → `sem abas`, `DES` → `Desodorante`, `AER` → `Aerossol`, `SAB` → `Sabonete`, `COND` → `Condicionador`, `SH` → `Shampoo`, `LIMP` → `Limpador`, `AMAC` → `Amaciante`, `DETERG` → `Detergente`, `DESINF` → `Desinfetante`, `BISC` → `Biscoito`, `REFRIG` → `Refrigerante`.
+   - Adicionado expurgo automático de códigos promocionais compactos como `L8P7`, `LV12PG11`, `32x1` e multiplicadores.
+2. **Motor de Curadoria de Alta Fidelidade ([scripts/curar_lote_alta_fidelidade.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/curar_lote_alta_fidelidade.py)):**
+   - Desenvolvido script especializado utilizando o Chromium headless do Playwright integrado à busca do Bing Images com priorização de domínios de varejo e e-commerce (`vtexassets`, `carrefour`, `ibassets`, `paodeacucar`, `sonda`, `muffato`, `araujo`, `drogasil`, `clinoff`).
+   - Processamento gráfico estrito de estúdio: 400 × 400 pixels, enquadramento proporcional centralizado com preenchimento branco estrito (`#FFFFFF`), compressão JPEG otimizada (Q80) e upload direto para o Firebase Storage com cache-buster `?t=<timestamp>`.
+   - Sincronização atômica nas coleções `/produtos` e `/ofertas` do Cloud Firestore.
+3. **Marco Histórico de Cobertura de Imagens:**
+   - 50 produtos curados e atualizados no Firestore.
+   - O catálogo atingiu exatamente **567 de 567 ofertas vigentes com foto no Storage (100,00% de cobertura)**.
+4. **Validação:**
+   - Sintaxe Python 100% validada via `python3 -m py_compile`.
