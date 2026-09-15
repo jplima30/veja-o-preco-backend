@@ -22,17 +22,46 @@ def inicializar_firebase():
 def limpar_termo_busca(nome_produto: str) -> str:
     """
     Higieniza o nome do produto para a busca de imagens:
+    - Expande abreviações comuns de encarte: ABS -> Absorvente, C/A -> com abas, S/A -> sem abas,
+      DES -> Desodorante, AER -> Aerossol, SAB -> Sabonete, COND -> Condicionador, SH -> Shampoo, etc.
+    - Remove códigos compactos promocionais: L8P7, LV12PG11, 32x1, etc.
     - Remove unidades finais e parênteses: (un), (kg), (pacote), (kit), (rolo), etc.
     - Remove ruídos de encarte promocional: 'vários tipos', 'vários sabores', 'várias fragrâncias',
-      'leve X pague Y', 'desconto', 'grátis', 'promoção', 'oferta', 'sachê', 'refil', '32x1', etc.
+      'leve X pague Y', 'desconto', 'grátis', 'promoção', 'oferta', 'sachê', 'refil', etc.
     """
     import re
     n = nome_produto
-    # Remove sufixos de unidades
-    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo)\)\s*$', '', n, flags=re.IGNORECASE)
-    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo)\s*$', '', n, flags=re.IGNORECASE)
+
+    # 1. Expansão de abreviações conhecidas de encartes de supermercado
+    abreviacoes = [
+        (r'\bABS\b', 'Absorvente'),
+        (r'\bC/A\b', 'com abas'),
+        (r'\bS/A\b', 'sem abas'),
+        (r'\bDES\b', 'Desodorante'),
+        (r'\bAER\b', 'Aerossol'),
+        (r'\bSAB\b', 'Sabonete'),
+        (r'\bCOND\b', 'Condicionador'),
+        (r'\bSH\b', 'Shampoo'),
+        (r'\bLIMP\b', 'Limpador'),
+        (r'\bAMAC\b', 'Amaciante'),
+        (r'\bDETERG\b', 'Detergente'),
+        (r'\bDESINF\b', 'Desinfetante'),
+        (r'\bBISC\b', 'Biscoito'),
+        (r'\bREFRIG\b', 'Refrigerante'),
+    ]
+    for abrev_regex, expansao in abreviacoes:
+        n = re.sub(abrev_regex, expansao, n, flags=re.IGNORECASE)
+
+    # 2. Remove sufixos de unidades e parênteses
+    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo|uni)\)\s*$', '', n, flags=re.IGNORECASE)
+    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo|uni)\s*$', '', n, flags=re.IGNORECASE)
     
-    # Remove ruídos promocionais e variações
+    # 3. Remove códigos promocionais compactos (ex: L8P7, LV12PG11, 32x1, 10x)
+    n = re.sub(r'\b(l|lv)\d+(p|pg)\d+\b', ' ', n, flags=re.IGNORECASE)
+    n = re.sub(r'\b\d+x\d+\b', ' ', n, flags=re.IGNORECASE)
+    n = re.sub(r'\b\d+x\b', ' ', n, flags=re.IGNORECASE)
+
+    # 4. Remove ruídos promocionais e variações
     ruidos = [
         r'\bv[aá]rios\s+tipos\b',
         r'\bv[aá]rios\s+sabores\b',
@@ -44,7 +73,7 @@ def limpar_termo_busca(nome_produto: str) -> str:
         r'\bpromo[cç][aã]o\b',
         r'\boferta\b',
         r'\bsach[eê]\b',
-        r'\b\d+x\d+\b',
+        r'\brefil\b',
     ]
     for r in ruidos:
         n = re.sub(r, ' ', n, flags=re.IGNORECASE)
