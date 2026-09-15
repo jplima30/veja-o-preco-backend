@@ -19,43 +19,110 @@ def inicializar_firebase():
         firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
     return firestore.client(), storage.bucket("veja-o-preco.firebasestorage.app")
 
+def limpar_termo_busca(nome_produto: str) -> str:
+    """
+    Higieniza o nome do produto para a busca de imagens:
+    - Remove unidades finais e parênteses: (un), (kg), (pacote), (kit), (rolo), etc.
+    - Remove ruídos de encarte promocional: 'vários tipos', 'vários sabores', 'várias fragrâncias',
+      'leve X pague Y', 'desconto', 'grátis', 'promoção', 'oferta', 'sachê', 'refil', '32x1', etc.
+    """
+    import re
+    n = nome_produto
+    # Remove sufixos de unidades
+    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo)\)\s*$', '', n, flags=re.IGNORECASE)
+    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote|kit|rolo)\s*$', '', n, flags=re.IGNORECASE)
+    
+    # Remove ruídos promocionais e variações
+    ruidos = [
+        r'\bv[aá]rios\s+tipos\b',
+        r'\bv[aá]rios\s+sabores\b',
+        r'\bv[aá]rias\s+fragr[aâ]ncias\b',
+        r'\bleve\s+\d+(\s*ml|\s*g)?\s*(e\s*)?pague\s+\d+(\s*ml|\s*g)?\b',
+        r'\bleve\s+\d+\s*(e\s*)?pague\s+\d+\b',
+        r'\b\d+%\s*(de\s*)?desconto\b',
+        r'\bgr[aá]tis\b',
+        r'\bpromo[cç][aã]o\b',
+        r'\boferta\b',
+        r'\bsach[eê]\b',
+        r'\b\d+x\d+\b',
+    ]
+    for r in ruidos:
+        n = re.sub(r, ' ', n, flags=re.IGNORECASE)
+        
+    n = re.sub(r'[-/\\_,\.]', ' ', n)
+    return ' '.join(n.split())
+
+def obter_ou_recriar_sessao_playwright(pw=None, context=None, page=None):
+    """
+    Garante que a sessão do Playwright (Chrome persistente) esteja ativa.
+    Se a página, contexto ou browser caírem, encerra os recursos e recria a sessão sem interromper o lote.
+    """
+    from playwright.sync_api import sync_playwright
+    
+    # 1. Verifica se a página atual ainda responde
+    if page is not None and hasattr(page, "is_closed") and not page.is_closed():
+        try:
+            _ = page.evaluate("() => document.title")
+            return pw, context, page
+        except Exception:
+            pass
+            
+    # 2. Se a página fechou mas o contexto continua aberto, cria nova página
+    if context is not None and hasattr(context, "is_closed") and not context.is_closed():
+        try:
+            nova_page = context.new_page()
+            return pw, context, nova_page
+        except Exception:
+            pass
+            
+    # 3. Contexto ou browser caíram: encerra resíduos com segurança
+    if context:
+        try:
+            context.close()
+        except Exception:
+            pass
+    if pw:
+        try:
+            pw.stop()
+        except Exception:
+            pass
+            
+    # 4. Recria do zero
+    try:
+        novo_pw = sync_playwright().start()
+        profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
+        novo_context = novo_pw.chromium.launch_persistent_context(
+            profile_dir,
+            headless=True,
+            args=['--disable-blink-features=AutomationControlled'],
+            ignore_default_args=['--enable-automation'],
+            locale='pt-BR'
+        )
+        nova_page = novo_context.pages[0] if novo_context.pages else novo_context.new_page()
+        return novo_pw, novo_context, nova_page
+    except Exception as e_pw:
+        print(f"⚠️ Erro ao (re)iniciar Playwright persistente: {e_pw}")
+        return None, None, None
+
 def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados: int = 4) -> list[str]:
     """
     Busca até 4 URLs de imagens oficiais em alta resolução no Google Imagens utilizando Playwright.
     Reutiliza a página do navegador se fornecida, ou abre um contexto persistente temporário.
     """
-    import re
     import urllib.parse
     
-    # Limpa nome para busca
-    n = nome_produto
-    n = re.sub(r'\s*\((un|kg|quilo|cada|unidade|g|ml|l|pacote)\)\s*$', '', n, flags=re.IGNORECASE)
-    n = re.sub(r'\s+-\s+(un|kg|quilo|cada|unidade|g|ml|l|pacote)\s*$', '', n, flags=re.IGNORECASE)
-    n_limpo = re.sub(r'[-/\\_,\.]', ' ', n)
-    query = ' '.join(n_limpo.split())
+    query = limpar_termo_busca(nome_produto)
     
     fechar_no_fim = False
     context_temp = None
     pw_temp = None
     
-    if page is None:
-        try:
-            from playwright.sync_api import sync_playwright
-            pw_temp = sync_playwright().start()
-            profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
-            context_temp = pw_temp.chromium.launch_persistent_context(
-                profile_dir,
-                headless=False,
-                channel='chrome',
-                args=['--disable-blink-features=AutomationControlled'],
-                ignore_default_args=['--enable-automation'],
-                locale='pt-BR'
-            )
-            page = context_temp.pages[0] if context_temp.pages else context_temp.new_page()
-            fechar_no_fim = True
-        except Exception as e_launch:
-            print(f"   ⚠️ Falha ao inicializar Playwright: {e_launch}")
+    is_page_closed = page is None or (hasattr(page, "is_closed") and page.is_closed())
+    if is_page_closed:
+        pw_temp, context_temp, page = obter_ou_recriar_sessao_playwright(None, None, None)
+        if not page:
             return []
+        fechar_no_fim = True
 
     urls = []
     try:
@@ -125,9 +192,38 @@ def buscar_google_images_playwright(nome_produto: str, page=None, max_resultados
                             break
             except Exception:
                 pass
+
+        # Fallback resiliente: se o Google Imagens bloqueou com CAPTCHA (/sorry) ou não achou imagens comerciais
+        if not urls and page and not (hasattr(page, "is_closed") and page.is_closed()):
+            try:
+                print("   🔄 Fallback resiliente ativado: consultando catálogo via Bing Images...")
+                url_bing = f"https://www.bing.com/images/search?q={urllib.parse.quote(query + ' supermercado')}"
+                page.goto(url_bing, wait_until='domcontentloaded')
+                page.wait_for_timeout(1200)
+                
+                iusc_links = page.query_selector_all("a.iusc")
+                import json
+                for a in iusc_links:
+                    m_attr = a.get_attribute("m")
+                    if m_attr:
+                        try:
+                            m_data = json.loads(m_attr)
+                            murl = m_data.get("murl")
+                            if murl and murl.startswith("http"):
+                                banned = ['wikipedia', 'wikimedia', 'noticia', 'g1.globo', 'facebook', 'instagram', 'paintingvalley', 'inuth.com', 'receita', 'caseiro']
+                                if not any(b in murl.lower() for b in banned):
+                                    urls.append(murl)
+                                    if len(urls) >= max_resultados:
+                                        break
+                        except Exception:
+                            continue
+            except Exception as e_bing:
+                print(f"   ⚠️ Aviso: Fallback Bing também falhou: {e_bing}")
                 
     except Exception as e_search:
         print(f"   ⚠️ Erro ao consultar Google Imagens: {e_search}")
+        if "closed" in str(e_search).lower():
+            raise
     finally:
         if fechar_no_fim:
             try:
@@ -478,24 +574,7 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
             print("\n🤖 Iniciando Piloto Automático para o Grupo 3...")
     
     # Inicia instância do Playwright com perfil persistente para evitar CAPTCHA e reutilizar na varredura
-    pw = None
-    context = None
-    page = None
-    try:
-        from playwright.sync_api import sync_playwright
-        pw = sync_playwright().start()
-        profile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'playwright_profile'))
-        context = pw.chromium.launch_persistent_context(
-            profile_dir,
-            headless=False,
-            channel='chrome',
-            args=['--disable-blink-features=AutomationControlled'],
-            ignore_default_args=['--enable-automation'],
-            locale='pt-BR'
-        )
-        page = context.pages[0] if context.pages else context.new_page()
-    except Exception as e_pw:
-        print(f"⚠️ Aviso: Falha ao iniciar navegador Playwright persistente: {e_pw}")
+    pw, context, page = obter_ou_recriar_sessao_playwright(None, None, None)
 
     try:
         for i, (prod_id, prod_data) in enumerate(produtos_pendentes):
@@ -530,9 +609,23 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
                 pular_produto = False
                 buffer_otimizado = None
                 
-                # Passo 1: Busca automática de imagens no Google Imagens (Playwright)
+                # Passo 1: Busca automática de imagens no Google Imagens (Playwright) com auto-recuperação
                 print("   🔍 Buscando no Google Imagens (Playwright)...")
-                urls_auto = buscar_google_images_playwright(nome, page=page)
+                pw, context, page = obter_ou_recriar_sessao_playwright(pw, context, page)
+                
+                urls_auto = []
+                try:
+                    urls_auto = buscar_google_images_playwright(nome, page=page)
+                except Exception as e_browser:
+                    if "closed" in str(e_browser).lower():
+                        print("   🔄 Sessão do navegador reiniciada após queda. Retentando busca...")
+                        pw, context, page = obter_ou_recriar_sessao_playwright(None, None, None)
+                        try:
+                            urls_auto = buscar_google_images_playwright(nome, page=page)
+                        except Exception:
+                            urls_auto = []
+                    else:
+                        urls_auto = []
                 fonte_busca = "Google Imagens"
                 
                 if urls_auto:

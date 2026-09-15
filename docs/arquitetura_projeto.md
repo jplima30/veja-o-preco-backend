@@ -1183,6 +1183,25 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - Executado o script especializado de curadoria em lote das ofertas ativas ([scripts/curar_lote_hoje.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/curar_lote_hoje.py)).
    - 132 de 132 ofertas vigentes (**100.0%**) migradas para o padrão oficial de estúdio em 400 × 400 pixels com fundo branco `#FFFFFF` e ativadas no iOS App com o selo verde (`checkmark.seal.fill` e `400 × 400 px (Curadoria HD)`) via parâmetro `?t=<timestamp>`.
 
+---
 
+**Sessão 75 (Resiliência do Playwright contra Queda de Sessão e Curadoria de Higiene/Limpeza - Issue #69)**
 
+**Data:** 15 de Setembro de 2026
+**Objetivo:** Eliminar falhas em cascata de Playwright (`Target page, context or browser has been closed`) durante lotes de curadoria, isolando o processo do Chromium headless de conflitos com o Google Chrome do sistema operacional, adicionando sanitização de ruídos promocionais de encarte nos termos de busca e curando produtos pendentes de Higiene e Limpeza no Firestore/Storage.
+
+### Implementações e Decisões de Engenharia
+
+1. **Eliminação de Conflito com Navegador do Sistema e Auto-recuperação de Sessão ([scripts/central_imagens.py](file:///Users/jplima/Documents/veja-o-preco-backend/scripts/central_imagens.py)):**
+   - Removido o parâmetro `channel="chrome"`, que tentava se conectar ao executável nativo do Google Chrome no macOS. Quando o usuário já tinha o navegador pessoal aberto, o sistema repassava a URL para a janela aberta e matava o subprocesso do Playwright imediatamente.
+   - O Playwright agora utiliza o Chromium headless padrão isolado com perfil persistente (`scripts/playwright_profile`), garantindo estabilidade e isolamento total.
+   - Implementada a função `obter_ou_recriar_sessao_playwright(pw, context, page)` que detecta sessões caídas ou fechadas e as reinicia de forma transparente sem abortar o lote de curadoria.
+2. **Higienização Semântica de Buscas e Fallback Resiliente:**
+   - Criada a função `limpar_termo_busca(nome)` para expurgar ruídos comuns em encartes de supermercado (`vários tipos`, `leve X pague Y`, `cada`, `un`, multiplicadores tipo `32x1`).
+   - Adicionado fallback no Playwright para busca em Bing Images (`bing.com/images/search`) filtrando com whitelist de e-commerce e supermercados quando o Google aciona bloqueios ou não retorna imagens comerciais válidas.
+3. **Curadoria em Lote e Aumento de Cobertura de Imagens:**
+   - Curados 45 produtos de Higiene e Limpeza no Firestore e sincronizadas 69 ofertas ativas no Firebase Storage no padrão 400 × 400 px com fundo branco estrito `#FFFFFF`.
+   - A cobertura de imagens das ofertas ativas no aplicativo saltou de 50,8% para 89,9%.
+4. **Validação de Sintaxe:**
+   - Sintaxe Python 100% validada via `python3 -m py_compile`.
 
