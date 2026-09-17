@@ -2,7 +2,7 @@ import os
 import shutil
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Garante que a saída seja impressa em tempo real no terminal/cron
 if hasattr(sys.stdout, "reconfigure"):
@@ -73,6 +73,25 @@ def realizar_faxina_semanal():
                         except Exception as e:
                             print(f"    ⚠️ Erro ao remover triagem {item}: {e}")
             
+            # 3. Limpa logs de CRON por janela com mais de 7 dias
+            print(f"  📂 Faxinando logs de CRON antigos...")
+            pasta_scripts = os.path.dirname(os.path.abspath(__file__))
+            limite = (agora - timedelta(days=7)).date()
+            for item in os.listdir(pasta_scripts):
+                m = re.match(r"cron_(\d{4}-\d{2}-\d{2})_(10h|14h)\.log$", item)
+                if not m:
+                    continue
+                try:
+                    data_log = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+                if data_log < limite:
+                    try:
+                        os.remove(os.path.join(pasta_scripts, item))
+                        print(f"    🗑️ Log removido: {item}")
+                    except Exception as e:
+                        print(f"    ⚠️ Erro ao remover log {item}: {e}")
+
             # Registra que a limpeza da semana foi feita
             with open(ARQUIVO_LIMPEZA, "w") as f:
                 f.write(semana_atual)

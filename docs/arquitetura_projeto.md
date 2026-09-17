@@ -1237,3 +1237,14 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - `scripts/identificar_duplicatas.py`: removida função morta `obter_api_key()` (nunca chamada).
 - Pendente (fora do código): decidir destino do secret `GEMINI_API_KEY` no Secret Manager.
 - Deploy **não** executado — requer aprovação explícita (fluxo §7).
+
+---
+
+**Sessão 78 (Higiene de logs do CRON - Issue #73)**
+
+**Data:** 17 de Setembro de 2026
+**Objetivo:** Eliminar confusão entre logs legados e ativo + evitar sobrescrita/acúmulo.
+- Removidos `cron_playwright.log` e `cron_playwright_error.log` (parados em abr/2026); gerenciador Categoria 1 agora expõe só `cron_hoje.log`.
+- `captura_visivel.command` grava por janela (`cron_AAAA-MM-DD_10h|14h.log`, janela pela hora) e mantém `cron_hoje.log` como cópia da última.
+- Faxina semanal (`realizar_faxina_semanal`) poda logs de janela com +7 dias; `cron_hoje.log` nunca é tocado.
+- Logs seguem ignorados pelo git (`scripts/*.log`).
