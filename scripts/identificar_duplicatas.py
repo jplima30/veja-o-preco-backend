@@ -785,18 +785,6 @@ def rodar_mesclagem_automatica_exata(silent=False):
     if not silent:
         input("Pressione Enter para continuar...")
 
-def obter_api_key():
-    key = os.environ.get("GEMINI_API_KEY")
-    if key:
-        return key
-    try:
-        import subprocess
-        cmd = ["gcloud", "secrets", "versions", "access", "latest", "--secret=GEMINI_API_KEY", "--quiet"]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return res.stdout.strip()
-    except Exception:
-        return None
-
 def avaliar_duplicatas_com_gemini(duplicatas_residuais: list, silent=False) -> tuple:
     """
     Avalia em lote pares residuais de produtos suspeitos (85%-95% de similaridade)

@@ -1059,7 +1059,7 @@ def buscar_encarte_atacadao(req: https_fn.Request) -> https_fn.Response:
             mimetype="application/json", status=500
         )
 
-@https_fn.on_request(secrets=["GEMINI_API_KEY"])
+@https_fn.on_request()
 def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
     """
     NOVO: Extração automatizada via Site Oficial do Assaí.
@@ -1407,7 +1407,7 @@ def buscar_encarte_mateus(req: https_fn.Request) -> https_fn.Response:
             status=500
         )
 
-@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
+@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1)
 def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
     """
     Fase 2: O Cérebro (Gemini 3.1 Flash Lite).
@@ -1634,7 +1634,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             json.dumps({"sucesso": False, "erro": str(e)}),
             mimetype="application/json", status=500
         )
-@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1, secrets=["GEMINI_API_KEY"])
+@https_fn.on_request(timeout_sec=540, memory=options.MemoryOption.GB_1)
 def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
     """
     Fase Especial: Visão Computacional (Gemini 3.1 Flash Lite).

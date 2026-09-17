@@ -1226,3 +1226,14 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
    - O catálogo atingiu exatamente **567 de 567 ofertas vigentes com foto no Storage (100,00% de cobertura)**.
 4. **Validação:**
    - Sintaxe Python 100% validada via `python3 -m py_compile`.
+
+---
+
+**Sessão 77 (Higiene pós-migração Vertex AI - Issue #72)**
+
+**Data:** 17 de Setembro de 2026
+**Objetivo:** Remover leftovers da era AI Studio após migração completa para Vertex AI (ADC).
+- `functions/main.py`: removido `secrets=["GEMINI_API_KEY"]` orfão de 3 functions (`buscar_encarte_assai`, `extrair_dados_encarte`, `extrair_dados_imagem`) — todas usam `get_gemini_client()` via Vertex.
+- `scripts/identificar_duplicatas.py`: removida função morta `obter_api_key()` (nunca chamada).
+- Pendente (fora do código): decidir destino do secret `GEMINI_API_KEY` no Secret Manager.
+- Deploy **não** executado — requer aprovação explícita (fluxo §7).
