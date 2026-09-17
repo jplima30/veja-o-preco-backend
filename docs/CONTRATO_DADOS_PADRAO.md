@@ -2,6 +2,10 @@
 
 Este documento define o padrão obrigatório de resposta para **todas** as Cloud Functions do backend (Scrapers Diretos e Extração via I.A.). Isso garante que o App iOS receba dados consistentes independente da origem.
 
+> [!NOTE]
+> **Escopo deste contrato:** ele cobre a camada de **extração** (o que cada função de busca retorna: `produto`, `imagem`, ...).
+> A camada de **persistência no Firestore** usa chaves próprias (`produto_nome`, `imagem_url`, `supermercado_id`, `produto_id`) — ver `ARQUITETURA_FIRESTORE.md` — e é esse o schema que o App iOS consome (`OfertaItem` + `CodingKeys`).
+
 ## Estrutura de Resposta (JSON)
 
 Toda função de busca de encarte deve retornar um objeto JSON com a seguinte estrutura:
