@@ -69,11 +69,10 @@ def menu_coleta():
         print("      👉 Roda a varredura programada do Instagram/Redes Sociais.")
         print("  [2] 🔑 Renovar Login do Instagram (logar_instagram.py)")
         print("      👉 Abre o navegador para autenticar e salvar perfil.")
-        print("  [3] 📑 Exibir Logs do Cron Principal (cron_playwright.log)")
-        print("  [4] 📑 Exibir Logs de Captura de Hoje (cron_hoje.log)")
+        print("  [3] 📑 Exibir Log de Captura de Hoje (cron_hoje.log)")
         print("  [0] 🔙 Voltar ao Menu Principal")
         print("=========================================================")
-        opcao = input("👉 Escolha uma opção [0-4]: ").strip()
+        opcao = input("👉 Escolha uma opção [0-3]: ").strip()
         
         if opcao == "0":
             break
@@ -82,8 +81,6 @@ def menu_coleta():
         elif opcao == "2":
             executar_script(VENV_TRIAGEM, "logar_instagram.py")
         elif opcao == "3":
-            ver_log("cron_playwright.log")
-        elif opcao == "4":
             ver_log("cron_hoje.log")
 
 def menu_triagem():
