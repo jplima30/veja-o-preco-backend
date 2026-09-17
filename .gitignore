@@ -30,6 +30,8 @@ blob-report/
 playwright/.cache/
 
 # System / Agents / Temp
+.opencode/
+opencode.jsonc
 .agents/
 .antigravity/
 scratch/

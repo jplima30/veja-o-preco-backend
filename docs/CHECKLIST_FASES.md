@@ -122,6 +122,35 @@
 
 
 
+## Evolução — Junho a Setembro 2026 (Sessões 62–76) ✅
+
+### Base técnica (Issues #62–#64)
+- [x] Motor de IA unificado no Gemini 3.1 Flash-Lite via Vertex AI (#63)
+- [x] Canonicização semântica de meta-termos e calibração de duplicatas (#64)
+- [x] Correção de NameError no assistente interativo (#62)
+
+### Blindagem e infra (#65–#66)
+- [x] Blindagem da categoria PET contra desvios para Higiene/Limpeza (#65)
+- [x] Endpoint Vertex AI global + atualização do firebase-functions (#66, Sessão 72)
+
+### Histórico de preços (#67)
+- [x] Pipeline de histórico permanente de preços + carga retroativa de agosto (#67, Sessão 73)
+
+### Curadoria de imagens HD (#68–#70)
+- [x] Busca via Google Imagens no Playwright + padrão 400×400 (#68)
+- [x] Resiliência de sessão do Playwright + curadoria de Higiene/Limpeza: cobertura 50,8% → 89,9% (#69, Sessão 75)
+- [x] Curadoria de alta fidelidade com expansão semântica de abreviações: 567/567 ofertas com foto, 100% de cobertura (#70, Sessão 76)
+
+### Vitrine iOS documentada no backend (#14–#15)
+- [x] Onda 2 de padronização visual da vitrine (#14, Sessão 69)
+- [x] Onda 3 e 100% de conformidade da vitrine (#15, Sessão 70)
+
+### Infra de junho
+- [x] Correção de timeout do scanner do Instagram (Sessão 21)
+- [x] Emergência de faturamento (R$13,57), migração flash-image-preview → GA e deploy das 11 functions (Sessão 20)
+
+---
+
 ## Fase 6 — App iOS (SwiftUI) ⚙️
 
 - [x] Conectar App ao Firestore (Coleção `ofertas`)
@@ -139,4 +168,4 @@
 
 ---
 
-*Última atualização: 30/04/2026 — Backend blindado com Whitelist e Modelos Gemini 3.1 (Fase 5+ Concluída)*
+*Última atualização: 16/09/2026 — Sessões 62–76: motor Vertex AI unificado, histórico permanente de preços e curadoria HD com 100% de cobertura (567/567 ofertas com foto)*
