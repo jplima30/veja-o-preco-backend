@@ -1248,3 +1248,16 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - `captura_visivel.command` grava por janela (`cron_AAAA-MM-DD_10h|14h.log`, janela pela hora) e mantém `cron_hoje.log` como cópia da última.
 - Faxina semanal (`realizar_faxina_semanal`) poda logs de janela com +7 dias; `cron_hoje.log` nunca é tocado.
 - Logs seguem ignorados pelo git (`scripts/*.log`).
+
+---
+
+**Sessão 79 (Recura da vitrine + antiduplicação de ofertas - Issue #74)**
+
+**Data:** 25 a 28 de Setembro de 2026
+**Objetivo:** Corrigir imagens erradas da vitrine por categoria e eliminar o acúmulo de ofertas duplicadas no banco.
+- Recura com packshots verificados visualmente (padrão 400x400, fundo branco, Storage, propagação /produtos → /ofertas): Hortifruti 9/9, lotes 23–26/09 (20 + 6 graves: toucinho/LoL, tapete/vape, picanha, maçã, morgote, pera), Bebidas 10/10 + Splash + Benevi Zero Limão. Laudos em `auditoria_visual/AUDITORIA_IMAGENS/recura_2026-09-25.md`; antigas de bebidas salvas em `antes_bebidas/`.
+- Fusões de cadastro (sinônimo A→B): Flambynho 2→1, Dolce Gusto 3→1, Nescau 270ml 3→1, Adocyl 3→1.
+- Limpeza: 62 ofertas duplicadas vigentes deletadas (mesmo produto+loja+preço), mantido o doc mais novo (`scripts/limpar_ofertas_duplicadas.py`).
+- Causa raiz: `extrair_dados_encarte` (PDF Mateus) criava 1 doc/dia sem checar duplicada; patch reaproveita a oferta válida (renova expiração). Visão (`salvar_produto_e_oferta`) passa a renovar expiração no acerto.
+- Faxina semanal (`realizar_faxina_semanal`) passa a varrer duplicadas no Firestore (pula se sem firebase_admin).
+- Deploy das functions executado com aprovação explícita (fluxo §7).
