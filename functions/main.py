@@ -661,9 +661,11 @@ def salvar_produto_e_oferta(
 
     if ofertas_duplicadas:
         doc_duplicado = ofertas_duplicadas[0]
+        atualizacao = {"expira_em": datetime.now() + timedelta(days=7)}
         if post_id and not doc_duplicado.to_dict().get("post_id"):
-             doc_duplicado.reference.update({"post_id": post_id})
+             atualizacao["post_id"] = post_id
              print(f"  📝 Post ID atualizado para oferta existente: {nome}")
+        doc_duplicado.reference.update(atualizacao)
         
         print(f"  ⏭️ Oferta recusada pelo Banco (já existe e ainda é válida): {nome} a R$ {preco}")
         return {"produto_id": produto_id, "salvo": True, "duplicado": True}
@@ -1531,12 +1533,33 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             # --- SALVAR NO FIRESTORE (OTIMIZADO COM BATCH) ---
             salvos = 0
             ignorado_filtro = 0
-            
+            reaproveitadas = 0
+
             db_conn = get_db()
             batch = db_conn.batch()
-            
+
             # Filtro de categorias proibidas
             categorias_proibidas = ["BAZAR", "ELETRÔNICOS", "ELETRO", "MODA", "VESTUÁRIO", "AUTOMOTIVO", "BRINQUEDOS", "FERRAMENTAS", "MÓVEIS", "CASA"]
+
+            # Antiduplicação: carrega ofertas válidas desta loja UMA vez (evita índice
+            # composto: filtra expira_em em memória). Mesma regra de salvar_produto_e_oferta:
+            # mesmo produto+loja+preço ainda válido -> atualiza em vez de criar novo doc.
+            agora = datetime.now()
+            vigentes = {}  # (produto_id, preco) -> (doc_ref, criado_em)
+            try:
+                for doc in db_conn.collection("ofertas").where(
+                    "supermercado_id", "==", supermercado_id
+                ).stream():
+                    v = doc.to_dict()
+                    exp = v.get("expira_em")
+                    if exp and exp >= agora:
+                        chave = (v.get("produto_id"), v.get("preco"))
+                        ant = vigentes.get(chave)
+                        if ant is None or (v.get("criado_em") or agora) > (ant[1] or agora):
+                            vigentes[chave] = (doc.reference, v.get("criado_em"))
+            except Exception as e_vig:
+                print(f"  ⚠️ Antiduplicação desativada nesta execução: {str(e_vig)[:80]}")
+                vigentes = {}
 
             for item in itens:
                 try:
@@ -1571,7 +1594,26 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                     hoje_str = datetime.now().strftime("%Y-%m-%d")
                     oferta_id = f"{supermercado_id}_{produto_id}_{hoje_str}"
                     ref_oferta = db_conn.collection("ofertas").document(oferta_id)
-                    
+
+                    # Antiduplicação: mesmo produto+loja+preço ainda válido -> atualiza
+                    # a oferta existente (renova expiração) em vez de empilhar novo doc.
+                    chave_vigente = (produto_id, preco)
+                    if chave_vigente in vigentes:
+                        ref_existente, _ = vigentes[chave_vigente]
+                        batch.set(ref_existente, {
+                            "produto_nome": nome,
+                            "unidade": unidade,
+                            "categoria": categoria_item,
+                            "metodo": "gemini_pdf_batch",
+                            "expira_em": datetime.now() + timedelta(days=7),
+                        }, merge=True)
+                        reaproveitadas += 1
+                        salvos += 1
+                        if salvos % 200 == 0:
+                            batch.commit()
+                            batch = db_conn.batch()
+                        continue
+
                     batch.set(ref_oferta, {
                         "produto_id": produto_id,
                         "produto_nome": nome,

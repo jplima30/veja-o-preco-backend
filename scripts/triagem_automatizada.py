@@ -92,6 +92,45 @@ def realizar_faxina_semanal():
                     except Exception as e:
                         print(f"    ⚠️ Erro ao remover log {item}: {e}")
 
+            # 4. Varredura de ofertas duplicadas vigentes (mesmo produto+loja+preço)
+            print(f"  📂 Varrendo ofertas duplicadas no Firestore...")
+            try:
+                from collections import defaultdict
+                import firebase_admin
+                from firebase_admin import firestore as fs_admin
+                if not firebase_admin._apps:
+                    firebase_admin.initialize_app(options={"projectId": "veja-o-preco"})
+                db_fax = fs_admin.client()
+                grupos = defaultdict(list)
+                for o in db_fax.collection("ofertas").stream():
+                    v = o.to_dict()
+                    exp = v.get("expira_em")
+                    if not exp:
+                        continue
+                    if exp.tzinfo is None:
+                        exp = exp.replace(tzinfo=__import__("datetime").timezone.utc)
+                    if exp < agora.replace(tzinfo=__import__("datetime").timezone.utc):
+                        continue
+                    grupos[(v.get("produto_id"), v.get("supermercado_id"), v.get("preco"))].append(
+                        (v.get("criado_em"), o.id)
+                    )
+                removidas = 0
+                for _, items in grupos.items():
+                    if len(items) <= 1:
+                        continue
+                    items.sort(key=lambda x: x[0] or agora, reverse=True)
+                    for _, oid in items[1:]:
+                        try:
+                            db_fax.collection("ofertas").document(oid).delete()
+                            removidas += 1
+                        except Exception as e:
+                            print(f"    ⚠️ Erro ao remover oferta {oid}: {e}")
+                print(f"    🗑️ Ofertas duplicadas removidas: {removidas}")
+            except ImportError:
+                print(f"    ⚠️ firebase_admin indisponível neste venv — varredura pulada.")
+            except Exception as e:
+                print(f"    ⚠️ Varredura de ofertas pulada: {str(e)[:100]}")
+
             # Registra que a limpeza da semana foi feita
             with open(ARQUIVO_LIMPEZA, "w") as f:
                 f.write(semana_atual)
