@@ -671,6 +671,31 @@ def salvar_produto_e_oferta(
         return {"produto_id": produto_id, "salvo": True, "duplicado": True}
 
     # --- Criar nova oferta em /ofertas ---
+    # Expiração de preço antigo: mesmo produto+loja com preço diferente ainda válido
+    # é expirado para que só o preço atual apareça na vitrine. Histórico preservado em /historico_precos.
+    try:
+        agora_exp = datetime.now()
+        expiradas = 0
+        q_antigas = get_db().collection("ofertas").where(
+            "produto_id", "==", produto_id
+        ).where(
+            "supermercado_id", "==", supermercado_id
+        ).stream()
+        for d in q_antigas:
+            vd = d.to_dict()
+            exp = vd.get("expira_em")
+            if not exp:
+                continue
+            if getattr(exp, "tzinfo", None) is not None:
+                exp = exp.replace(tzinfo=None)
+            if exp >= agora_exp and vd.get("preco") != preco:
+                d.reference.update({"expira_em": agora_exp - timedelta(seconds=1)})
+                expiradas += 1
+        if expiradas:
+            print(f"  ♻️ {expiradas} oferta(s) com preço antigo expiradas: {nome}")
+    except Exception as e_exp:
+        print(f"  ⚠️ Aviso: falha ao expirar preço antigo: {e_exp}")
+
     get_db().collection("ofertas").add({
         "produto_id": produto_id,
         "produto_nome": nome,
@@ -1552,7 +1577,11 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 ).stream():
                     v = doc.to_dict()
                     exp = v.get("expira_em")
-                    if exp and exp >= agora:
+                    if not exp:
+                        continue
+                    if getattr(exp, "tzinfo", None) is not None:
+                        exp = exp.replace(tzinfo=None)
+                    if exp >= agora:
                         chave = (v.get("produto_id"), v.get("preco"))
                         ant = vigentes.get(chave)
                         if ant is None or (v.get("criado_em") or agora) > (ant[1] or agora):
@@ -1613,6 +1642,16 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                             batch.commit()
                             batch = db_conn.batch()
                         continue
+
+                    # Expiração de preço antigo: mesmo produto+loja com preço diferente
+                    # ainda válido é expirado para que só o preço atual apareça na vitrine.
+                    chaves_antigas = [k for k in vigentes if k[0] == produto_id and k[1] != preco]
+                    for k_ant in chaves_antigas:
+                        ref_ant, _ = vigentes.pop(k_ant)
+                        batch.set(ref_ant, {
+                            "expira_em": datetime.now() - timedelta(seconds=1),
+                        }, merge=True)
+                    vigentes[chave_vigente] = (ref_oferta, datetime.now())
 
                     batch.set(ref_oferta, {
                         "produto_id": produto_id,
