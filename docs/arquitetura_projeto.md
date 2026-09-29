@@ -1261,3 +1261,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Causa raiz: `extrair_dados_encarte` (PDF Mateus) criava 1 doc/dia sem checar duplicada; patch reaproveita a oferta válida (renova expiração). Visão (`salvar_produto_e_oferta`) passa a renovar expiração no acerto.
 - Faxina semanal (`realizar_faxina_semanal`) passa a varrer duplicadas no Firestore (pula se sem firebase_admin).
 - Deploy das functions executado com aprovação explícita (fluxo §7).
+
+---
+
+**Sessão 80 (Expiração de preço antigo + recura frios levas 3-4 - Issue #75)**
+
+**Data:** 28 a 29 de Setembro de 2026
+**Objetivo:** Impedir cartões repetidos por variação de preço e zerar inconsistências de imagem em Frios/Laticínios.
+- `salvar_produto_e_oferta` (visão/diretos): antes de criar oferta nova, expira ofertas válidas do mesmo produto+loja com preço diferente (expira_em = agora - 1s). Histórico preservado em `/historico_precos`.
+- `extrair_dados_encarte` (PDF batch): mesma regra no batch — preço novo expira chaves antigas do mesmo `produto_id`; mantido fix de fuso tz-aware na carga de vigentes.
+- Recura frios leva 3 (8/8, 200x200 → 400x400): Deline, Girolanda, Ilda, Frimesa, Delicata, Puro Sabor, Medalha (balde 3kg, pote 1kg descontinuado), Rezende. Antigas em `antes_frios_leva3/`.
+- Recura frios leva 4 (8/8 erradas graves): Ovos Iana (era foto de pessoa), Salsicha Nobre (genérica → oficial), Chouriço (com texto → Cancian sem texto), Piracanjuba (energy drink → ProForce Cacau, ressalva fundo verde), Activia Morango (genérico → bandeja Danone), Fredão (genérico → PET 200ml), Nobre (genérico → peça), Piracanjuba 395g (genérico duplicado → caixinha). Antigas em `antes_frios_leva4/`. Primor e Perdigão já corretos, mantidos.
+- Deploy das 11 functions executado com aprovação explícita (fluxo §7).
