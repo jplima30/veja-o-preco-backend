@@ -154,28 +154,36 @@ def mesclar_banco():
         
         for doc_id_velho, d_velho in outros:
             print(f"   ❌ Duplicado a remover: {doc_id_velho} ({d_velho.get('unidade')})")
-            
-            # Buscar todas as ofertas ligadas ao id_velho
-            ofertas_ref = db.collection("ofertas").where("produto_id", "==", doc_id_velho).stream()
-            ofertas_migradas = 0
-            for of_doc in ofertas_ref:
-                # Atualizar produto_id e unidade da oferta
-                of_doc.reference.update({
-                    "produto_id": doc_principal_id,
-                    "unidade": unidade_principal_norm
-                })
-                ofertas_migradas += 1
-                
-            # Se o documento velho tiver imagem e o principal não tiver, herda a imagem!
+
+            # Se o documento velho tiver imagem e o principal não tiver, herda a imagem
+            # ANTES de migrar as ofertas, para que já migrem com nome/imagem certos.
             if d_velho.get("imagem_url") and not doc_principal_data.get("imagem_url"):
                 doc_principal_data["imagem_url"] = d_velho.get("imagem_url")
                 doc_principal_data["imagem_origem"] = d_velho.get("imagem_origem")
-                
+
                 produtos_ref.document(doc_principal_id).update({
                     "imagem_url": d_velho.get("imagem_url"),
                     "imagem_origem": d_velho.get("imagem_origem")
                 })
                 print("   🖼️ Herdada imagem do duplicado.")
+
+            nome_principal = limpar_nome_promocional(doc_principal_data.get("nome", ""))
+            img_principal = doc_principal_data.get("imagem_url", "") or ""
+
+            # Buscar todas as ofertas ligadas ao id_velho
+            ofertas_ref = db.collection("ofertas").where("produto_id", "==", doc_id_velho).stream()
+            ofertas_migradas = 0
+            for of_doc in ofertas_ref:
+                # Atualizar produto_id, unidade, nome e imagem da oferta
+                update_oferta = {
+                    "produto_id": doc_principal_id,
+                    "unidade": unidade_principal_norm,
+                    "produto_nome": nome_principal,
+                }
+                if img_principal:
+                    update_oferta["imagem_url"] = img_principal
+                of_doc.reference.update(update_oferta)
+                ofertas_migradas += 1
                 
             # Deletar o produto duplicado do Firestore
             produtos_ref.document(doc_id_velho).delete()
@@ -225,12 +233,18 @@ def mesclar_manual(id_de: str, id_para: str):
     ofertas_migradas = 0
     
     unidade_norm = normalizar_unidade(data_para.get("unidade", "un"))
+    nome_para = limpar_nome_promocional(data_para.get("nome", ""))
+    img_para = data_para.get("imagem_url", "") or ""
     
     for of_doc in ofertas_ref:
-        of_doc.reference.update({
+        update_oferta = {
             "produto_id": id_para,
-            "unidade": unidade_norm
-        })
+            "unidade": unidade_norm,
+            "produto_nome": nome_para,
+        }
+        if img_para:
+            update_oferta["imagem_url"] = img_para
+        of_doc.reference.update(update_oferta)
         ofertas_migradas += 1
         
     # 3. Herdar imagem se o de origem tiver e o destino não

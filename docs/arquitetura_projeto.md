@@ -1273,3 +1273,14 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Recura frios leva 3 (8/8, 200x200 → 400x400): Deline, Girolanda, Ilda, Frimesa, Delicata, Puro Sabor, Medalha (balde 3kg, pote 1kg descontinuado), Rezende. Antigas em `antes_frios_leva3/`.
 - Recura frios leva 4 (8/8 erradas graves): Ovos Iana (era foto de pessoa), Salsicha Nobre (genérica → oficial), Chouriço (com texto → Cancian sem texto), Piracanjuba (energy drink → ProForce Cacau, ressalva fundo verde), Activia Morango (genérico → bandeja Danone), Fredão (genérico → PET 200ml), Nobre (genérico → peça), Piracanjuba 395g (genérico duplicado → caixinha). Antigas em `antes_frios_leva4/`. Primor e Perdigão já corretos, mantidos.
 - Deploy das 11 functions executado com aprovação explícita (fluxo §7).
+
+---
+
+**Sessão 81 (Fix fusão nome/imagem + Nescau Protein)**
+
+**Data:** 29 de Setembro de 2026
+**Objetivo:** Fechar pendências da vitrine (mescla deixava nome/imagem velha na oferta; Nescau Protein 200x200; Nazaré sem foto pública).
+- `scripts/mesclar_produtos.py`: `mesclar_banco` e `mesclar_manual` passam a migrar `produto_nome` + `imagem_url` junto com `produto_id`/`unidade`. Herança de imagem movida para antes da migração. Validado com teste real (zzteste-de → zzteste-para, nome/imagem sincronizados, cleanup OK).
+- Nescau Protein 250ml (`bebida-lactea-nescau-protein-zero-lactose-chocolate-250-un`): 200x200 → 400x400 (Covabra VTEX 7891000446799_1.jpg, 1000x1000 fundo branco, EAN 7891000446799). Zero ofertas ativas. Antiga em `antes_pendencias/`.
+- Manteiga Nazaré Pote 200g: sem foto pública (marca Nossa Sra. de Nazaré/Laticínios Veneza só publica latas 10kg/5kg/500g + KG). Alternativa Primorosa rejeitada (rótulo 500g). Mantida atual; pendente foto do usuário.
+- Previews locais (`preview_frios_leva3/4/5`, `preview_vitrine_lista`, `preview_pendencias`) seguem fora do commit, como nas sessões anteriores.
