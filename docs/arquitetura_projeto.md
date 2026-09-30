@@ -1335,3 +1335,12 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Causa: o app lia a coleção `ofertas` inteira sem filtro; os docs expirados (Nutren 2, Moça 1) voltavam na leitura. Banco tinha 1 vigente de cada — correto.
 - App (`Apps/vejaOprecoApp`): `OfertaItem` ganha `expiraEm` (chave `expira_em`) + `estaValida`; `FirebaseService.buscarProdutos` filtra `whereField expira_em >= agora` no servidor e refiltra no cliente. Build do simulador OK.
 - Banco: deletados os 3 docs expirados superados (histórico preservado em `historico_precos`).
+
+---
+
+**Sessão 87 (Da Casa + Danone PET)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Fotos oficiais nos dois.
+- `queijo-mussarela-da-casa-un`: foto do usuário (frente do pacote 150g) em 400x400. Sem foto pública da marca — candidatas de outras marcas rejeitadas. Antiga em `antes_frios7/`.
+- Oferta 16,99 "Iogurte Danone" genérica migrada para `iogurte-danone-morango-125kg-un` (renomeado p/ 1,20kg, tamanho real) + garrafa PET Embalagem Econômica Zero 5x. Bandeja 510g descartada (encarte mostra garrafa).
