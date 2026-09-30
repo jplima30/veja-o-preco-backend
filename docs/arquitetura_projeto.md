@@ -1305,3 +1305,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Evidência: `historico_precos` mostra 1,03kg a 15,99 em 14/09 (mateus_site); 200g custa ~R$3-4. Extração via visão não leu o tamanho.
 - Oferta `FPB51yLP05Hvw2UgNPNA` migrada para `creme-de-leite-piracanjuba-103kg-un` + imagem Sam's Club VTEX EAN 7898215151883 (fundo branco). Sem sinônimo global (o base pode receber 200g real um dia).
 - Levantado: `mateus_site` concentra 175/287 vigentes (todas `gemini_vision`, loja="Extração via Visão (IA)"); `assai`/`lider-am`/`guerreirao-br` também são visão. IDs legados divergem do CRON atual (`assai` x `assai-am`, `guerreirao-br` x `guerreirao-am`). Proposta de filtro de vitrine pendente de decisão.
+
+---
+
+**Sessão 84 (Banco unido #76 — comparação entre queries + apelidos + faxina Frios)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Estancar duplicatas entre site e físicas + apelidos, com automação pronta para expansão.
+- `functions/main.py`: tabela `ALIAS_TERMO` (C/→com, S/→sem) + split de tamanho grudado ("170g"→"170 g") em `limpar_nome_promocional` (vale para visão e PDF); mapa `CADEIAS` + `lojas_irmas()`; comparação entre queries em `salvar_produto_e_oferta` e no lote PDF (mesmo produto+preço válido na irmã → carimba loja e renova, sem doc novo); campo `supermercado_ids` nos docs novos + backfill nos existentes.
+- `scripts/mesclar_produtos.py`: espelho dos apelidos/tamanho.
+- `scripts/identificar_duplicatas.py`: guardião dos números refinado (lado sem número + inclusão de palavras + ≥3 palavras + diff ≤2 → avalia em vez de pular).
+- Faxina Frios: Nutren e LC fundidos em 1 doc cada (lojas=[jaderlandia, site], cópia do site expirada); Molico fundido no `desnatado-280g` (sinônimo registrado). Preview em `docs/preview_faxina76.html` (local).
+- Deploy das functions pendente de aprovação explícita (fluxo §7).

@@ -51,6 +51,7 @@ def limpar_nome_promocional(nome: str) -> str:
     """
     Remove do nome do produto termos e slogans promocionais como:
     "Leve mais e pague menos", "Leve X pague Y", etc., e canoniciza meta-termos.
+    Espelha functions/main.py: apelidos do varejo + tamanho grudado.
     """
     import re
     n = nome.strip()
@@ -64,7 +65,16 @@ def limpar_nome_promocional(nome: str) -> str:
     
     # 4. Canoniciza variações semânticas de termos promocionais coletivos
     n = canonicizar_meta_termos(n)
-    
+
+    # 5. Apelidos do varejo (espelho de functions/main.py)
+    n = re.sub(r'\bc\/s\b\.?', 'com sal', n, flags=re.IGNORECASE)
+    n = re.sub(r'\bs\/s\b\.?', 'sem sal', n, flags=re.IGNORECASE)
+    n = re.sub(r'\bc\/', 'com ', n, flags=re.IGNORECASE)
+    n = re.sub(r'\bs\/', 'sem ', n, flags=re.IGNORECASE)
+
+    # 6. Tamanho grudado ("170g" -> "170 g")
+    n = re.sub(r'(\d)\s*(kg|kilo|quilo|g|gr|gramas|ml|l|litro|litros)\b', r'\1 \2', n, flags=re.IGNORECASE)
+
     return re.sub(r'\s+', ' ', n).strip()
 
 def mesclar_banco():

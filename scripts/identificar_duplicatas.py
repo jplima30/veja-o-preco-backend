@@ -210,7 +210,19 @@ def eh_duplicata_alta_confianca(data_a: dict, data_b: dict) -> bool:
     nums_a = extrair_numeros(n1)
     nums_b = extrair_numeros(n2)
     if nums_a != nums_b:
-        return False
+        # Exceção: um lado sem número nenhum + palavras contidas com diferença
+        # de até 2 palavras e mínimo de 3 (visão omitiu o tamanho) -> avalia.
+        if nums_a and nums_b:
+            return False
+        w1_tmp = set(n1.split())
+        w2_tmp = set(n2.split())
+        if min(len(w1_tmp), len(w2_tmp)) < 3:
+            return False
+        if abs(len(w1_tmp) - len(w2_tmp)) > 2:
+            return False
+        if not (w1_tmp.issubset(w2_tmp) or w2_tmp.issubset(w1_tmp)):
+            return False
+        # Cai para as verificações abaixo com alta confiança.
         
     w1 = set(n1.split())
     w2 = set(n2.split())
@@ -361,9 +373,18 @@ def buscar_duplicatas_potenciais(force_full_refresh: bool = False) -> list:
             if chave_ignorado in pares_ignorados:
                 continue
 
-            # Heurística rápida 1: Se os números forem diferentes (ex: 200g vs 395g), pula
+            # Heurística rápida 1: Se os números forem diferentes (ex: 200g vs 395g), pula.
+            # Exceção: um lado sem número + inclusão de palavras (visão omitiu o
+            # tamanho) -> deixa passar para avaliação de alta confiança.
             if nums_a != nums_b:
-                continue
+                if nums_a and nums_b:
+                    continue
+                if min(len(words_a), len(words_b)) < 3:
+                    continue
+                if abs(len(words_a) - len(words_b)) > 2:
+                    continue
+                if not (words_a.issubset(words_b) or words_b.issubset(words_a)):
+                    continue
                 
             # Calcula similaridades
             raz_direta, raz_token, overlap, diff_tamanho = obter_similaridade(name_a, name_b, words_a, words_b)

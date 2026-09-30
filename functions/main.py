@@ -222,10 +222,30 @@ def canonicizar_meta_termos(nome: str) -> str:
     return re.sub(r'\s+', ' ', n).strip()
 
 
+# Tabela de apelidos do varejo: abreviaturas e formas curtas -> forma canônica.
+# Aplicada no nome do produto ANTES de gerar o ID, nos dois caminhos de gravação
+# (visão e lote PDF passam por limpar_nome_promocional). Novas entradas não
+# exigem mudança de lógica. Mantida pequena e conservadora de propósito.
+ALIAS_TERMO = [
+    (r'\bc\/s\b\.?', 'com sal'),
+    (r'\bs\/s\b\.?', 'sem sal'),
+    (r'\bc\/', 'com '),
+    (r'\bs\/', 'sem '),
+]
+
+def aplicar_alias_termo(nome: str) -> str:
+    import re
+    n = nome
+    for padrao, forma in ALIAS_TERMO:
+        n = re.sub(padrao, forma, n, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', n).strip()
+
+
 def limpar_nome_promocional(nome: str) -> str:
     """
     Remove do nome do produto termos e slogans promocionais como:
     "Leve mais e pague menos", "Leve X pague Y", etc., e canoniciza meta-termos.
+    Também expande apelidos do varejo (C/ -> com) e solta tamanho grudado (170g -> 170 g).
     """
     import re
     n = nome.strip()
@@ -239,7 +259,15 @@ def limpar_nome_promocional(nome: str) -> str:
     
     # 4. Canoniciza variações semânticas de termos promocionais coletivos
     n = canonicizar_meta_termos(n)
-    
+
+    # 5. Expande apelidos do varejo (C/ -> com sal, S/ -> sem, ...)
+    n = aplicar_alias_termo(n)
+
+    # 6. Solta tamanho grudado no nome ("170g" -> "170 g") para IDs consistentes
+    # entre as duas grafias. (Visão com/sem tamanho se resolve na fusão
+    # inteligente, que trata lado sem número à parte.)
+    n = re.sub(r'(\d)\s*(kg|kilo|quilo|g|gr|gramas|ml|l|litro|litros)\b', r'\1 \2', n, flags=re.IGNORECASE)
+
     return re.sub(r'\s+', ' ', n).strip()
 
 def normalizar_nome(nome: str, unidade: str = "") -> str:
@@ -466,6 +494,21 @@ def resolver_produto_id_com_sinonimo(db_conn, produto_id: str) -> str:
     return id_atual
 
 
+# Mapa de cadeias: lojas da mesma rede cujas ofertas formam um banco unido.
+# A comparação entre queries consulta as lojas irmãs antes de criar documento
+# novo (mesmo produto+preço válido na irmã -> reaproveita e carimba a loja).
+# Começa fixo e mínimo (MVP); vira cadastro quando as redes expandirem.
+CADEIAS = {
+    "mateus": ["mateus_site", "mateus-jaderlandia"],
+}
+
+def lojas_irmas(supermercado_id: str) -> list:
+    for _, lojas in CADEIAS.items():
+        if supermercado_id in lojas:
+            return [l for l in lojas if l != supermercado_id]
+    return []
+
+
 def salvar_produto_e_oferta(
     nome: str,
     preco: float,
@@ -670,6 +713,44 @@ def salvar_produto_e_oferta(
         print(f"  ⏭️ Oferta recusada pelo Banco (já existe e ainda é válida): {nome} a R$ {preco}")
         return {"produto_id": produto_id, "salvo": True, "duplicado": True}
 
+    # --- Comparação entre queries (banco unido): mesmo produto+preço válido
+    # em loja irmã da mesma cadeia -> reaproveita o documento (carimba a loja
+    # e renova a validade) em vez de criar duplicata entre queries.
+    try:
+        agora_reuso = datetime.now()
+        for sid_irma in lojas_irmas(supermercado_id):
+            q_irma = get_db().collection("ofertas").where(
+                "produto_id", "==", produto_id
+            ).where(
+                "supermercado_id", "==", sid_irma
+            ).where(
+                "preco", "==", preco
+            ).stream()
+            for d_irma in q_irma:
+                vd = d_irma.to_dict()
+                exp = vd.get("expira_em")
+                if not exp:
+                    continue
+                if getattr(exp, "tzinfo", None) is not None:
+                    exp = exp.replace(tzinfo=None)
+                if exp < agora_reuso:
+                    continue
+                lojas_ids = vd.get("supermercado_ids") or [vd.get("supermercado_id")]
+                if supermercado_id not in lojas_ids:
+                    lojas_ids = lojas_ids + [supermercado_id]
+                upd = {
+                    "supermercado_ids": lojas_ids,
+                    "expira_em": agora_reuso + timedelta(days=7),
+                    "produto_nome": nome,
+                }
+                if imagem_url:
+                    upd["imagem_url"] = imagem_url
+                d_irma.reference.update(upd)
+                print(f"  🔗 Oferta reaproveitada entre queries ({sid_irma} + {supermercado_id}): {nome}")
+                return {"produto_id": produto_id, "salvo": True, "duplicado": True, "reuso_entre_queries": True}
+    except Exception as e_reuso:
+        print(f"  ⚠️ Aviso: falha na comparação entre queries: {e_reuso}")
+
     # --- Criar nova oferta em /ofertas ---
     # Expiração de preço antigo: mesmo produto+loja com preço diferente ainda válido
     # é expirado para que só o preço atual apareça na vitrine. Histórico preservado em /historico_precos.
@@ -700,6 +781,7 @@ def salvar_produto_e_oferta(
         "produto_id": produto_id,
         "produto_nome": nome,
         "supermercado_id": supermercado_id,
+        "supermercado_ids": [supermercado_id],
         "loja": loja,
         "preco": preco,
         "preco_antigo": preco_antigo,
@@ -1590,6 +1672,27 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                 print(f"  ⚠️ Antiduplicação desativada nesta execução: {str(e_vig)[:80]}")
                 vigentes = {}
 
+            # Comparação entre queries: vigentes das lojas irmãs para reuso.
+            vigentes_irmas = {}  # (produto_id, preco) -> (doc_ref, doc_dict)
+            try:
+                for sid_irma in lojas_irmas(supermercado_id):
+                    for doc in db_conn.collection("ofertas").where(
+                        "supermercado_id", "==", sid_irma
+                    ).stream():
+                        v = doc.to_dict()
+                        exp = v.get("expira_em")
+                        if not exp:
+                            continue
+                        if getattr(exp, "tzinfo", None) is not None:
+                            exp = exp.replace(tzinfo=None)
+                        if exp >= agora and v.get("preco") is not None:
+                            chave = (v.get("produto_id"), v.get("preco"))
+                            if chave not in vigentes_irmas:
+                                vigentes_irmas[chave] = (doc.reference, v)
+            except Exception as e_irma:
+                print(f"  ⚠️ Comparação entre queries desativada: {str(e_irma)[:80]}")
+                vigentes_irmas = {}
+
             for item in itens:
                 try:
                     nome = item.get("produto", "")
@@ -1643,6 +1746,25 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                             batch = db_conn.batch()
                         continue
 
+                    # Comparação entre queries: já existe válido em loja irmã ->
+                    # carimba a loja e renova, sem criar duplicata entre queries.
+                    if chave_vigente in vigentes_irmas:
+                        ref_irma, v_irma = vigentes_irmas[chave_vigente]
+                        lojas_ids = v_irma.get("supermercado_ids") or [v_irma.get("supermercado_id")]
+                        if supermercado_id not in lojas_ids:
+                            lojas_ids = lojas_ids + [supermercado_id]
+                        batch.set(ref_irma, {
+                            "supermercado_ids": lojas_ids,
+                            "produto_nome": nome,
+                            "expira_em": datetime.now() + timedelta(days=7),
+                        }, merge=True)
+                        reaproveitadas += 1
+                        salvos += 1
+                        if salvos % 200 == 0:
+                            batch.commit()
+                            batch = db_conn.batch()
+                        continue
+
                     # Expiração de preço antigo: mesmo produto+loja com preço diferente
                     # ainda válido é expirado para que só o preço atual apareça na vitrine.
                     chaves_antigas = [k for k in vigentes if k[0] == produto_id and k[1] != preco]
@@ -1657,6 +1779,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                         "produto_id": produto_id,
                         "produto_nome": nome,
                         "supermercado_id": supermercado_id,
+                        "supermercado_ids": [supermercado_id],
                         "loja": loja_nome,
                         "preco": preco,
                         "unidade": unidade,
