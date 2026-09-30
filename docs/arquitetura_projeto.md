@@ -1352,3 +1352,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Primeira leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
 - 13 aplicados em 400x400 (antigas em `antes_geral1/`, preview `preview_geral1.html`): Nescau Act-Go (era infográfico), Pringles (eram batatas cruas), Tandy (era recorte c/ preço), Nestlé Classic (era Prestígio, base + 80g), Red Bull clássica (era Tropical), Garoto 80g, Comfort, Seda Juntinhos individual, Dolca 40g, Cream Cracker Estrela, Ketchup Predilecta (era panfleto), Lacta Variedades.
+
+---
+
+**Sessão 89 (Leva Geral 2 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Segunda leva multcategorias, foco em fotos totalmente erradas (legado OFF).
+- 13 aplicados em 400x400 (antigas em `antes_geral2/`, preview `preview_geral2.html`): Nutren Kids 350g + base, Choco Biscuit base + 78g, Gallo, Liza, Rancheiro, Atum RC, Shampoo SL Kids, Flocão DC, Tio João 1kg, Sinhá, Sardinha CV.
