@@ -1344,3 +1344,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Fotos oficiais nos dois.
 - `queijo-mussarela-da-casa-un`: foto do usuário (frente do pacote 150g) em 400x400. Sem foto pública da marca — candidatas de outras marcas rejeitadas. Antiga em `antes_frios7/`.
 - Oferta 16,99 "Iogurte Danone" genérica migrada para `iogurte-danone-morango-125kg-un` (renomeado p/ 1,20kg, tamanho real) + garrafa PET Embalagem Econômica Zero 5x. Bandeja 510g descartada (encarte mostra garrafa).
+
+---
+
+**Sessão 88 (Leva Geral 1 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Primeira leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
+- 13 aplicados em 400x400 (antigas em `antes_geral1/`, preview `preview_geral1.html`): Nescau Act-Go (era infográfico), Pringles (eram batatas cruas), Tandy (era recorte c/ preço), Nestlé Classic (era Prestígio, base + 80g), Red Bull clássica (era Tropical), Garoto 80g, Comfort, Seda Juntinhos individual, Dolca 40g, Cream Cracker Estrela, Ketchup Predilecta (era panfleto), Lacta Variedades.
