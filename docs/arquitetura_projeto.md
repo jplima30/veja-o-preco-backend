@@ -1295,3 +1295,13 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Causa raiz do fundo preto: conversão RGBA→RGB mapeava transparência para preto; pipeline passa a compor sobre branco.
 - Nutren: expirada a duplicada `...nutren-400g-un_2026-09-27` (13:00), mantida a das 17:00. LC Nestlé: vigentes em lojas diferentes — legítimo, sem ação.
 - Preview em `docs/preview_frios_leva6.html` (local, fora do commit).
+
+---
+
+**Sessão 83 (Creme 1,03kg + regra de vitrine mateus_site)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Corrigir a oferta 15,39 (era caixa 1,03kg com nome/imagem de 200g).
+- Evidência: `historico_precos` mostra 1,03kg a 15,99 em 14/09 (mateus_site); 200g custa ~R$3-4. Extração via visão não leu o tamanho.
+- Oferta `FPB51yLP05Hvw2UgNPNA` migrada para `creme-de-leite-piracanjuba-103kg-un` + imagem Sam's Club VTEX EAN 7898215151883 (fundo branco). Sem sinônimo global (o base pode receber 200g real um dia).
+- Levantado: `mateus_site` concentra 175/287 vigentes (todas `gemini_vision`, loja="Extração via Visão (IA)"); `assai`/`lider-am`/`guerreirao-br` também são visão. IDs legados divergem do CRON atual (`assai` x `assai-am`, `guerreirao-br` x `guerreirao-am`). Proposta de filtro de vitrine pendente de decisão.
