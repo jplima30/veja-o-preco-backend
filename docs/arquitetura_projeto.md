@@ -1284,3 +1284,14 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Nescau Protein 250ml (`bebida-lactea-nescau-protein-zero-lactose-chocolate-250-un`): 200x200 → 400x400 (Covabra VTEX 7891000446799_1.jpg, 1000x1000 fundo branco, EAN 7891000446799). Zero ofertas ativas. Antiga em `antes_pendencias/`.
 - Manteiga Nazaré Pote 200g: sem foto pública (marca Nossa Sra. de Nazaré/Laticínios Veneza só publica latas 10kg/5kg/500g + KG). Alternativa Primorosa rejeitada (rótulo 500g). Mantida atual; pendente foto do usuário.
 - Previews locais (`preview_frios_leva3/4/5`, `preview_vitrine_lista`, `preview_pendencias`) seguem fora do commit, como nas sessões anteriores.
+
+---
+
+**Sessão 82 (Frios leva 6 — revisão da vitrine)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Corrigir os 8 pontos reportados na vitrine (imagens pequenas/fundo errado + duplicadas).
+- 6 imagens refeitas em 400x400 (antigas em `antes_frios_leva6/`): Creme Piracanjuba e Requeijão ampliados no frame (recrop das fontes Covabra/Savegnago); Batata McCain com fundo branco e margens (Swift VTEX); Hellmann's recomposto sobre branco (bug alpha→preto corrigido); Medalha em JPG branco real (Atacadão VTEX 3kg); Nescau 180ml unidade (Zona Sul VTEX) aplicado nos 2 produtos.
+- Causa raiz do fundo preto: conversão RGBA→RGB mapeava transparência para preto; pipeline passa a compor sobre branco.
+- Nutren: expirada a duplicada `...nutren-400g-un_2026-09-27` (13:00), mantida a das 17:00. LC Nestlé: vigentes em lojas diferentes — legítimo, sem ação.
+- Preview em `docs/preview_frios_leva6.html` (local, fora do commit).
