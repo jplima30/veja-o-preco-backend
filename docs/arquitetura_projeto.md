@@ -1273,3 +1273,47 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Recura frios leva 3 (8/8, 200x200 → 400x400): Deline, Girolanda, Ilda, Frimesa, Delicata, Puro Sabor, Medalha (balde 3kg, pote 1kg descontinuado), Rezende. Antigas em `antes_frios_leva3/`.
 - Recura frios leva 4 (8/8 erradas graves): Ovos Iana (era foto de pessoa), Salsicha Nobre (genérica → oficial), Chouriço (com texto → Cancian sem texto), Piracanjuba (energy drink → ProForce Cacau, ressalva fundo verde), Activia Morango (genérico → bandeja Danone), Fredão (genérico → PET 200ml), Nobre (genérico → peça), Piracanjuba 395g (genérico duplicado → caixinha). Antigas em `antes_frios_leva4/`. Primor e Perdigão já corretos, mantidos.
 - Deploy das 11 functions executado com aprovação explícita (fluxo §7).
+
+---
+
+**Sessão 81 (Fix fusão nome/imagem + Nescau Protein)**
+
+**Data:** 29 de Setembro de 2026
+**Objetivo:** Fechar pendências da vitrine (mescla deixava nome/imagem velha na oferta; Nescau Protein 200x200; Nazaré sem foto pública).
+- `scripts/mesclar_produtos.py`: `mesclar_banco` e `mesclar_manual` passam a migrar `produto_nome` + `imagem_url` junto com `produto_id`/`unidade`. Herança de imagem movida para antes da migração. Validado com teste real (zzteste-de → zzteste-para, nome/imagem sincronizados, cleanup OK).
+- Nescau Protein 250ml (`bebida-lactea-nescau-protein-zero-lactose-chocolate-250-un`): 200x200 → 400x400 (Covabra VTEX 7891000446799_1.jpg, 1000x1000 fundo branco, EAN 7891000446799). Zero ofertas ativas. Antiga em `antes_pendencias/`.
+- Manteiga Nazaré Pote 200g: sem foto pública (marca Nossa Sra. de Nazaré/Laticínios Veneza só publica latas 10kg/5kg/500g + KG). Alternativa Primorosa rejeitada (rótulo 500g). Mantida atual; pendente foto do usuário.
+- Previews locais (`preview_frios_leva3/4/5`, `preview_vitrine_lista`, `preview_pendencias`) seguem fora do commit, como nas sessões anteriores.
+
+---
+
+**Sessão 82 (Frios leva 6 — revisão da vitrine)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Corrigir os 8 pontos reportados na vitrine (imagens pequenas/fundo errado + duplicadas).
+- 6 imagens refeitas em 400x400 (antigas em `antes_frios_leva6/`): Creme Piracanjuba e Requeijão ampliados no frame (recrop das fontes Covabra/Savegnago); Batata McCain com fundo branco e margens (Swift VTEX); Hellmann's recomposto sobre branco (bug alpha→preto corrigido); Medalha em JPG branco real (Atacadão VTEX 3kg); Nescau 180ml unidade (Zona Sul VTEX) aplicado nos 2 produtos.
+- Causa raiz do fundo preto: conversão RGBA→RGB mapeava transparência para preto; pipeline passa a compor sobre branco.
+- Nutren: expirada a duplicada `...nutren-400g-un_2026-09-27` (13:00), mantida a das 17:00. LC Nestlé: vigentes em lojas diferentes — legítimo, sem ação.
+- Preview em `docs/preview_frios_leva6.html` (local, fora do commit).
+
+---
+
+**Sessão 83 (Creme 1,03kg + regra de vitrine mateus_site)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Corrigir a oferta 15,39 (era caixa 1,03kg com nome/imagem de 200g).
+- Evidência: `historico_precos` mostra 1,03kg a 15,99 em 14/09 (mateus_site); 200g custa ~R$3-4. Extração via visão não leu o tamanho.
+- Oferta `FPB51yLP05Hvw2UgNPNA` migrada para `creme-de-leite-piracanjuba-103kg-un` + imagem Sam's Club VTEX EAN 7898215151883 (fundo branco). Sem sinônimo global (o base pode receber 200g real um dia).
+- Levantado: `mateus_site` concentra 175/287 vigentes (todas `gemini_vision`, loja="Extração via Visão (IA)"); `assai`/`lider-am`/`guerreirao-br` também são visão. IDs legados divergem do CRON atual (`assai` x `assai-am`, `guerreirao-br` x `guerreirao-am`). Proposta de filtro de vitrine pendente de decisão.
+
+---
+
+**Sessão 84 (Banco unido #76 — comparação entre queries + apelidos + faxina Frios)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Estancar duplicatas entre site e físicas + apelidos, com automação pronta para expansão.
+- `functions/main.py`: tabela `ALIAS_TERMO` (C/→com, S/→sem) + split de tamanho grudado ("170g"→"170 g") em `limpar_nome_promocional` (vale para visão e PDF); mapa `CADEIAS` + `lojas_irmas()`; comparação entre queries em `salvar_produto_e_oferta` e no lote PDF (mesmo produto+preço válido na irmã → carimba loja e renova, sem doc novo); campo `supermercado_ids` nos docs novos + backfill nos existentes.
+- `scripts/mesclar_produtos.py`: espelho dos apelidos/tamanho.
+- `scripts/identificar_duplicatas.py`: guardião dos números refinado (lado sem número + inclusão de palavras + ≥3 palavras + diff ≤2 → avalia em vez de pular).
+- Faxina Frios: Nutren e LC fundidos em 1 doc cada (lojas=[jaderlandia, site], cópia do site expirada); Molico fundido no `desnatado-280g` (sinônimo registrado). Preview em `docs/preview_faxina76.html` (local).
+- Deploy das functions pendente de aprovação explícita (fluxo §7).
