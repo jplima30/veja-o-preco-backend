@@ -1325,3 +1325,13 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Trocar foto lifestyle genérica (tigela com frutas) pelo packshot oficial.
 - `iogurte-polpa-ninho-un`: bandeja Ninho Polpa 3 sabores 540g (Carrefour VTEX, 400x400 fundo branco), propagada a 1 oferta. Antiga em `antes_ninho/`.
+
+---
+
+**Sessão 86 (App filtra expiradas + deleção dos docs mortos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Acabar com cartões duplicados de Nutren/Moça mesmo após rebuild limpo.
+- Causa: o app lia a coleção `ofertas` inteira sem filtro; os docs expirados (Nutren 2, Moça 1) voltavam na leitura. Banco tinha 1 vigente de cada — correto.
+- App (`Apps/vejaOprecoApp`): `OfertaItem` ganha `expiraEm` (chave `expira_em`) + `estaValida`; `FirebaseService.buscarProdutos` filtra `whereField expira_em >= agora` no servidor e refiltra no cliente. Build do simulador OK.
+- Banco: deletados os 3 docs expirados superados (histórico preservado em `historico_precos`).
