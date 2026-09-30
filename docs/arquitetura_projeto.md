@@ -1317,3 +1317,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - `scripts/identificar_duplicatas.py`: guardião dos números refinado (lado sem número + inclusão de palavras + ≥3 palavras + diff ≤2 → avalia em vez de pular).
 - Faxina Frios: Nutren e LC fundidos em 1 doc cada (lojas=[jaderlandia, site], cópia do site expirada); Molico fundido no `desnatado-280g` (sinônimo registrado). Preview em `docs/preview_faxina76.html` (local).
 - Deploy das functions pendente de aprovação explícita (fluxo §7).
+
+---
+
+**Sessão 85 (Ninho Polpa 8,89)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Trocar foto lifestyle genérica (tigela com frutas) pelo packshot oficial.
+- `iogurte-polpa-ninho-un`: bandeja Ninho Polpa 3 sabores 540g (Carrefour VTEX, 400x400 fundo branco), propagada a 1 oferta. Antiga em `antes_ninho/`.
