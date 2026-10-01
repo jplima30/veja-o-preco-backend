@@ -1401,3 +1401,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Sétima leva (Alimentos/Higiene/Limpeza).
 - 13 aplicados em 400x400 (antigas em `antes_geral7/`, preview `preview_geral7.html`): Dolca, Nescau lata, Cepêra, TJ 7 cereais, Milho, Vanish, Oral-B, MamyPoko, Matinal (base + 40g), Biju Integral, TJ Parboilizado, Estrela (reuso 350g).
+
+---
+
+**Sessão 95 (Leva Geral 8 — 11 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Oitava leva (Alimentos/Higiene/Carnes/Padaria).
+- 11 aplicados em 400x400 (antigas em `antes_geral8/`, preview `preview_geral8.html`): Lacta Oreo/OB, Guardanapo, Dove Baby, Intimus, Steak, Pão Queijo, Figueira, Estrela, Babysec, Cremer. Bembom sem foto pública.
