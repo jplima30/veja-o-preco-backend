@@ -1425,3 +1425,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Décima leva, foco em Carnes.
 - 12 aplicados em 400x400 (antigas em `antes_geral10/`, preview `preview_geral10.html`): Sardinha RC, Frango, Pernil, Costela, Bacon, Lombo, Frimesa Mista/3kg, Sobrepaleta, Panceta/Temp, Toucinho.
+
+---
+
+**Sessão 98 (Leva Geral 11 — 11 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Décima primeira leva (Carnes/Higiene).
+- 11 aplicados em 400x400 (antigas em `antes_geral11/`, preview `preview_geral11.html`): Coxa Americana, Copacol, Bio Extratus, Super Frango, Galinha, Sobrecoxa, Orelha, Coxas Lar, Coxinha Lar, Pé Suíno, Aurora. Nioassa sem foto pública.
