@@ -1368,3 +1368,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Terceira leva multcategorias (Carnes/Bebidas/Higiene/Limpeza/Hortifruti).
 - 12 aplicados em 400x400 (antigas em `antes_geral3/`, preview `preview_geral3.html`): Nobre 5kg, Galiotto uva, Pampers, Seara 1kg, Benevi, Morango 1,1kg, Friboi 56g, Filé Lar, Sonho refil 900ml, Perdigão 500g, Camarão Qualimar, Pato VG.
+
+---
+
+**Sessão 91 (Leva Geral 4 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Quarta leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
+- 13 aplicados em 400x400 (antigas em `antes_geral4/`, preview `preview_geral4.html`): Sensação 1,5L, Lasanha Seara, Deluxe, Condicionador SL, Paixão, Maggi (base + 50g), Johnson's, Guaraná Zero 2L, Apti, Ativador SL, Pentear SL, Nivea 85g.
