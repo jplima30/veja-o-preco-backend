@@ -1,3 +1,5 @@
+> Referência vigente (01/10/2026): [Estado atual](ESTADO_ATUAL.md). Conteúdo histórico abaixo deve ser interpretado à luz dessa referência.
+
 # Explicação Técnica: Como o Backend Funciona
 
 O backend do "Veja o Preço" é um sistema híbrido que utiliza três níveis de inteligência para capturar ofertas:

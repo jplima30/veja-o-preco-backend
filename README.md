@@ -12,7 +12,7 @@
 ![Firestore](https://img.shields.io/badge/Firestore-Database-FF6F00?style=for-the-badge&logo=firebase&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-Automation-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
 
-**Backend inteligente que agrega ofertas de supermercados de Belém e Ananindeua em tempo real.**
+**Backend inteligente que agrega ofertas de supermercados de Belém e Ananindeua com atualização periódica.**
 
 [📖 Wiki](https://github.com/jplima30/veja-o-preco-backend/wiki) · [🏗️ Arquitetura](https://github.com/jplima30/veja-o-preco-backend/wiki/Arquitetura) · [✅ Checklist](https://github.com/jplima30/veja-o-preco-backend/wiki/Checklist-de-Implementacao) · [🛒 Supermercados](https://github.com/jplima30/veja-o-preco-backend/wiki/Supermercados)
 
@@ -37,7 +37,7 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 | **Automação** | Playwright (perfil persistente) | Captura de publicações em redes sociais |
 | **Computer Vision** | EasyOCR | Triagem local de imagens antes da I.A. |
 | **Banco de Dados** | Cloud Firestore | Persistência com deduplicação e histórico |
-| **Segredos** | Google Secret Manager | Gestão segura de chaves de API |
+| **Autenticação IA** | Credenciais Google Cloud | Acesso ao Vertex AI |
 
 ---
 
@@ -53,7 +53,7 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 └─────────────┘    └───────────────┘    └──────────────────┘    └───────────────┘
 ```
 
-1. **Captura** — Robôs locais monitoram redes sociais (Instagram/WhatsApp) e consomem APIs das lojas.
+1. **Captura** — Robôs locais monitoram redes sociais (Instagram) e consomem APIs das lojas.
 2. **Triagem** — O EasyOCR filtra apenas imagens que contêm preços reais, economizando chamadas de API.
 3. **Extração** — O Gemini processa os encartes e extrai dados estruturados em JSON.
 4. **Persistência** — Dados são normalizados e salvos no Firestore seguindo o **[Contrato de Dados](https://github.com/jplima30/veja-o-preco-backend/wiki/Contrato-de-Dados)** do projeto.
@@ -70,7 +70,7 @@ A arquitetura combina extração de dados via **APIs diretas**, **web scraping i
 | **Seja Econômico** | API VipCommerce Direta | ✅ Ativo |
 | **Guerreirão (AM/BR)** | Scraping HTML + Vision AI | ✅ Ativo |
 | **Assaí Atacadista** | Playwright + Vision AI | ✅ Ativo |
-| **Líder & Formosa** | I.A. Multimodal (encarte PDF) | ✅ Ativo |
+| **Líder & Formosa** | Captura de imagens/frames + I.A. | ✅ Ativo |
 
 ---
 
@@ -93,13 +93,13 @@ O menu é estruturado nas seguintes abas:
 3. **🛒 Categoria 3: Conectores de Lojas** — Execução manual de validadores de rotinas e scrapers de redes específicas (Mix Mateus, Atacadão, Econômico, Guerreirão).
 4. **🧹 Categoria 4: Higienização & Curadoria** — Central interativa de imagens (`central_imagens.py`), mesclagem automática ou cirúrgica de produtos, fuzzy matching para identificação de duplicatas e o auditor automático de categorias.
 5. **📊 Categoria 5: Monitoramento & Relatórios** — Dashboard de cobertura das lojas e geração do resumo do volume de ofertas inseridas no dia.
-6. **🧪 Categoria 6: Testes & Ambiente** — Scripts para popular o banco local (`seed_firestore.py`), rodar testes de integração e validar o funcionamento do driver de navegadores.
+6. **🧪 Categoria 6: Testes & Ambiente** — Scripts de seed que podem alterar o banco real (`seed_firestore.py`), rodar testes de integração e validar o funcionamento do driver de navegadores.
 
 ---
 
 ## 🚀 Deploy na Nuvem (Firebase Cloud Functions)
 
-Quando realizar alterações no código do backend localizados na pasta `functions/`, execute o deploy no Firebase:
+Alterações em `functions/` exigem aprovação explícita do usuário antes de qualquer deploy, conforme `.agents/workflows/fluxo.md`.
 
 > [!IMPORTANT]
 > **Validação prévia:** Sempre verifique a sintaxe do arquivo de funções antes do deploy:
@@ -136,3 +136,7 @@ Quando realizar alterações no código do backend localizados na pasta `functio
 | [💻 Operação Local](https://github.com/jplima30/veja-o-preco-backend/wiki/Operacao-Local) | Comandos práticos para rodar e testar o sistema |
 
 ---
+
+## Estado atual — 01/10/2026 (#77)
+
+Consulte [Estado atual](docs/ESTADO_ATUAL.md) para o contrato consumido diretamente pelo app, expiração, imagens, pendências e validação. As sessões 86–102 são integradas nesta sincronização. Não houve deploy de Functions.

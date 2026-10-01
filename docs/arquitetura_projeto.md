@@ -1325,3 +1325,160 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Trocar foto lifestyle genérica (tigela com frutas) pelo packshot oficial.
 - `iogurte-polpa-ninho-un`: bandeja Ninho Polpa 3 sabores 540g (Carrefour VTEX, 400x400 fundo branco), propagada a 1 oferta. Antiga em `antes_ninho/`.
+
+---
+
+**Sessão 86 (App filtra expiradas + deleção dos docs mortos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Acabar com cartões duplicados de Nutren/Moça mesmo após rebuild limpo.
+- Causa: o app lia a coleção `ofertas` inteira sem filtro; os docs expirados (Nutren 2, Moça 1) voltavam na leitura. Banco tinha 1 vigente de cada — correto.
+- App (`Apps/vejaOprecoApp`): `OfertaItem` ganha `expiraEm` (chave `expira_em`) + `estaValida`; `FirebaseService.buscarProdutos` filtra `whereField expira_em >= agora` no servidor e refiltra no cliente. Build do simulador OK.
+- Banco: deletados os 3 docs expirados superados (histórico preservado em `historico_precos`).
+
+---
+
+**Sessão 87 (Da Casa + Danone PET)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Fotos oficiais nos dois.
+- `queijo-mussarela-da-casa-un`: foto do usuário (frente do pacote 150g) em 400x400. Sem foto pública da marca — candidatas de outras marcas rejeitadas. Antiga em `antes_frios7/`.
+- Oferta 16,99 "Iogurte Danone" genérica migrada para `iogurte-danone-morango-125kg-un` (renomeado p/ 1,20kg, tamanho real) + garrafa PET Embalagem Econômica Zero 5x. Bandeja 510g descartada (encarte mostra garrafa).
+
+---
+
+**Sessão 88 (Leva Geral 1 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Primeira leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
+- 13 aplicados em 400x400 (antigas em `antes_geral1/`, preview `preview_geral1.html`): Nescau Act-Go (era infográfico), Pringles (eram batatas cruas), Tandy (era recorte c/ preço), Nestlé Classic (era Prestígio, base + 80g), Red Bull clássica (era Tropical), Garoto 80g, Comfort, Seda Juntinhos individual, Dolca 40g, Cream Cracker Estrela, Ketchup Predilecta (era panfleto), Lacta Variedades.
+
+---
+
+**Sessão 89 (Leva Geral 2 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Segunda leva multcategorias, foco em fotos totalmente erradas (legado OFF).
+- 13 aplicados em 400x400 (antigas em `antes_geral2/`, preview `preview_geral2.html`): Nutren Kids 350g + base, Choco Biscuit base + 78g, Gallo, Liza, Rancheiro, Atum RC, Shampoo SL Kids, Flocão DC, Tio João 1kg, Sinhá, Sardinha CV.
+
+---
+
+**Sessão 90 (Leva Geral 3 — 12 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Terceira leva multcategorias (Carnes/Bebidas/Higiene/Limpeza/Hortifruti).
+- 12 aplicados em 400x400 (antigas em `antes_geral3/`, preview `preview_geral3.html`): Nobre 5kg, Galiotto uva, Pampers, Seara 1kg, Benevi, Morango 1,1kg, Friboi 56g, Filé Lar, Sonho refil 900ml, Perdigão 500g, Camarão Qualimar, Pato VG.
+
+---
+
+**Sessão 91 (Leva Geral 4 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Quarta leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
+- 13 aplicados em 400x400 (antigas em `antes_geral4/`, preview `preview_geral4.html`): Sensação 1,5L, Lasanha Seara, Deluxe, Condicionador SL, Paixão, Maggi (base + 50g), Johnson's, Guaraná Zero 2L, Apti, Ativador SL, Pentear SL, Nivea 85g.
+
+---
+
+**Sessão 92 (Leva Geral 5 — 10 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Quinta leva multcategorias.
+- 10 aplicados em 400x400 (antigas em `antes_geral5/`, preview `preview_geral5.html`): Aveia Finos 170g, Aveia tradicional, Quero, Piquitucho, Omo, Baly, Fortaleza, Hiléia, Protex, Kimimo.
+
+---
+
+**Sessão 93 (Leva Geral 6 — 12 produtos regionais)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Sexta leva, foco em marcas do Pará (Colina/Fribel/Josapar).
+- 12 aplicados em 400x400 (antigas em `antes_geral6/`, preview `preview_geral6.html`): Tambu, BrSpice, Rosa Branca, Mariza, Biju (1kg/8gr/risoto), Tauá, Pra Pizza, Maniva, Fortaleza, Brandini.
+- Pendente: Tucupi Artesanal 2L sem foto pública (só ambiente).
+
+---
+
+**Sessão 94 (Leva Geral 7 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Sétima leva (Alimentos/Higiene/Limpeza).
+- 13 aplicados em 400x400 (antigas em `antes_geral7/`, preview `preview_geral7.html`): Dolca, Nescau lata, Cepêra, TJ 7 cereais, Milho, Vanish, Oral-B, MamyPoko, Matinal (base + 40g), Biju Integral, TJ Parboilizado, Estrela (reuso 350g).
+
+---
+
+**Sessão 95 (Leva Geral 8 — 11 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Oitava leva (Alimentos/Higiene/Carnes/Padaria).
+- 11 aplicados em 400x400 (antigas em `antes_geral8/`, preview `preview_geral8.html`): Lacta Oreo/OB, Guardanapo, Dove Baby, Intimus, Steak, Pão Queijo, Figueira, Estrela, Babysec, Cremer. Bembom sem foto pública.
+
+---
+
+**Sessão 96 (Leva Geral 9 — 12 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Nona leva (Higiene/Limpeza/Bebidas).
+- 12 aplicados em 400x400 (antigas em `antes_geral9/`, preview `preview_geral9.html`): Scoobydoo, Guarani, Brilux, Amacitel, Casa&Perfume, Veja, Colgate, Lírio, Red Horse, Piuí, Alumínio, PVC.
+
+---
+
+**Sessão 97 (Leva Geral 10 — 12 Carnes)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Décima leva, foco em Carnes.
+- 12 aplicados em 400x400 (antigas em `antes_geral10/`, preview `preview_geral10.html`): Sardinha RC, Frango, Pernil, Costela, Bacon, Lombo, Frimesa Mista/3kg, Sobrepaleta, Panceta/Temp, Toucinho.
+
+---
+
+**Sessão 98 (Leva Geral 11 — 11 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Décima primeira leva (Carnes/Higiene).
+- 11 aplicados em 400x400 (antigas em `antes_geral11/`, preview `preview_geral11.html`): Coxa Americana, Copacol, Bio Extratus, Super Frango, Galinha, Sobrecoxa, Orelha, Coxas Lar, Coxinha Lar, Pé Suíno, Aurora. Nioassa sem foto pública.
+
+---
+
+**Sessão 99 (Leva Geral 12 — 6 Hortifruti/Carnes)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima segunda leva, foco em Hortifruti/Carnes (continuação interrompida ontem).
+- 6 aplicados em 400x400 (preview `preview_geral12.html`, local fora do commit): Uva Vitória Cappellaro (era foto aérea de cidade → uvas roxas USDA fundo branco), Banana Nanica (era recorte com preço → penca Wikimedia), Manga Tommy (era recorte → inteira Pexels), Ovos Manteiqueira (era banner "Naturalmente Proteico" → cartela genérica 8 ovos, sem foto Mantiqueira pública com 200), Tomate Saladete (era mistura com batata-doce → alongados fundo branco, 499px com ressalva), Pescada Amarela (upgrade HD 200→1024, espécie genérica com ressalva).
+- Rejeitados honestos: Manga Palmer (candidata com régua/escala), Abóbora (candidata foto de campo com grama), Macaxeira (atual 400x400 com corte já superior à candidata de raiz única). Sem foto pública: Alface Crespa (atual é print de texto), Tambaqui inteiro e Posta (só com pescador/rede). Recomendado foto própria.
+
+---
+
+**Sessão 100 (Leva Geral 13 — 9 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima terceira leva (Carnes/Limpeza/Alimentos/Frios/Bebidas), upgrades HD 200→400x400.
+- 9 aplicados em 400x400 (preview `preview_geral13.html`, local): Carne Moída Miranda 500g, Brilux 1L (fundo cinza→branco), Concórdia 900ml, Shoyu Mariza 900ml, Hiléia Spaghetti 400g, Camembert Tirolez 125g, Italac Semidesnatado 395g, Coca 220ml (era lata 350ml), Bono Chocolate.
+- Rejeitados honestos: Deline 500g (candidata chilena em espanhol, mantida BR), Água Nioassa (sem presença web), Polpa Hiper Frutas (sem packshot público).
+
+---
+
+**Sessão 101 (Leva Geral 14 — 11 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima quarta leva (Carnes/Padaria/Frios/Alimentos).
+- 8 novos em 400x400 (preview `preview_geral14.html`, local): Mortadela Peperi, Dalia Toscana 800g (era granel), Nobre Calabresa, Tambu 380g, Italac 500g, Delícia 1kg, Hellmann's tradicional 335g (era duo Queijo+Bacon), Predilecta display HD.
+- 3 reenquadramentos honestos (mesma foto, sem preço na borda): Picanha Soft, Bolo da Vovó, Pizza Bumba.
+- Mantido: Contrafilé Soft duplo (corte quebraria o rótulo); Soft sem foto pública.
+
+---
+
+**Sessão 102 (Leva Geral 15 — 11 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima quinta leva (Frios/Limpeza/Carnes/Alimentos/Higiene/Padaria).
+- 11 aplicados em 400x400 (preview `preview_geral15.html`, local): Favorita, Econômica 5L, Jagua filé de peito, Super Frango peito, Chester Perdigão, Bom Jesus, Babysec Jumbinho, Pipoca DC 400g, Requeijão Tirolez 200g, Chic Bem Brasil 1,5kg, Fugini 300g.
+- Pendente: Colorífico Dona Clara 500g inexistente nos e-commerces (foto própria).
+
+
+---
+
+**Sessão 103 — Sincronização de develop, main e Wikis (#77 / app #16)**
+
+**Data:** 01/10/2026
+- Integração dos registros das sessões 86–102 e do filtro de ofertas expiradas no app, conforme `/fluxo`.
+- Estado atual, contrato Firestore, limitações e operação documentados em `docs/ESTADO_ATUAL.md` e nas duas Wikis. Histórico anterior preservado.
+- Validação: sintaxe Python e build iOS Simulator aprovados; revisão de diffs e preservação de arquivos locais não versionados.
+- Sem alteração de Functions nesta sessão e sem deploy. Presença das 11 Functions não comprova equivalência com o código local.
+- Issues de sincronização: backend #77 e app #16, Work Type Chore, P1, M, estimativa manual de 2 dias.
