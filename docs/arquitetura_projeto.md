@@ -1442,3 +1442,12 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Décima segunda leva, foco em Hortifruti/Carnes (continuação interrompida ontem).
 - 6 aplicados em 400x400 (preview `preview_geral12.html`, local fora do commit): Uva Vitória Cappellaro (era foto aérea de cidade → uvas roxas USDA fundo branco), Banana Nanica (era recorte com preço → penca Wikimedia), Manga Tommy (era recorte → inteira Pexels), Ovos Manteiqueira (era banner "Naturalmente Proteico" → cartela genérica 8 ovos, sem foto Mantiqueira pública com 200), Tomate Saladete (era mistura com batata-doce → alongados fundo branco, 499px com ressalva), Pescada Amarela (upgrade HD 200→1024, espécie genérica com ressalva).
 - Rejeitados honestos: Manga Palmer (candidata com régua/escala), Abóbora (candidata foto de campo com grama), Macaxeira (atual 400x400 com corte já superior à candidata de raiz única). Sem foto pública: Alface Crespa (atual é print de texto), Tambaqui inteiro e Posta (só com pescador/rede). Recomendado foto própria.
+
+---
+
+**Sessão 100 (Leva Geral 13 — 9 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima terceira leva (Carnes/Limpeza/Alimentos/Frios/Bebidas), upgrades HD 200→400x400.
+- 9 aplicados em 400x400 (preview `preview_geral13.html`, local): Carne Moída Miranda 500g, Brilux 1L (fundo cinza→branco), Concórdia 900ml, Shoyu Mariza 900ml, Hiléia Spaghetti 400g, Camembert Tirolez 125g, Italac Semidesnatado 395g, Coca 220ml (era lata 350ml), Bono Chocolate.
+- Rejeitados honestos: Deline 500g (candidata chilena em espanhol, mantida BR), Água Nioassa (sem presença web), Polpa Hiper Frutas (sem packshot público).
