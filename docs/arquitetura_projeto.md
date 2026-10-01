@@ -1451,3 +1451,13 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Décima terceira leva (Carnes/Limpeza/Alimentos/Frios/Bebidas), upgrades HD 200→400x400.
 - 9 aplicados em 400x400 (preview `preview_geral13.html`, local): Carne Moída Miranda 500g, Brilux 1L (fundo cinza→branco), Concórdia 900ml, Shoyu Mariza 900ml, Hiléia Spaghetti 400g, Camembert Tirolez 125g, Italac Semidesnatado 395g, Coca 220ml (era lata 350ml), Bono Chocolate.
 - Rejeitados honestos: Deline 500g (candidata chilena em espanhol, mantida BR), Água Nioassa (sem presença web), Polpa Hiper Frutas (sem packshot público).
+
+---
+
+**Sessão 101 (Leva Geral 14 — 11 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima quarta leva (Carnes/Padaria/Frios/Alimentos).
+- 8 novos em 400x400 (preview `preview_geral14.html`, local): Mortadela Peperi, Dalia Toscana 800g (era granel), Nobre Calabresa, Tambu 380g, Italac 500g, Delícia 1kg, Hellmann's tradicional 335g (era duo Queijo+Bacon), Predilecta display HD.
+- 3 reenquadramentos honestos (mesma foto, sem preço na borda): Picanha Soft, Bolo da Vovó, Pizza Bumba.
+- Mantido: Contrafilé Soft duplo (corte quebraria o rótulo); Soft sem foto pública.
