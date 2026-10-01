@@ -1384,3 +1384,12 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Quinta leva multcategorias.
 - 10 aplicados em 400x400 (antigas em `antes_geral5/`, preview `preview_geral5.html`): Aveia Finos 170g, Aveia tradicional, Quero, Piquitucho, Omo, Baly, Fortaleza, Hiléia, Protex, Kimimo.
+
+---
+
+**Sessão 93 (Leva Geral 6 — 12 produtos regionais)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Sexta leva, foco em marcas do Pará (Colina/Fribel/Josapar).
+- 12 aplicados em 400x400 (antigas em `antes_geral6/`, preview `preview_geral6.html`): Tambu, BrSpice, Rosa Branca, Mariza, Biju (1kg/8gr/risoto), Tauá, Pra Pizza, Maniva, Fortaleza, Brandini.
+- Pendente: Tucupi Artesanal 2L sem foto pública (só ambiente).
