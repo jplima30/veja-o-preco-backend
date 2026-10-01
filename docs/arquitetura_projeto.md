@@ -1461,3 +1461,12 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - 8 novos em 400x400 (preview `preview_geral14.html`, local): Mortadela Peperi, Dalia Toscana 800g (era granel), Nobre Calabresa, Tambu 380g, Italac 500g, Delícia 1kg, Hellmann's tradicional 335g (era duo Queijo+Bacon), Predilecta display HD.
 - 3 reenquadramentos honestos (mesma foto, sem preço na borda): Picanha Soft, Bolo da Vovó, Pizza Bumba.
 - Mantido: Contrafilé Soft duplo (corte quebraria o rótulo); Soft sem foto pública.
+
+---
+
+**Sessão 102 (Leva Geral 15 — 11 produtos)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima quinta leva (Frios/Limpeza/Carnes/Alimentos/Higiene/Padaria).
+- 11 aplicados em 400x400 (preview `preview_geral15.html`, local): Favorita, Econômica 5L, Jagua filé de peito, Super Frango peito, Chester Perdigão, Bom Jesus, Babysec Jumbinho, Pipoca DC 400g, Requeijão Tirolez 200g, Chic Bem Brasil 1,5kg, Fugini 300g.
+- Pendente: Colorífico Dona Clara 500g inexistente nos e-commerces (foto própria).
