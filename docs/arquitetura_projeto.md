@@ -1360,3 +1360,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Segunda leva multcategorias, foco em fotos totalmente erradas (legado OFF).
 - 13 aplicados em 400x400 (antigas em `antes_geral2/`, preview `preview_geral2.html`): Nutren Kids 350g + base, Choco Biscuit base + 78g, Gallo, Liza, Rancheiro, Atum RC, Shampoo SL Kids, Flocão DC, Tio João 1kg, Sinhá, Sardinha CV.
+
+---
+
+**Sessão 90 (Leva Geral 3 — 12 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Terceira leva multcategorias (Carnes/Bebidas/Higiene/Limpeza/Hortifruti).
+- 12 aplicados em 400x400 (antigas em `antes_geral3/`, preview `preview_geral3.html`): Nobre 5kg, Galiotto uva, Pampers, Seara 1kg, Benevi, Morango 1,1kg, Friboi 56g, Filé Lar, Sonho refil 900ml, Perdigão 500g, Camarão Qualimar, Pato VG.
