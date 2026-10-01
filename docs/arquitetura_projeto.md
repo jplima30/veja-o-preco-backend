@@ -1376,3 +1376,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Quarta leva multcategorias (Alimentos/Higiene/Limpeza/Bebidas).
 - 13 aplicados em 400x400 (antigas em `antes_geral4/`, preview `preview_geral4.html`): Sensação 1,5L, Lasanha Seara, Deluxe, Condicionador SL, Paixão, Maggi (base + 50g), Johnson's, Guaraná Zero 2L, Apti, Ativador SL, Pentear SL, Nivea 85g.
+
+---
+
+**Sessão 92 (Leva Geral 5 — 10 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Quinta leva multcategorias.
+- 10 aplicados em 400x400 (antigas em `antes_geral5/`, preview `preview_geral5.html`): Aveia Finos 170g, Aveia tradicional, Quero, Piquitucho, Omo, Baly, Fortaleza, Hiléia, Protex, Kimimo.
