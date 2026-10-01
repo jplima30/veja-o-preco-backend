@@ -1470,3 +1470,15 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Décima quinta leva (Frios/Limpeza/Carnes/Alimentos/Higiene/Padaria).
 - 11 aplicados em 400x400 (preview `preview_geral15.html`, local): Favorita, Econômica 5L, Jagua filé de peito, Super Frango peito, Chester Perdigão, Bom Jesus, Babysec Jumbinho, Pipoca DC 400g, Requeijão Tirolez 200g, Chic Bem Brasil 1,5kg, Fugini 300g.
 - Pendente: Colorífico Dona Clara 500g inexistente nos e-commerces (foto própria).
+
+
+---
+
+**Sessão 103 — Sincronização de develop, main e Wikis (#77 / app #16)**
+
+**Data:** 01/10/2026
+- Integração dos registros das sessões 86–102 e do filtro de ofertas expiradas no app, conforme `/fluxo`.
+- Estado atual, contrato Firestore, limitações e operação documentados em `docs/ESTADO_ATUAL.md` e nas duas Wikis. Histórico anterior preservado.
+- Validação: sintaxe Python e build iOS Simulator aprovados; revisão de diffs e preservação de arquivos locais não versionados.
+- Sem alteração de Functions nesta sessão e sem deploy. Presença das 11 Functions não comprova equivalência com o código local.
+- Issues de sincronização: backend #77 e app #16, Work Type Chore, P1, M, estimativa manual de 2 dias.

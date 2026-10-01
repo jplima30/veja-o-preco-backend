@@ -1,3 +1,5 @@
+> Referência vigente (01/10/2026): [Estado atual](ESTADO_ATUAL.md). Conteúdo histórico abaixo deve ser interpretado à luz dessa referência.
+
 # Checklist de Implementação — Todas as Fases
 
 > Fonte de verdade do progresso do projeto **Veja o Preço (Backend)**.

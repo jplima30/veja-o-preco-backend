@@ -1,3 +1,5 @@
+> Referência vigente (01/10/2026): [Estado atual](ESTADO_ATUAL.md). Conteúdo histórico abaixo deve ser interpretado à luz dessa referência.
+
 # Plano de Arquitetura: Firestore (Fase 4)
 
 Este documento define a estrutura de dados, regras de negócio e fluxo de implementação para a persistência de dados no Cloud Firestore. É o blueprint da nossa próxima etapa de desenvolvimento.
@@ -46,7 +48,7 @@ A separação entre Produto e Oferta é a decisão mais importante dessa fase. E
     - categoria:       "Mercearia"
     - metodo:          "api_vipcommerce"
     - validade:        "2026-04-30" (ou null)
-    - expira_em:       Timestamp (para o TTL automático)
+    - expira_em:       Timestamp (filtragem no app e limpeza agendada)
     - criado_em:       Timestamp
 ```
 
@@ -86,8 +88,7 @@ Este é o coração do sistema. Para cada produto extraído por qualquer scraper
 3. Criar novo documento em /ofertas com referência ao produto_id
 
 4. Definir "expira_em":
-   ├── Se a oferta tem validade → usar essa data
-   └── Se não tem → agora + 7 dias (TTL padrão)
+   └── Agora + 7 dias; validade textual não altera essa regra atual
 ```
 
 ---
@@ -140,5 +141,3 @@ Que retornará uma lista já formatada com produto + imagem + preço + validade,
 | Cloud Scheduler | 3 jobs gratuitos | 2 jobs usados ✅ |
 
 > **Conclusão**: O projeto se mantém **100% dentro do tier gratuito** durante a fase inicial e tem espaço para escalar para dezenas de supermercados antes de gerar qualquer custo.
-
-

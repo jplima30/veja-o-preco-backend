@@ -1,3 +1,5 @@
+> Referência vigente (01/10/2026): [Estado atual](ESTADO_ATUAL.md). Conteúdo histórico abaixo deve ser interpretado à luz dessa referência.
+
 # Contrato de Dados Unificado - Veja o Preço
 
 Este documento define o padrão obrigatório de resposta para **todas** as Cloud Functions do backend (Scrapers Diretos e Extração via I.A.). Isso garante que o App iOS receba dados consistentes independente da origem.

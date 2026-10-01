@@ -1,3 +1,5 @@
+> Referência vigente (01/10/2026): [Estado atual](ESTADO_ATUAL.md). Conteúdo histórico abaixo deve ser interpretado à luz dessa referência.
+
 # 🗺️ Mapeamento de Supermercados (Belém/Ananindeua)
 
 Este documento centraliza a inteligência de onde buscar os dados e qual o nível de esforço para cada loja no arco da Augusto Montenegro e BR-316.

@@ -1,3 +1,5 @@
+> Atualizado em 01/10/2026: logs por janela e `cron_hoje.log`; scripts podem gravar/apagar dados reais. Confira o destino do Admin SDK.
+
 # 🚀 Manual de Automação e Validadores (Veja o Preço)
 
 Este guia detalha como operar o ecossistema de coleta, triagem e validação do backend.
@@ -101,4 +103,4 @@ launchctl list | grep vejaopreco
 ```
 
 > [!TIP]
-> **Dica**: Logs de erro ficam em `scripts/cron_playwright.log`. Se o robô travar, verifique este arquivo primeiro.
+> **Dica**: Logs de erro ficam em `scripts/cron_hoje.log`. Se o robô travar, verifique este arquivo primeiro.
