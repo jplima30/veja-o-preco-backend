@@ -1417,3 +1417,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Nona leva (Higiene/Limpeza/Bebidas).
 - 12 aplicados em 400x400 (antigas em `antes_geral9/`, preview `preview_geral9.html`): Scoobydoo, Guarani, Brilux, Amacitel, Casa&Perfume, Veja, Colgate, Lírio, Red Horse, Piuí, Alumínio, PVC.
+
+---
+
+**Sessão 97 (Leva Geral 10 — 12 Carnes)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Décima leva, foco em Carnes.
+- 12 aplicados em 400x400 (antigas em `antes_geral10/`, preview `preview_geral10.html`): Sardinha RC, Frango, Pernil, Costela, Bacon, Lombo, Frimesa Mista/3kg, Sobrepaleta, Panceta/Temp, Toucinho.
