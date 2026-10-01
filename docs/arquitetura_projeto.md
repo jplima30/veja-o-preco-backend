@@ -1409,3 +1409,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Oitava leva (Alimentos/Higiene/Carnes/Padaria).
 - 11 aplicados em 400x400 (antigas em `antes_geral8/`, preview `preview_geral8.html`): Lacta Oreo/OB, Guardanapo, Dove Baby, Intimus, Steak, Pão Queijo, Figueira, Estrela, Babysec, Cremer. Bembom sem foto pública.
+
+---
+
+**Sessão 96 (Leva Geral 9 — 12 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Nona leva (Higiene/Limpeza/Bebidas).
+- 12 aplicados em 400x400 (antigas em `antes_geral9/`, preview `preview_geral9.html`): Scoobydoo, Guarani, Brilux, Amacitel, Casa&Perfume, Veja, Colgate, Lírio, Red Horse, Piuí, Alumínio, PVC.
