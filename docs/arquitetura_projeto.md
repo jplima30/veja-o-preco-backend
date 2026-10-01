@@ -1433,3 +1433,12 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Data:** 30 de Setembro de 2026
 **Objetivo:** Décima primeira leva (Carnes/Higiene).
 - 11 aplicados em 400x400 (antigas em `antes_geral11/`, preview `preview_geral11.html`): Coxa Americana, Copacol, Bio Extratus, Super Frango, Galinha, Sobrecoxa, Orelha, Coxas Lar, Coxinha Lar, Pé Suíno, Aurora. Nioassa sem foto pública.
+
+---
+
+**Sessão 99 (Leva Geral 12 — 6 Hortifruti/Carnes)**
+
+**Data:** 01 de Outubro de 2026
+**Objetivo:** Décima segunda leva, foco em Hortifruti/Carnes (continuação interrompida ontem).
+- 6 aplicados em 400x400 (preview `preview_geral12.html`, local fora do commit): Uva Vitória Cappellaro (era foto aérea de cidade → uvas roxas USDA fundo branco), Banana Nanica (era recorte com preço → penca Wikimedia), Manga Tommy (era recorte → inteira Pexels), Ovos Manteiqueira (era banner "Naturalmente Proteico" → cartela genérica 8 ovos, sem foto Mantiqueira pública com 200), Tomate Saladete (era mistura com batata-doce → alongados fundo branco, 499px com ressalva), Pescada Amarela (upgrade HD 200→1024, espécie genérica com ressalva).
+- Rejeitados honestos: Manga Palmer (candidata com régua/escala), Abóbora (candidata foto de campo com grama), Macaxeira (atual 400x400 com corte já superior à candidata de raiz única). Sem foto pública: Alface Crespa (atual é print de texto), Tambaqui inteiro e Posta (só com pescador/rede). Recomendado foto própria.
