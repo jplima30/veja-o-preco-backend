@@ -1393,3 +1393,11 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 **Objetivo:** Sexta leva, foco em marcas do Pará (Colina/Fribel/Josapar).
 - 12 aplicados em 400x400 (antigas em `antes_geral6/`, preview `preview_geral6.html`): Tambu, BrSpice, Rosa Branca, Mariza, Biju (1kg/8gr/risoto), Tauá, Pra Pizza, Maniva, Fortaleza, Brandini.
 - Pendente: Tucupi Artesanal 2L sem foto pública (só ambiente).
+
+---
+
+**Sessão 94 (Leva Geral 7 — 13 produtos)**
+
+**Data:** 30 de Setembro de 2026
+**Objetivo:** Sétima leva (Alimentos/Higiene/Limpeza).
+- 13 aplicados em 400x400 (antigas em `antes_geral7/`, preview `preview_geral7.html`): Dolca, Nescau lata, Cepêra, TJ 7 cereais, Milho, Vanish, Oral-B, MamyPoko, Matinal (base + 40g), Biju Integral, TJ Parboilizado, Estrela (reuso 350g).
