@@ -1482,3 +1482,20 @@ O CRON da manhã (janela 10h) falhou em **9 Reels** — 6 do Líder (`@supermerc
 - Validação: sintaxe Python e build iOS Simulator aprovados; revisão de diffs e preservação de arquivos locais não versionados.
 - Sem alteração de Functions nesta sessão e sem deploy. Presença das 11 Functions não comprova equivalência com o código local.
 - Issues de sincronização: backend #77 e app #16, Work Type Chore, P1, M, estimativa manual de 2 dias.
+
+
+---
+
+## Curadoria aplicada — 02/10/2026 (#78)
+
+109 produtos e 115 ofertas ativas receberam as fotos selecionadas pelo usuário no preview. A opção Coxão Mole / Chã de Dentro Bovino Resfriado permaneceu desmarcada e não foi alterada. A seleção exportada foi confrontada com os 109 checkboxes marcados.
+
+As imagens foram publicadas em `produtos/{produto_id}.jpg`, JPEG RGB de 400 × 400, proporção preservada e transparências compostas sobre branco. O cadastro mestre recebeu `imagem_origem=curadoria_manual` e `atualizado_em`; as ofertas vinculadas receberam a mesma URL com `?t=<timestamp>`. No app, `OfertaDetalheView` reconhece `?t=` e mostra o selo verde e o texto “400 × 400 px (Curadoria HD)”. O selo pertence à interface e não foi desenhado nas fotos.
+
+Verificação posterior: 109 URLs públicas responderam com bytes iguais aos arquivos preparados, JPEG 400 × 400; os 109 produtos e 115 ofertas foram relidos e conferidos. Não houve alteração de preços, validade, código Swift ou Functions, nem deploy. A exibição do selo foi conferida pela condição implementada no código, sem teste funcional no simulador. O app usa consulta pontual; é necessário atualizar a vitrine para receber as novas URLs.
+
+65 fotos selecionadas tinham ressalvas de variante/tamanho ou representação genérica no preview. A aprovação permite aplicar essas escolhas, mas não comprova correspondência exata de todos os rótulos. As observações e fontes foram preservadas no relatório individual. Das 202 entradas sinalizadas na auditoria, 93 ficaram fora deste lote (92 sem candidata confiável e uma candidata desmarcada).
+
+Antes da gravação foram preservados os documentos Firestore com tipos originais, JSON legível, arquivos anteriores do Storage, gerações e seleção aprovada. Uma tentativa inicial recebeu HTTP 403, restaurou o arquivo original e não alterou Firestore; a aplicação concluída incluiu a publicação pública utilizada pelo fluxo existente. A atualização dos 224 documentos ocorreu em batch com pré-condições de versão.
+
+Rastreabilidade: [issue backend #78](https://github.com/jplima30/veja-o-preco-backend/issues/78); relatório `docs/CURADORIA_2026-10-02.md`. Backup local e evidências: `curadoria-2026-10-02/aplicacao` no diretório de visualizações da sessão Codex; não versionar o backup binário.
