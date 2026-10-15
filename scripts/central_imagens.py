@@ -14,6 +14,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../func
 import firebase_admin
 from firebase_admin import firestore, storage
 
+# Fail closed until automatic candidates are checked against the package label,
+# including brand, variant and size. The current Google/Bing autopilot selects
+# the first downloadable result, which is not enough evidence to publish it.
+AUTO_IMAGE_CURATION_ENABLED = False
+AUTO_IMAGE_CURATION_BLOCK_REASON = (
+    "curadoria automática suspensa: resultados de Google/Bing ainda não passam "
+    "por verificação independente de marca, variante e tamanho"
+)
+
 def inicializar_firebase():
     if not firebase_admin._apps:
         firebase_admin.initialize_app(options={'projectId': 'veja-o-preco'})
@@ -531,6 +540,10 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
     """
     Executa a curadoria de fotos baseada no modo selecionado.
     """
+    if opcao_modo == "5" and not AUTO_IMAGE_CURATION_ENABLED:
+        print(f"🛑 {AUTO_IMAGE_CURATION_BLOCK_REASON}. Nenhuma imagem será enviada ou substituída.")
+        return
+
     if opcao_modo == "8" and target_prod_id:
         # Tenta buscar na coleção de ofertas primeiro caso o ID seja de uma oferta
         try:
@@ -601,6 +614,10 @@ def executar_curadoria(db, bucket, opcao_modo: str, target_prod_id: str = None):
         if modo_exec == "2":
             is_autopilot = True
             print("\n🤖 Iniciando Piloto Automático para o Grupo 3...")
+
+    if is_autopilot and not AUTO_IMAGE_CURATION_ENABLED:
+        print(f"🛑 {AUTO_IMAGE_CURATION_BLOCK_REASON}. Nenhuma imagem será enviada ou substituída.")
+        return
     
     # Inicia instância do Playwright com perfil persistente para evitar CAPTCHA e reutilizar na varredura
     pw, context, page = obter_ou_recriar_sessao_playwright(None, None, None)
@@ -831,8 +848,8 @@ def main():
         print("      👉 Permite revisar e trocar recortes aceitos ou links externos de APIs por fotos de estúdio.\n")
         print("  [4] 🔍 Varredura completa do catálogo (Interativo)")
         print("      👉 Curadoria em lote de todos os produtos (sem imagem + recortes IA).\n")
-        print("  [5] 🤖 Rodar Piloto Automático (Silencioso)")
-        print("      👉 Curadoria automática e em lote para produtos sem imagem ou auto_crop.\n")
+        print("  [5] 🛑 Piloto automático suspenso até validar marca, variante e tamanho")
+        print("      👉 A busca atual escolhe o primeiro resultado baixável sem confirmação independente.\n")
         print("  [6] 🔄 Sincronizar imagens com as Ofertas")
         print("      👉 Propaga as fotos do catálogo para as ofertas vigentes no iOS App.\n")
         print("  [7] 🔎 Diagnóstico de imagens no banco de dados")
