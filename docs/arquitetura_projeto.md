@@ -1499,3 +1499,24 @@ Verificação posterior: 109 URLs públicas responderam com bytes iguais aos arq
 Antes da gravação foram preservados os documentos Firestore com tipos originais, JSON legível, arquivos anteriores do Storage, gerações e seleção aprovada. Uma tentativa inicial recebeu HTTP 403, restaurou o arquivo original e não alterou Firestore; a aplicação concluída incluiu a publicação pública utilizada pelo fluxo existente. A atualização dos 224 documentos ocorreu em batch com pré-condições de versão.
 
 Rastreabilidade: [issue backend #78](https://github.com/jplima30/veja-o-preco-backend/issues/78); relatório `docs/CURADORIA_2026-10-02.md`. Backup local e evidências: `curadoria-2026-10-02/aplicacao` no diretório de visualizações da sessão Codex; não versionar o backup binário.
+
+---
+
+**Sessão 104 — Proteção da ingestão de imagens e idempotência dos CRONs (#79)**
+
+**Data:** 14 de outubro de 2026
+
+**Objetivo:** Evitar que uma busca genérica ou um recorte de encarte sem validação independente substitua a foto canônica, e reduzir registros de produtos/ofertas duplicados durante ingestões concorrentes.
+
+**Decisões e alterações:**
+- `buscar_imagem()` aceita somente uma URL HTTP(S) fornecida explicitamente pela fonte do item; a busca textual genérica no Open Food Facts foi retirada do cadastro automático.
+- `upload_imagem_cortada()` preserva uma imagem já registrada em `/produtos`, exige `imagem_validada=True` (padrão `False`) para criar uma imagem nova e usa `if_generation_match=0` no Storage para evitar sobrescrita concorrente.
+- `scripts/central_imagens.py` suspende o piloto automático que escolhia o primeiro resultado baixável. A curadoria interativa continua disponível.
+- A resolução aproximada de sinônimos verifica marca, variantes críticas, unidade e quantidade, aplica limiar alto e deixa empates para revisão; os testes cobrem conflitos e tamanhos diferentes.
+- O fluxo de encartes preserva os campos e imagens canônicos, expira preço anterior e consolida ofertas exatamente duplicadas; a criação de oferta usa ID diário determinístico para reduzir duplicações por concorrência.
+
+**Validação:** `py_compile` passou para os arquivos Python alterados; 16 testes unitários passaram, cobrindo a retenção de recortes, preservação de Storage, busca de imagem, semelhança de produtos, duplicatas de ofertas e suspensão do piloto automático.
+
+**Estado de produção:** As funções `atualizar_ofertas`, `buscar_encarte_assai`, `buscar_encarte_atacadao`, `buscar_encarte_economico`, `buscar_encarte_guerreirao`, `buscar_encarte_mateus` e `extrair_dados_imagem` estão ativas na revisão que contém as proteções. `extrair_dados_encarte` ainda reporta a revisão anterior; as alterações locais de preservação e deduplicação dessa função aguardam autorização explícita de deploy. Não executar novo deploy sem essa autorização.
+
+Rastreabilidade: [issue backend #79](https://github.com/jplima30/veja-o-preco-backend/issues/79). A issue foi registrada após a implementação e o primeiro deploy, porque o fluxo local foi encontrado somente durante esta regularização; esta sequência não atende integralmente à ordem prescrita em `.agents/workflows/fluxo.md`.

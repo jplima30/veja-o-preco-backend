@@ -9,6 +9,9 @@ import requests
 import tempfile
 import time
 import io
+import difflib
+import threading
+import unicodedata
 from PIL import Image
 from datetime import datetime, timedelta
 from firebase_functions import https_fn, options
@@ -363,7 +366,7 @@ def baixar_e_otimizar_imagem(url: str, produto_id: str) -> str:
         return ""
 
 
-def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: str) -> str:
+def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: str, nome_produto: str = "", unidade: str = "", marca: str = "", imagem_validada: bool = False) -> str:
     """
     Recorta uma imagem original com base no box_2d [ymin, xmin, ymax, xmax] normalizado (0 a 1000),
     redimensiona para 200x200 pixels, compacta em JPEG 75% e faz o upload para o Firebase Storage.
@@ -373,6 +376,26 @@ def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: s
         return ""
         
     try:
+        # O recorte acontece antes de salvar_produto_e_oferta() verificar o
+        # cadastro. Sem esta guarda, um produto já curado era sobrescrito aqui
+        # no mesmo caminho do Storage, mesmo que o UPSERT depois preservasse a
+        # URL registrada no Firestore.
+        db_conn = get_db()
+        produto_id = resolver_produto_id_com_sinonimo(db_conn, produto_id, nome_produto, unidade, marca)
+        produto_existente = db_conn.collection("produtos").document(produto_id).get()
+        if produto_existente.exists:
+            imagem_cadastrada = (produto_existente.to_dict() or {}).get("imagem_url", "")
+            if imagem_cadastrada:
+                print(f"🛡️ Imagem existente preservada para {produto_id}; recorte ignorado.")
+                return imagem_cadastrada
+
+        # A caixa de recorte vem da mesma extração que interpreta o encarte.
+        # Sem uma segunda checagem do rótulo, título, marca, variante e peso,
+        # não é evidência independente suficiente para publicar a imagem.
+        if not imagem_validada:
+            print(f"🛑 Recorte de {produto_id} retido: falta validação independente da embalagem.")
+            return ""
+
         # 1. Processamento com Pillow
         img_bytes = io.BytesIO(img_bytes_original)
         with Image.open(img_bytes) as img:
@@ -412,10 +435,20 @@ def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: s
             blob_name = f"produtos/{produto_id}.jpg"
             blob = bucket.blob(blob_name)
             
-            blob.upload_from_string(
-                output_buffer.getvalue(),
-                content_type="image/jpeg"
-            )
+            try:
+                # Cria apenas quando ainda não há imagem canônica. A condição
+                # atômica também protege contra duas extrações concorrentes.
+                blob.upload_from_string(
+                    output_buffer.getvalue(),
+                    content_type="image/jpeg",
+                    if_generation_match=0
+                )
+            except Exception as upload_error:
+                if getattr(upload_error, "code", None) == 412:
+                    blob.reload()
+                    print(f"🛡️ Imagem existente no Storage preservada para {produto_id}.")
+                    return blob.public_url
+                raise
             blob.make_public()
             public_url = blob.public_url
             
@@ -441,34 +474,215 @@ def upload_imagem_cortada(img_bytes_original: bytes, box_2d: list, produto_id: s
 
 def buscar_imagem(nome_produto: str, imagem_api: str = "") -> str:
     """
-    Busca a melhor imagem disponível para um produto em 3 camadas:
-    1. Imagem da própria API da loja (se disponível)
-    2. Open Food Facts (base de dados gratuita de produtos)
-    3. String vazia (o App usará ícone de categoria como fallback)
+    Retorna somente a imagem explicitamente associada ao item pela fonte da loja.
+
+    Busca genérica por nome em bases abertas (por exemplo, Open Food Facts) pode
+    retornar marca, variante ou peso diferentes. Essas fontes não são vinculadas
+    automaticamente ao cadastro; uma candidata precisa passar por validação
+    independente antes de entrar no catálogo.
     """
-    # Camada 1: Imagem da API da loja
-    if imagem_api and imagem_api.startswith("http"):
+    if isinstance(imagem_api, str) and imagem_api.startswith(("http://", "https://")):
         return imagem_api
-
-    # Camada 2: Open Food Facts
-    try:
-        url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={requests.utils.quote(nome_produto)}&search_simple=1&action=process&json=1&page_size=1"
-        resp = session.get(url, timeout=5)
-        if resp.status_code == 200:
-            dados = resp.json()
-            produtos = dados.get("products", [])
-            if produtos:
-                imagem = produtos[0].get("image_front_url", "")
-                if imagem:
-                    return imagem
-    except Exception:
-        pass  # Falha silenciosa — vai para Camada 3
-
-    # Camada 3: Sem imagem (App usa ícone de categoria)
     return ""
 
 
-def resolver_produto_id_com_sinonimo(db_conn, produto_id: str) -> str:
+_CATALOGO_SIMILARIDADE_CACHE = []
+_CATALOGO_SIMILARIDADE_ATUALIZADO = 0.0
+_CATALOGO_SIMILARIDADE_TTL_SEGUNDOS = 300
+_CATALOGO_SIMILARIDADE_LOCK = threading.Lock()
+_SIMILARIDADE_SINONIMO_MINIMA = 0.90
+_SIMILARIDADE_SINONIMO_MARGEM = 0.04
+_MARCAS_COMUNS_PRODUTO = {
+    "sadia", "seara", "perdigao", "nestle", "itambe", "italac", "piracanjuba",
+    "bauducco", "marilan", "mabel", "parati", "vitarella", "estrela", "quero",
+    "heinz", "hellmanns", "ype", "omo", "melitta", "pilao", "dona benta",
+    "arisco", "fugini", "renata", "barilla", "catupiry", "danone", "garoto",
+    "lacta", "quaker", "nescau", "toddy", "gomes da costa", "santa clara",
+    "colgate", "sorriso", "nivea", "dove", "rexona", "pedigree", "whiskas",
+    "frigol", "frimesa", "canção", "cancao", "yoki", "kitano", "knorr",
+    "tio joao", "urbano",
+}
+
+_VARIANTES_CRITICAS = {
+    "adulto", "adultos", "filhote", "filhotes", "senior", "junior",
+    "integral", "desnatado", "desnatada", "semidesnatado", "semidesnatada",
+    "zero", "light", "diet", "tradicional", "premium", "gourmet", "classico", "original",
+    "congelado", "congelada", "resfriado", "resfriada", "defumado", "defumada", "picante", "suave",
+    "morango", "uva", "chocolate", "laranja", "limao", "abacaxi", "manga", "maracuja", "pessego", "coco", "baunilha", "natural",
+    "frango", "bovino", "bovina", "suino", "suina", "peru", "peixe", "patinho", "alcatra", "figado", "coracao", "musculo", "acem", "mocoto", "costela", "paleta", "panceta", "pernil", "peito", "coxa", "sobrecoxa", "asa", "file", "pescada", "piramutaba", "tambaqui", "tilapia",
+    "com", "sem", "pele", "osso", "desossado", "desossada", "fatiado", "fatiada",
+    "moido", "moida", "inteiro", "inteira", "po", "liquido", "liquida",
+}
+
+
+def _normalizar_texto_similaridade(texto: str) -> str:
+    texto = canonicizar_meta_termos(limpar_nome_promocional(texto or ""))
+    texto = aplicar_alias_termo(texto)
+    texto = unicodedata.normalize("NFKD", (texto or "").lower())
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    # Unifica grafias de quantidade (1 L = 1000 ml; 1kg = 1000 g) no score.
+    def medida(match):
+        valor = float(match.group(1).replace(",", "."))
+        unidade = match.group(2)
+        if unidade in {"kg", "quilo", "quilos"}:
+            valor, unidade = valor * 1000, "g"
+        elif unidade in {"g", "gr", "gramas"}:
+            unidade = "g"
+        elif unidade in {"l", "litro", "litros"}:
+            valor, unidade = valor * 1000, "ml"
+        elif unidade in {"ml", "mililitros"}:
+            unidade = "ml"
+        return f"medida{valor:g}{unidade}"
+    texto = re.sub(r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(kg|quilo|quilos|g|gr|gramas|ml|mililitros|l|litro|litros)\b", medida, texto)
+    texto = re.sub(r"[^a-z0-9]+", " ", texto)
+    # Recipientes/unidades de venda variam entre encartes e não identificam a variante.
+    texto = re.sub(r"\b(pacote|embalagem|unidade|unid|und|cada|pote|lata|caixa|fardo|display)\b", " ", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _extrair_quantidades_produto(texto: str) -> tuple:
+    """Extrai pesos/volumes para impedir que tamanhos diferentes sejam fundidos."""
+    normalizado = unicodedata.normalize("NFKD", (texto or "").lower())
+    normalizado = "".join(c for c in normalizado if not unicodedata.combining(c))
+    normalizado = re.sub(r"\s+", " ", normalizado)
+    encontrados = re.findall(r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(kg|quilo|quilos|g|gr|gramas|ml|mililitros|l|litro|litros)\b", normalizado)
+    quantidades = []
+    for numero, unidade in encontrados:
+        valor = float(numero.replace(",", "."))
+        if unidade in {"kg", "quilo", "quilos"}:
+            quantidades.append(("g", round(valor * 1000, 3)))
+        elif unidade in {"g", "gr", "gramas"}:
+            quantidades.append(("g", round(valor, 3)))
+        elif unidade in {"l", "litro", "litros"}:
+            quantidades.append(("ml", round(valor * 1000, 3)))
+        else:
+            quantidades.append(("ml", round(valor, 3)))
+    # Mantém multiplicadores de fardos/caixas (ex.: 12x350ml), além do volume.
+    multiplicadores = re.findall(r"\b(\d+)\s*x\s*(?=\d)", normalizado)
+    return tuple(sorted(quantidades)), tuple(sorted(int(x) for x in multiplicadores))
+
+
+def _pontuar_similaridade_produtos(nome_a: str, nome_b: str) -> float:
+    a = _normalizar_texto_similaridade(nome_a)
+    b = _normalizar_texto_similaridade(nome_b)
+    if not a or not b:
+        return 0.0
+    direta = difflib.SequenceMatcher(None, a, b).ratio()
+    tokens_a, tokens_b = set(a.split()), set(b.split())
+    ordenada_a, ordenada_b = " ".join(sorted(tokens_a)), " ".join(sorted(tokens_b))
+    por_tokens = difflib.SequenceMatcher(None, ordenada_a, ordenada_b).ratio()
+    overlap = len(tokens_a & tokens_b) / max(1, min(len(tokens_a), len(tokens_b)))
+    return (0.50 * por_tokens) + (0.25 * direta) + (0.25 * overlap)
+
+
+def _variantes_incompativeis(nome_a: str, nome_b: str) -> bool:
+    a = set(_normalizar_texto_similaridade(nome_a).split())
+    b = set(_normalizar_texto_similaridade(nome_b).split())
+    return bool((a ^ b) & _VARIANTES_CRITICAS)
+
+
+def _marca_detectada(nome: str, marca: str = "") -> str:
+    if marca:
+        return _normalizar_texto_similaridade(marca)
+    normalizado = _normalizar_texto_similaridade(nome)
+    encontradas = []
+    for marca_conhecida in _MARCAS_COMUNS_PRODUTO:
+        achado = re.search(rf"\b{re.escape(marca_conhecida)}\b", normalizado)
+        if achado:
+            encontradas.append((achado.start(), -len(marca_conhecida), marca_conhecida))
+    return sorted(encontradas)[0][2] if encontradas else ""
+
+
+def _carregar_catalogo_similaridade(db_conn) -> list:
+    """Carrega o catálogo uma vez por instância, evitando uma leitura por item."""
+    global _CATALOGO_SIMILARIDADE_CACHE, _CATALOGO_SIMILARIDADE_ATUALIZADO
+    agora = time.monotonic()
+    if agora - _CATALOGO_SIMILARIDADE_ATUALIZADO < _CATALOGO_SIMILARIDADE_TTL_SEGUNDOS:
+        return _CATALOGO_SIMILARIDADE_CACHE
+    with _CATALOGO_SIMILARIDADE_LOCK:
+        agora = time.monotonic()
+        if agora - _CATALOGO_SIMILARIDADE_ATUALIZADO < _CATALOGO_SIMILARIDADE_TTL_SEGUNDOS:
+            return _CATALOGO_SIMILARIDADE_CACHE
+        catalogo = []
+        for doc in db_conn.collection("produtos").stream():
+            dados = doc.to_dict() or {}
+            catalogo.append({"id": doc.id, **dados})
+        _CATALOGO_SIMILARIDADE_CACHE = catalogo
+        _CATALOGO_SIMILARIDADE_ATUALIZADO = time.monotonic()
+        return _CATALOGO_SIMILARIDADE_CACHE
+
+
+def _registrar_produto_cache_similaridade(produto_id: str, dados: dict):
+    """Mantém o índice morno coerente com produtos criados por esta instância."""
+    if time.monotonic() - _CATALOGO_SIMILARIDADE_ATUALIZADO >= _CATALOGO_SIMILARIDADE_TTL_SEGUNDOS:
+        return
+    with _CATALOGO_SIMILARIDADE_LOCK:
+        if not any(p.get("id") == produto_id for p in _CATALOGO_SIMILARIDADE_CACHE):
+            _CATALOGO_SIMILARIDADE_CACHE.append({"id": produto_id, **dados})
+
+
+def _buscar_sinonimo_aproximado(db_conn, produto_id: str, nome_produto: str = "", unidade: str = "", marca: str = "") -> str:
+    nome_origem = nome_produto or produto_id.replace("-", " ")
+    qtd_origem = _extrair_quantidades_produto(nome_origem)
+    unidade_origem = normalizar_unidade(unidade) if unidade else ""
+    candidatos = []
+    for produto in _carregar_catalogo_similaridade(db_conn):
+        candidato_id = produto.get("id", "")
+        if not candidato_id or candidato_id == produto_id:
+            continue
+        nome_candidato = produto.get("nome") or candidato_id.replace("-", " ")
+        unidade_candidata = normalizar_unidade(produto.get("unidade", ""))
+        if unidade_origem and unidade_candidata and unidade_origem != unidade_candidata:
+            continue
+        if _variantes_incompativeis(nome_origem, nome_candidato):
+            continue
+        marca_origem = _marca_detectada(nome_origem, marca)
+        marca_candidata = _marca_detectada(nome_candidato, produto.get("marca", ""))
+        if marca_origem and marca_candidata and marca_origem != marca_candidata:
+            continue
+        qtd_candidata = _extrair_quantidades_produto(nome_candidato)
+        if qtd_origem != ((), ()) and qtd_candidata != ((), ()) and qtd_origem != qtd_candidata:
+            continue
+        # Se só um nome informa o tamanho, não cria alias automaticamente.
+        if (qtd_origem == ((), ())) != (qtd_candidata == ((), ())):
+            continue
+        score = _pontuar_similaridade_produtos(nome_origem, nome_candidato)
+        if score >= _SIMILARIDADE_SINONIMO_MINIMA:
+            candidatos.append((score, candidato_id, nome_candidato))
+    candidatos.sort(reverse=True)
+    if not candidatos:
+        return ""
+    melhor_score, melhor_id, melhor_nome = candidatos[0]
+    segundo_score = candidatos[1][0] if len(candidatos) > 1 else 0.0
+    if segundo_score and melhor_score - segundo_score < _SIMILARIDADE_SINONIMO_MARGEM:
+        print(f"  🔎 Nome ambíguo ({melhor_score:.0%} vs {segundo_score:.0%}); mantido para revisão: {nome_origem}")
+        return ""
+    ref_sinonimo = db_conn.collection("sinonimos").document(produto_id)
+    try:
+        ref_sinonimo.create({
+            "id_correto": melhor_id,
+            "criado_em": firestore.SERVER_TIMESTAMP,
+            "metodo": "similaridade_catalogo",
+            "similaridade_pct": round(melhor_score * 100, 1),
+            "nome_origem": nome_origem,
+            "nome_canonico": melhor_nome,
+        })
+        print(f"  🧠 Sinônimo automático ({melhor_score:.1%}): '{nome_origem}' → '{melhor_nome}' [{melhor_id}]")
+        return melhor_id
+    except Exception as erro:
+        # Outra extração pode ter criado o alias primeiro. Respeita o redirecionamento vencedor.
+        try:
+            alias_existente = ref_sinonimo.get()
+            destino = (alias_existente.to_dict() or {}).get("id_correto") if alias_existente.exists else ""
+            if destino:
+                return destino
+        except Exception:
+            pass
+        print(f"  ⚠️ Não foi possível registrar sinônimo aproximado para '{nome_origem}': {erro}")
+        return ""
+
+
+def resolver_produto_id_com_sinonimo(db_conn, produto_id: str, nome_produto: str = "", unidade: str = "", marca: str = "") -> str:
     """
     Verifica se o produto_id possui um redirecionamento cadastrado na coleção 'sinonimos'.
     Retorna o id_correto se existir, ou o próprio produto_id original.
@@ -489,6 +703,23 @@ def resolver_produto_id_com_sinonimo(db_conn, produto_id: str) -> str:
                     break
             else:
                 break
+        # IDs ainda não cadastrados podem ser ligados a um produto conhecido
+        # quando a similaridade é alta, tamanho/unidade batem e não há variação incompatível.
+        if id_atual == produto_id:
+            doc_produto = db_conn.collection("produtos").document(produto_id).get()
+            if not doc_produto.exists:
+                id_aproximado = _buscar_sinonimo_aproximado(db_conn, produto_id, nome_produto, unidade, marca)
+                if id_aproximado:
+                    id_atual = id_aproximado
+                    while iteracoes < 5:
+                        ref_sinonimo = db_conn.collection("sinonimos").document(id_atual).get()
+                        if not ref_sinonimo.exists:
+                            break
+                        destino = (ref_sinonimo.to_dict() or {}).get("id_correto")
+                        if not destino or destino == id_atual:
+                            break
+                        id_atual = destino
+                        iteracoes += 1
     except Exception as e:
         print(f"⚠️ Erro ao buscar sinônimo para '{produto_id}': {e}")
     return id_atual
@@ -534,7 +765,7 @@ def salvar_produto_e_oferta(
     nome = limpar_nome_promocional(nome)
     unidade_norm = normalizar_unidade(unidade)
     produto_id = normalizar_nome(nome, unidade_norm)
-    produto_id = resolver_produto_id_com_sinonimo(db, produto_id)
+    produto_id = resolver_produto_id_com_sinonimo(db, produto_id, nome, unidade_norm, marca)
 
     # --- FILTRO DE CATEGORIAS E PALAVRAS PROIBIDAS ---
     
@@ -619,6 +850,11 @@ def salvar_produto_e_oferta(
             "criado_em": datetime.now(),
             "atualizado_em": datetime.now()
         })
+        _registrar_produto_cache_similaridade(produto_id, {
+            "nome": nome, "marca": marca, "unidade": unidade_norm,
+            "categoria": categoria, "imagem_url": imagem_url,
+            "imagem_origem": origem_final,
+        })
     else:
         dados_produto = doc_produto.to_dict()
         imagem_url = dados_produto.get("imagem_url", "")
@@ -672,15 +908,30 @@ def salvar_produto_e_oferta(
         expira_em = datetime.now() + timedelta(days=7)
 
     # --- DEDUPLICAÇÃO INTELIGENTE EM /ofertas ---
-    ofertas_duplicadas = get_db().collection("ofertas").where(
+    # Um único produto/loja só deve ter um preço vigente. Expira preços
+    # anteriores antes do retorno por duplicata, e recolhe todas as cópias
+    # exatas em vez de atualizar apenas a primeira encontrada.
+    agora_dedupe = datetime.now()
+    ofertas_mesmo_produto = get_db().collection("ofertas").where(
         "produto_id", "==", produto_id
-    ).where(
-        "supermercado_id", "==", supermercado_id
-    ).where(
-        "preco", "==", preco
-    ).where(
-        "expira_em", ">=", datetime.now()
-    ).limit(1).get()
+    ).stream()
+    ofertas_mesma_chave = []
+    for doc_oferta in ofertas_mesmo_produto:
+        dados_oferta = doc_oferta.to_dict() or {}
+        if dados_oferta.get("supermercado_id") != supermercado_id:
+            continue
+        expiracao = dados_oferta.get("expira_em")
+        if not expiracao:
+            continue
+        if getattr(expiracao, "tzinfo", None) is not None:
+            expiracao = expiracao.replace(tzinfo=None)
+        if expiracao < agora_dedupe:
+            continue
+        if dados_oferta.get("preco") == preco:
+            ofertas_mesma_chave.append((doc_oferta, dados_oferta))
+        else:
+            doc_oferta.reference.update({"expira_em": agora_dedupe - timedelta(seconds=1)})
+            print(f"  ♻️ Preço anterior expirado antes do upsert: {nome}")
     
     # --- Registro Permanente em /historico_precos (Idempotente: 1 cotação por dia por produto/loja) ---
     data_hoje_str = datetime.now().strftime("%Y-%m-%d")
@@ -702,13 +953,49 @@ def salvar_produto_e_oferta(
     except Exception as e_hist:
         print(f"  ⚠️ Aviso: Falha não-bloqueante ao registrar historico_precos: {e_hist}")
 
-    if ofertas_duplicadas:
-        doc_duplicado = ofertas_duplicadas[0]
-        atualizacao = {"expira_em": datetime.now() + timedelta(days=7)}
-        if post_id and not doc_duplicado.to_dict().get("post_id"):
-             atualizacao["post_id"] = post_id
-             print(f"  📝 Post ID atualizado para oferta existente: {nome}")
+    if ofertas_mesma_chave:
+        # Mantém o documento mais recente e junta referências antes de apagar
+        # cópias com a mesma chave exata produto+loja+preço.
+        ofertas_mesma_chave.sort(
+            key=lambda par: (par[1].get("criado_em").timestamp()
+                             if hasattr(par[1].get("criado_em"), "timestamp") else 0),
+            reverse=True
+        )
+        doc_duplicado, dados_duplicado = ofertas_mesma_chave[0]
+        lojas_ids = {supermercado_id}
+        ids_canonicos = dados_duplicado.get("supermercado_ids") or []
+        if isinstance(ids_canonicos, str):
+            ids_canonicos = [ids_canonicos]
+        lojas_ids.update(id_loja for id_loja in ids_canonicos if isinstance(id_loja, str) and id_loja)
+        for _, dados_copia in ofertas_mesma_chave[1:]:
+            ids_copia = dados_copia.get("supermercado_ids") or []
+            if isinstance(ids_copia, str):
+                ids_copia = [ids_copia]
+            lojas_ids.update(id_loja for id_loja in ids_copia if isinstance(id_loja, str) and id_loja)
+        atualizacao = {
+            "expira_em": agora_dedupe + timedelta(days=7),
+            "produto_nome": nome,
+            "supermercado_ids": sorted(lojas_ids),
+        }
+        if imagem_url:
+            atualizacao["imagem_url"] = imagem_url
+        if post_id and not dados_duplicado.get("post_id"):
+            atualizacao["post_id"] = post_id
+            print(f"  📝 Post ID atualizado para oferta existente: {nome}")
+        elif not dados_duplicado.get("post_id"):
+            post_id_existente = next((d.get("post_id") for _, d in ofertas_mesma_chave[1:] if d.get("post_id")), None)
+            if post_id_existente:
+                atualizacao["post_id"] = post_id_existente
+        for campo in ("validade", "preco_antigo", "loja"):
+            if not dados_duplicado.get(campo):
+                valor_existente = next((d.get(campo) for _, d in ofertas_mesma_chave[1:] if d.get(campo)), None)
+                if valor_existente is not None:
+                    atualizacao[campo] = valor_existente
         doc_duplicado.reference.update(atualizacao)
+        for doc_copia, _ in ofertas_mesma_chave[1:]:
+            doc_copia.reference.delete()
+        if len(ofertas_mesma_chave) > 1:
+            print(f"  🧹 {len(ofertas_mesma_chave) - 1} oferta(s) duplicada(s) exata(s) removida(s): {nome}")
         
         print(f"  ⏭️ Oferta recusada pelo Banco (já existe e ainda é válida): {nome} a R$ {preco}")
         return {"produto_id": produto_id, "salvo": True, "duplicado": True}
@@ -751,33 +1038,13 @@ def salvar_produto_e_oferta(
     except Exception as e_reuso:
         print(f"  ⚠️ Aviso: falha na comparação entre queries: {e_reuso}")
 
-    # --- Criar nova oferta em /ofertas ---
-    # Expiração de preço antigo: mesmo produto+loja com preço diferente ainda válido
-    # é expirado para que só o preço atual apareça na vitrine. Histórico preservado em /historico_precos.
-    try:
-        agora_exp = datetime.now()
-        expiradas = 0
-        q_antigas = get_db().collection("ofertas").where(
-            "produto_id", "==", produto_id
-        ).where(
-            "supermercado_id", "==", supermercado_id
-        ).stream()
-        for d in q_antigas:
-            vd = d.to_dict()
-            exp = vd.get("expira_em")
-            if not exp:
-                continue
-            if getattr(exp, "tzinfo", None) is not None:
-                exp = exp.replace(tzinfo=None)
-            if exp >= agora_exp and vd.get("preco") != preco:
-                d.reference.update({"expira_em": agora_exp - timedelta(seconds=1)})
-                expiradas += 1
-        if expiradas:
-            print(f"  ♻️ {expiradas} oferta(s) com preço antigo expiradas: {nome}")
-    except Exception as e_exp:
-        print(f"  ⚠️ Aviso: falha ao expirar preço antigo: {e_exp}")
-
-    get_db().collection("ofertas").add({
+    # IDs determinísticos tornam a gravação idempotente caso duas extrações
+    # processem a mesma oferta no mesmo dia ao mesmo tempo.
+    data_oferta_id = datetime.now().strftime("%Y-%m-%d")
+    ref_nova_oferta = get_db().collection("ofertas").document(
+        f"{supermercado_id}_{produto_id}_{data_oferta_id}"
+    )
+    ref_nova_oferta.set({
         "produto_id": produto_id,
         "produto_nome": nome,
         "supermercado_id": supermercado_id,
@@ -1298,7 +1565,10 @@ def buscar_encarte_assai(req: https_fn.Request) -> https_fn.Response:
                 imagem_url_crop = ""
                 if img_bytes_original:
                     temp_prod_id = normalizar_nome(item.get("produto", ""), item.get("unidade", "un"))
-                    imagem_url_crop = upload_imagem_cortada(img_bytes_original, box_2d, temp_prod_id)
+                    imagem_url_crop = upload_imagem_cortada(
+                        img_bytes_original, box_2d, temp_prod_id,
+                        item.get("produto", ""), item.get("unidade", "un"), item.get("marca", "")
+                    )
 
                 salvar_produto_e_oferta(
                     nome=item["produto"],
@@ -1644,6 +1914,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
 
             db_conn = get_db()
             batch = db_conn.batch()
+            produtos_cadastrados = {}
 
             # Filtro de categorias proibidas
             categorias_proibidas = ["BAZAR", "ELETRÔNICOS", "ELETRO", "MODA", "VESTUÁRIO", "AUTOMOTIVO", "BRINQUEDOS", "FERRAMENTAS", "MÓVEIS", "CASA"]
@@ -1653,6 +1924,7 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
             # mesmo produto+loja+preço ainda válido -> atualiza em vez de criar novo doc.
             agora = datetime.now()
             vigentes = {}  # (produto_id, preco) -> (doc_ref, criado_em)
+            referencias_duplicadas_vigentes = []
             try:
                 for doc in db_conn.collection("ofertas").where(
                     "supermercado_id", "==", supermercado_id
@@ -1664,13 +1936,35 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                     if getattr(exp, "tzinfo", None) is not None:
                         exp = exp.replace(tzinfo=None)
                     if exp >= agora:
+                        if not v.get("produto_id") or v.get("preco") is None:
+                            continue
                         chave = (v.get("produto_id"), v.get("preco"))
                         ant = vigentes.get(chave)
-                        if ant is None or (v.get("criado_em") or agora) > (ant[1] or agora):
+                        criado = v.get("criado_em")
+                        timestamp_criado = criado.timestamp() if hasattr(criado, "timestamp") else 0
+                        timestamp_anterior = ant[1].timestamp() if ant and hasattr(ant[1], "timestamp") else 0
+                        if ant is None:
                             vigentes[chave] = (doc.reference, v.get("criado_em"))
+                        elif timestamp_criado > timestamp_anterior:
+                            referencias_duplicadas_vigentes.append(ant[0])
+                            vigentes[chave] = (doc.reference, criado)
+                        else:
+                            referencias_duplicadas_vigentes.append(doc.reference)
             except Exception as e_vig:
                 print(f"  ⚠️ Antiduplicação desativada nesta execução: {str(e_vig)[:80]}")
                 vigentes = {}
+                referencias_duplicadas_vigentes = []
+
+            # Se o banco já tiver cópias ativas exatas (mesmo produto, loja e
+            # preço), conserva a mais recente. A limpeza é limitada a essa
+            # chave inequívoca; variações de nome/tamanho continuam para revisão.
+            for inicio in range(0, len(referencias_duplicadas_vigentes), 400):
+                lote_limpeza = db_conn.batch()
+                for referencia in referencias_duplicadas_vigentes[inicio:inicio + 400]:
+                    lote_limpeza.delete(referencia)
+                lote_limpeza.commit()
+            if referencias_duplicadas_vigentes:
+                print(f"  🧹 Removidas {len(referencias_duplicadas_vigentes)} ofertas ativas duplicadas exatas de {supermercado_id}.")
 
             # Comparação entre queries: vigentes das lojas irmãs para reuso.
             vigentes_irmas = {}  # (produto_id, preco) -> (doc_ref, doc_dict)
@@ -1711,16 +2005,40 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                     # 3. Preparar IDs
                     unidade = item.get("unidade", "un")
                     produto_id = normalizar_nome(nome, unidade)
-                    produto_id = resolver_produto_id_com_sinonimo(db_conn, produto_id)
+                    produto_id = resolver_produto_id_com_sinonimo(db_conn, produto_id, nome, unidade, item.get("marca", ""))
                     
                     # --- OPERAÇÃO BATCH ---
                     ref_prod = db_conn.collection("produtos").document(produto_id)
-                    batch.set(ref_prod, {
-                        "nome": nome,
-                        "unidade": unidade,
-                        "categoria": categoria_item,
-                        "atualizado_em": datetime.now()
-                    }, merge=True)
+                    if produto_id not in produtos_cadastrados:
+                        produto_existente = ref_prod.get()
+                        dados_produto_existente = produto_existente.to_dict() if produto_existente.exists else {}
+                        produtos_cadastrados[produto_id] = {
+                            "imagem_url": (dados_produto_existente or {}).get("imagem_url", ""),
+                            "nome": (dados_produto_existente or {}).get("nome", ""),
+                            "unidade": (dados_produto_existente or {}).get("unidade", ""),
+                            "categoria": (dados_produto_existente or {}).get("categoria", ""),
+                            "existe": produto_existente.exists,
+                        }
+                    dados_produto = produtos_cadastrados[produto_id]
+                    imagem_cadastrada = dados_produto["imagem_url"]
+                    # Um rótulo variável do encarte não deve renomear o produto
+                    # mestre que já foi curado; preenche só campos ausentes.
+                    produto_nome = dados_produto["nome"] or nome
+                    campos_produto = {"atualizado_em": datetime.now()}
+                    if not dados_produto["nome"]:
+                        campos_produto["nome"] = nome
+                    if not dados_produto["unidade"]:
+                        campos_produto["unidade"] = unidade
+                    if not dados_produto["categoria"]:
+                        campos_produto["categoria"] = categoria_item
+                    batch.set(ref_prod, campos_produto, merge=True)
+                    if not dados_produto["existe"]:
+                        _registrar_produto_cache_similaridade(produto_id, {
+                            "nome": produto_nome,
+                            "unidade": unidade,
+                            "categoria": categoria_item,
+                            "imagem_url": imagem_cadastrada,
+                        })
 
                     # Referência da Oferta
                     hoje_str = datetime.now().strftime("%Y-%m-%d")
@@ -1730,14 +2048,25 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                     # Antiduplicação: mesmo produto+loja+preço ainda válido -> atualiza
                     # a oferta existente (renova expiração) em vez de empilhar novo doc.
                     chave_vigente = (produto_id, preco)
+                    # Encerra qualquer preço anterior do produto mesmo quando a
+                    # oferta do preço atual já existe. Antes, esse caso dava
+                    # continue no bloco abaixo e deixava os dois preços ativos.
+                    chaves_antigas = [k for k in vigentes if k[0] == produto_id and k[1] != preco]
+                    for k_ant in chaves_antigas:
+                        ref_ant, _ = vigentes.pop(k_ant)
+                        batch.set(ref_ant, {
+                            "expira_em": datetime.now() - timedelta(seconds=1),
+                        }, merge=True)
+
                     if chave_vigente in vigentes:
                         ref_existente, _ = vigentes[chave_vigente]
                         batch.set(ref_existente, {
-                            "produto_nome": nome,
+                            "produto_nome": produto_nome,
                             "unidade": unidade,
                             "categoria": categoria_item,
                             "metodo": "gemini_pdf_batch",
                             "expira_em": datetime.now() + timedelta(days=7),
+                            **({"imagem_url": imagem_cadastrada} if imagem_cadastrada else {}),
                         }, merge=True)
                         reaproveitadas += 1
                         salvos += 1
@@ -1755,8 +2084,9 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                             lojas_ids = lojas_ids + [supermercado_id]
                         batch.set(ref_irma, {
                             "supermercado_ids": lojas_ids,
-                            "produto_nome": nome,
+                            "produto_nome": produto_nome,
                             "expira_em": datetime.now() + timedelta(days=7),
+                            **({"imagem_url": imagem_cadastrada} if imagem_cadastrada else {}),
                         }, merge=True)
                         reaproveitadas += 1
                         salvos += 1
@@ -1765,19 +2095,11 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                             batch = db_conn.batch()
                         continue
 
-                    # Expiração de preço antigo: mesmo produto+loja com preço diferente
-                    # ainda válido é expirado para que só o preço atual apareça na vitrine.
-                    chaves_antigas = [k for k in vigentes if k[0] == produto_id and k[1] != preco]
-                    for k_ant in chaves_antigas:
-                        ref_ant, _ = vigentes.pop(k_ant)
-                        batch.set(ref_ant, {
-                            "expira_em": datetime.now() - timedelta(seconds=1),
-                        }, merge=True)
                     vigentes[chave_vigente] = (ref_oferta, datetime.now())
 
                     batch.set(ref_oferta, {
                         "produto_id": produto_id,
-                        "produto_nome": nome,
+                        "produto_nome": produto_nome,
                         "supermercado_id": supermercado_id,
                         "supermercado_ids": [supermercado_id],
                         "loja": loja_nome,
@@ -1786,7 +2108,8 @@ def extrair_dados_encarte(req: https_fn.Request) -> https_fn.Response:
                         "categoria": categoria_item,
                         "metodo": "gemini_pdf_batch",
                         "expira_em": datetime.now() + timedelta(days=7),
-                        "criado_em": datetime.now()
+                        "criado_em": datetime.now(),
+                        **({"imagem_url": imagem_cadastrada} if imagem_cadastrada else {}),
                     }, merge=True)
                     
                     salvos += 1
@@ -2036,7 +2359,10 @@ def extrair_dados_imagem(req: https_fn.Request) -> https_fn.Response:
                         imagem_url_crop = ""
                         if img_bytes_original:
                             temp_prod_id = normalizar_nome(item.get("produto", ""), item.get("unidade", "un"))
-                            imagem_url_crop = upload_imagem_cortada(img_bytes_original, box_2d, temp_prod_id)
+                            imagem_url_crop = upload_imagem_cortada(
+                                img_bytes_original, box_2d, temp_prod_id,
+                                item.get("produto", ""), item.get("unidade", "un"), item.get("marca", "")
+                            )
 
                         res = salvar_produto_e_oferta(
                             nome=item.get("produto", ""),
